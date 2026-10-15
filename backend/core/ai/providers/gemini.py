@@ -12,6 +12,7 @@ class GeminiProvider(BaseAIProvider):
     default_model = "gemini-3.5-flash"
     supported_models = ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite"]
     can_transcribe_audio = True
+    can_see_images = True
     context_chars = 600_000
 
     def _generate(self, contents: list, system: str, temperature: float) -> str:
@@ -32,4 +33,7 @@ class GeminiProvider(BaseAIProvider):
             types.Content(role="model" if m["role"] == "assistant" else "user", parts=[types.Part(text=m["content"])])
             for m in messages
         ]
+        images = kwargs.get("images") or []
+        if images and contents:
+            contents[-1].parts.extend(types.Part.from_bytes(data=data, mime_type=mime) for data, mime in images)
         return self._generate(contents, system, temperature)

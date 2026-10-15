@@ -117,6 +117,8 @@ export const ru = {
 
   // assistant
   'assistant.placeholder': 'Вопрос по источникам. Enter — отправить, Shift+Enter — перенос',
+  'assistant.attach': 'Прикрепить файлы (или перетащите, или вставьте)',
+  'assistant.dropFiles': 'Отпустите, чтобы прикрепить файлы',
   'assistant.empty': 'Задайте вопрос или выберите действие',
   'assistant.sources': 'Источники',
   'assistant.sourcesHint': 'Отмеченные уроки идут в контекст',

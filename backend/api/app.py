@@ -45,6 +45,10 @@ async def lifespan(app: FastAPI):
         logger.error("FFmpeg/FFprobe not found in PATH")
     imported = Library.import_untracked()
     migrated = migrate_all()
+    if owner:
+        from backend.services import attachments
+
+        attachments.cleanup_orphans(Library.referenced_attachments())
     logger.info("Library ready: %d imported, %d migrated, data=%s", imported, migrated, data.data_dir)
     yield
     if read_text(PID_FILE).strip() == str(os.getpid()):

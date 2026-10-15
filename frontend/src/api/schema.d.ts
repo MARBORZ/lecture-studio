@@ -414,6 +414,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/assistant/attachments/{filename}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Upload Attachment
+         * @description Raw streamed upload of any file; readable formats are converted to text for the model.
+         */
+        put: operations["upload_attachment_api_assistant_attachments__filename__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/assistant/attachments/{att_id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download Attachment */
+        get: operations["download_attachment_api_assistant_attachments__att_id__file_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/assistant/{kind}/{thread_id}": {
         parameters: {
             query?: never;
@@ -558,6 +595,37 @@ export interface components {
             sources?: string[] | null;
             /** Provider */
             provider?: ("deepseek" | "gemini") | null;
+            /** Attachments */
+            attachments?: string[];
+        };
+        /**
+         * Attachment
+         * @description A file attached to a chat message. `chars` = extracted text length; `note` explains limits.
+         */
+        Attachment: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Size */
+            size: number;
+            /** Mime */
+            mime: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "text" | "document" | "image" | "binary";
+            /**
+             * Chars
+             * @default 0
+             */
+            chars: number;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
         };
         /** AuditRequest */
         AuditRequest: {
@@ -594,6 +662,8 @@ export interface components {
             created_at?: string;
             /** Sources */
             sources?: string[];
+            /** Attachments */
+            attachments?: components["schemas"]["Attachment"][];
             /**
              * Assistant Role
              * @default qa
@@ -2282,6 +2352,68 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_attachment_api_assistant_attachments__filename__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                filename: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attachment"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_attachment_api_assistant_attachments__att_id__file_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                att_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

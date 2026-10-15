@@ -59,9 +59,13 @@ class BaseAIProvider(metaclass=AIMeta):
     def generate_text(self, prompt: str, system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
         """Single-turn completion."""
 
+    #: whether chat(images=...) is understood; providers without vision ignore images
+    can_see_images: bool = False
+
     @abstractmethod
     def chat(self, messages: List[Dict[str, str]], system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
-        """Multi-turn completion; messages are {'role': 'user'|'assistant', 'content': str}."""
+        """Multi-turn completion; messages are {'role': 'user'|'assistant', 'content': str}.
+        Optional kwarg images: list of (bytes, mime) attached to the last user message."""
 
     def generate_audit(
         self,

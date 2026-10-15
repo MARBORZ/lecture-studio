@@ -170,7 +170,7 @@ class SettingsService:
                 if check.has_library:
                     raise ValueError("В целевой папке уже есть библиотека — выберите «Подключить»")
                 target.mkdir(parents=True, exist_ok=True)
-                for name in (DB_FILENAME, "output"):
+                for name in (DB_FILENAME, "output", "diary", "attachments"):
                     src = source / name
                     if src.exists():
                         shutil.move(str(src), str(target / name))

@@ -290,5 +290,12 @@ class Library:
 
     @classmethod
     def clear_thread(cls, kind: ThreadKind, thread_id: str) -> None:
+        from backend.services import attachments
+
         with cls.tx() as db:
-            db["threads"].pop(cls._thread_key(kind, thread_id), None)
+            removed = db["threads"].pop(cls._thread_key(kind, thread_id), None) or []
+        attachments.delete(a["id"] for m in removed for a in m.get("attachments", []))
+
+    @classmethod
+    def referenced_attachments(cls) -> List[str]:
+        return [a["id"] for msgs in cls.read()["threads"].values() for m in msgs for a in m.get("attachments", [])]

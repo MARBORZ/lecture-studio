@@ -15,8 +15,9 @@ from backend.core.ai import prompts
 from backend.core.ai.base import strip_emoji
 from backend.core.timeline import normalize_timecodes
 from backend.core.transcription import compact_transcript
-from backend.models.assistant import AskRequest, ChatMessage, ThreadKind
+from backend.models.assistant import AskRequest, Attachment, ChatMessage, ThreadKind
 from backend.models.lesson import LessonFull
+from backend.services import attachments as attachment_store
 from backend.services.storage import Library
 from backend.settings import SettingsService
 
@@ -32,6 +33,27 @@ def _source_block(lesson: LessonFull, budget: int) -> str:
     audit_part = f"--- АУДИТ ---\n{audit[: budget // 3]}\n" if audit else ""
     rest = max(2000, budget - len(head) - len(audit_part))
     return f"{head}{audit_part}--- СТЕНОГРАММА ---\n{transcript[:rest]}\n"
+
+
+def _attachments_block(files: List[Attachment], vision: bool, budget: int) -> tuple[str, list]:
+    """Text of attached files for the prompt (+ images for vision models). Unreadable files are named, not hidden."""
+    if not files:
+        return "", []
+    parts, images = [], []
+    per_file = max(2000, budget // len(files))
+    for f in files:
+        head = f"### ФАЙЛ: {f.name} ({f.mime}, {f.size} байт)"
+        if f.kind == "image":
+            if vision:
+                images.append((attachment_store.image_bytes(f), f.mime))
+                parts.append(f"{head}\n[изображение приложено к сообщению]")
+            else:
+                parts.append(f"{head}\n[изображение: эта модель не видит изображения — скажи об этом, если вопрос о нём]")
+        elif f.chars:
+            parts.append(f"{head}\n{attachment_store.text(f)[:per_file]}")
+        else:
+            parts.append(f"{head}\n[содержимое не читается: доступны только имя и размер]")
+    return "ВЛОЖЕНИЯ ПОЛЬЗОВАТЕЛЯ:\n\n" + "\n\n".join(parts), images
 
 
 def _resolve_sources(kind: ThreadKind, thread_id: str, requested: Optional[List[str]]) -> List[LessonFull]:
@@ -68,23 +90,25 @@ def ask(kind: ThreadKind, thread_id: str, req: AskRequest) -> List[ChatMessage]:
     provider_name = req.provider or SettingsService.get().ai.assistant_provider
     provider = AI.get(provider_name)
 
-    budget = provider.context_chars // len(sources)
+    files = [a for a in (attachment_store.get(i) for i in req.attachments) if a]
+    files_block, images = _attachments_block(files, provider.can_see_images, provider.context_chars // 3)
+    budget = (provider.context_chars - len(files_block)) // len(sources)
     corpus = "\n\n".join(_source_block(s, budget) for s in sources)
     multi = kind == "project"
 
     history = Library.get_thread(kind, thread_id).messages[-HISTORY_TURNS * 2:]
     messages = [{"role": "user", "content": f"ИСТОЧНИКИ:\n\n{corpus}"}, {"role": "assistant", "content": "Источники приняты."}]
     messages += [{"role": m.role, "content": m.content} for m in history]
-    messages.append({"role": "user", "content": question})
+    messages.append({"role": "user", "content": f"{files_block}\n\nВОПРОС:\n{question}" if files_block else question})
 
-    answer = strip_emoji(provider.chat(messages, prompts.assistant_system(req.role, multi))).strip()
+    answer = strip_emoji(provider.chat(messages, prompts.assistant_system(req.role, multi), images=images)).strip()
     if multi:
         answer = _clean_citations(answer, sources)
     else:
         answer = normalize_timecodes(answer, sources[0].clean_duration_sec or None)
 
     source_ids = [s.id for s in sources]
-    user_msg = ChatMessage(id=uuid.uuid4().hex[:10], role="user", content=question, sources=source_ids, assistant_role=req.role)
+    user_msg = ChatMessage(id=uuid.uuid4().hex[:10], role="user", content=question, sources=source_ids, attachments=files, assistant_role=req.role)
     bot_msg = ChatMessage(
         id=uuid.uuid4().hex[:10], role="assistant", content=answer or "Пустой ответ",
         sources=source_ids, assistant_role=req.role, provider=provider_name, model=provider.model,

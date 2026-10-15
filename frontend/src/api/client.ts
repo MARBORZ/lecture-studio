@@ -1,5 +1,5 @@
 import type {
-  AIProvider, AskRequest, ChatMessage, DiaryCategory, DiaryEntry, ExportResult, Job, JobOptions, Lesson, LessonFull, LessonPatch, LessonStatus,
+  AIProvider, AskRequest, Attachment, ChatMessage, DiaryCategory, DiaryEntry, ExportResult, Job, JobOptions, Lesson, LessonFull, LessonPatch, LessonStatus,
   PathCheckResult, Project, PromptView, ProjectCreate, ProjectPatch, ProviderInfo, SettingsPatch, SettingsView, SystemStatus, Thread,
 } from './types'
 
@@ -41,9 +41,27 @@ const qs = (params: Record<string, string | undefined>) => {
   return p.size ? `?${p}` : ''
 }
 
-export interface UploadHandle {
-  promise: Promise<{ upload_id: string; size: number }>
+export interface UploadHandle<T> {
+  promise: Promise<T>
   abort: () => void
+}
+
+/** Raw streamed PUT of a file with progress (XHR: fetch has no upload progress). Shared by every upload. */
+function putFile<T>(url: string, file: File, onProgress: (fraction: number) => void): UploadHandle<T> {
+  const xhr = new XMLHttpRequest()
+  const promise = new Promise<T>((resolve, reject) => {
+    xhr.open('PUT', url)
+    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total)
+    xhr.onload = () => {
+      const body = JSON.parse(xhr.responseText || '{}')
+      if (xhr.status >= 400) reject(new ApiError(xhr.status, body?.detail))
+      else resolve(body as T)
+    }
+    xhr.onerror = () => reject(new ApiError(0, 'Сеть недоступна'))
+    xhr.onabort = () => reject(new ApiError(0, 'Загрузка отменена'))
+    xhr.send(file)
+  })
+  return { promise, abort: () => xhr.abort() }
 }
 
 export const api = {
@@ -83,23 +101,9 @@ export const api = {
   startJob: (options: Partial<JobOptions>, upload_id?: string) => request<Job>('POST', '/api/jobs', { options, upload_id }),
   cancelJob: (id: string) => request<{ ok: boolean }>('POST', `/api/jobs/${id}/cancel`),
 
-  /** Raw streamed PUT with progress (XHR: fetch has no upload progress). */
-  upload(file: File, onProgress: (fraction: number) => void): UploadHandle {
-    const xhr = new XMLHttpRequest()
-    const promise = new Promise<{ upload_id: string; size: number }>((resolve, reject) => {
-      xhr.open('PUT', `/api/uploads/${encodeURIComponent(file.name)}`)
-      xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total)
-      xhr.onload = () => {
-        const body = JSON.parse(xhr.responseText || '{}')
-        if (xhr.status >= 400) reject(new ApiError(xhr.status, body?.detail))
-        else resolve(body)
-      }
-      xhr.onerror = () => reject(new ApiError(0, 'Сеть недоступна'))
-      xhr.onabort = () => reject(new ApiError(0, 'Загрузка отменена'))
-      xhr.send(file)
-    })
-    return { promise, abort: () => xhr.abort() }
-  },
+  /** Media for processing (Studio). */
+  upload: (file: File, onProgress: (fraction: number) => void) =>
+    putFile<{ upload_id: string; size: number }>(`/api/uploads/${encodeURIComponent(file.name)}`, file, onProgress),
 
   /** SSE: full job list on every change. Returns unsubscribe. */
   subscribeJobs(onJobs: (jobs: Job[]) => void, onError?: () => void): () => void {
@@ -122,5 +126,8 @@ export const api = {
   // assistant
   thread: (kind: 'project' | 'lesson', id: string) => get<Thread>(`/api/assistant/${kind}/${id}`),
   ask: (kind: 'project' | 'lesson', id: string, req: AskRequest) => request<ChatMessage[]>('POST', `/api/assistant/${kind}/${id}`, req),
+  uploadAttachment: (file: File, onProgress: (fraction: number) => void) =>
+    putFile<Attachment>(`/api/assistant/attachments/${encodeURIComponent(file.name)}`, file, onProgress),
+  attachmentUrl: (id: string) => `/api/assistant/attachments/${id}/file`,
   clearThread: (kind: 'project' | 'lesson', id: string) => request<{ ok: boolean }>('DELETE', `/api/assistant/${kind}/${id}`),
 }

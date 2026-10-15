@@ -111,6 +111,8 @@ export const en: Record<TKey, string> = {
   'files.time_map': 'Cut map JSON',
 
   'assistant.placeholder': 'Ask about the sources. Enter to send, Shift+Enter for newline',
+  'assistant.attach': 'Attach files (or drop / paste them)',
+  'assistant.dropFiles': 'Drop to attach files',
   'assistant.empty': 'Ask a question or pick an action',
   'assistant.sources': 'Sources',
   'assistant.sourcesHint': 'Checked lessons go into context',

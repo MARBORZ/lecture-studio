@@ -1,7 +1,7 @@
-import { ArrowUp, NotebookPen, Trash2 } from 'lucide-react'
+import { ArrowUp, NotebookPen, Paperclip, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { api } from '@/api/client'
-import type { AIProvider, AssistantRole, ChatMessage } from '@/api/types'
+import type { AIProvider, AssistantRole, Attachment, ChatMessage } from '@/api/types'
 import { useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { Appear } from '@/components/motion'
@@ -11,6 +11,7 @@ import { MarkdownView } from '@/features/markdown/MarkdownView'
 import { KeyNotice } from '@/features/system/KeyNotice'
 import { cn } from '@/lib/cn'
 import { useResource } from '@/lib/useResource'
+import { AttachmentChip, useAttachments } from './attachments'
 
 const ROLES: Exclude<AssistantRole, 'qa'>[] = ['key_moments', 'pitfalls', 'code_summary', 'quiz', 'chapters']
 
@@ -26,6 +27,9 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: 'lesson'
   const [question, setQuestion] = useState('')
   const [pending, setPending] = useState<string | null>(null)
   const [provider, setProvider] = useState<AIProvider>(settings?.ai.assistant_provider ?? 'deepseek')
+  const files = useAttachments()
+  const [dragging, setDragging] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const messages = thread.data?.messages ?? []
 
@@ -34,12 +38,13 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: 'lesson'
   }, [messages.length, pending])
 
   async function ask(role: AssistantRole, text: string) {
-    if (pending) return
+    if (pending || files.uploading) return
     setPending(text || t(`assistant.role.${role as Exclude<AssistantRole, 'qa'>}`))
     setQuestion('')
     try {
-      const added = await api.ask(kind, id, { question: text, role, sources: kind === 'project' ? sources ?? null : null, provider })
+      const added = await api.ask(kind, id, { question: text, role, sources: kind === 'project' ? sources ?? null : null, provider, attachments: files.ids })
       thread.setData((prev) => ({ kind, id, messages: [...(prev?.messages ?? []), ...added] }))
+      files.clear()
     } catch (e) {
       toast((e as Error).message, 'error')
       setQuestion(text)
@@ -56,9 +61,29 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: 'lesson'
   }
 
   const noSources = kind === 'project' && sources?.length === 0
+  const canSend = (Boolean(question.trim()) || files.ids.length > 0) && !pending && !files.uploading
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div
+      className="relative flex min-h-0 flex-1 flex-col"
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes('Files')) return
+        e.preventDefault()
+        setDragging(true)
+      }}
+      onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDragging(false)}
+      onDrop={(e) => {
+        if (!e.dataTransfer.files.length) return
+        e.preventDefault()
+        setDragging(false)
+        files.add(e.dataTransfer.files)
+      }}
+    >
+      {dragging && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border border-dashed border-fg bg-bg/80 text-[13.5px] text-fg">
+          {t('assistant.dropFiles')}
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2 pb-3">
         {ROLES.map((r) => (
           <Button key={r} size="sm" variant="secondary" disabled={Boolean(pending) || noSources} onClick={() => ask(r, '')}>
@@ -90,7 +115,7 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: 'lesson'
           <p className="py-10 text-center text-[13px] text-muted">{t('assistant.empty')}</p>
         ) : (
           messages.map((msg) => (
-            <Appear key={msg.id}>
+            <Appear key={msg.id} className="flex flex-col gap-1.5">
               <Message message={msg} onSave={lessonId ? () => saveToNotes(msg) : undefined} saveLabel={t('assistant.toNotes')} />
             </Appear>
           ))
@@ -108,13 +133,38 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: 'lesson'
       </div>
 
       <form
-        className="mt-3 flex items-end gap-2 rounded-xl border border-line bg-surface p-2 focus-within:border-line-strong"
+        className="mt-3 flex flex-col gap-2 rounded-xl border border-line bg-surface p-2 focus-within:border-line-strong"
         onSubmit={(e) => {
           e.preventDefault()
-          if (question.trim()) void ask('qa', question.trim())
+          if (canSend) void ask('qa', question.trim())
         }}
       >
+        {files.items.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 px-1 pt-1">
+            {files.items.map((d) => (
+              <AttachmentChip key={d.key} draft={d} onRemove={() => files.remove(d.key)} />
+            ))}
+          </div>
+        )}
+        <div className="flex items-end gap-2">
+        <input
+          ref={fileInput}
+          type="file"
+          multiple
+          hidden
+          onChange={(e) => {
+            if (e.target.files) files.add(e.target.files)
+            e.target.value = ''
+          }}
+        />
+        <IconButton icon={Paperclip} size="sm" label={t('assistant.attach')} disabled={noSources} onClick={() => fileInput.current?.click()} className="mb-0.5" />
         <textarea
+          onPaste={(e) => {
+            if (e.clipboardData.files.length) {
+              e.preventDefault()
+              files.add(e.clipboardData.files)
+            }
+          }}
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => {
@@ -130,23 +180,33 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: 'lesson'
         />
         <button
           type="submit"
-          disabled={!question.trim() || Boolean(pending)}
+          disabled={!canSend}
           aria-label="Send"
           className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-fg text-bg disabled:opacity-30"
         >
           <Icon as={ArrowUp} size={16} />
         </button>
+        </div>
       </form>
     </div>
   )
 }
 
-function UserBubble({ text }: { text: string }) {
-  return <div className="ml-auto max-w-[85%] rounded-xl rounded-br-sm bg-raised px-3.5 py-2 text-[14px] whitespace-pre-wrap text-fg">{text}</div>
+function UserBubble({ text, attachments = [] }: { text: string; attachments?: Attachment[] }) {
+  return (
+    <div className="ml-auto flex max-w-[85%] flex-col items-end gap-1.5">
+      {attachments.length > 0 && (
+        <div className="flex flex-wrap justify-end gap-1.5">
+          {attachments.map((a) => <AttachmentChip key={a.id} attachment={a} />)}
+        </div>
+      )}
+      {text && <div className="rounded-xl rounded-br-sm bg-raised px-3.5 py-2 text-[14px] whitespace-pre-wrap text-fg">{text}</div>}
+    </div>
+  )
 }
 
 function Message({ message, onSave, saveLabel }: { message: ChatMessage; onSave?: () => void; saveLabel: string }) {
-  if (message.role === 'user') return <UserBubble text={message.content} />
+  if (message.role === 'user') return <UserBubble text={message.content} attachments={message.attachments ?? []} />
   return (
     <div className={cn('group rounded-xl border border-line p-4')}>
       <MarkdownView content={message.content} compact />
