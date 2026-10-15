@@ -5,6 +5,7 @@ Google Gemini provider (text). Audio transcription lives in core/transcription/g
 from typing import Any, Dict, List
 
 from backend.core.ai.base import BaseAIProvider
+from backend.core.ai.retry import with_retry
 
 
 class GeminiProvider(BaseAIProvider):
@@ -21,7 +22,7 @@ class GeminiProvider(BaseAIProvider):
 
         client = genai.Client(api_key=self.api_key)
         config = types.GenerateContentConfig(temperature=temperature, system_instruction=system or None)
-        return client.models.generate_content(model=self.model, contents=contents, config=config).text or ""
+        return with_retry(lambda: client.models.generate_content(model=self.model, contents=contents, config=config).text or "", "Gemini")
 
     def generate_text(self, prompt: str, system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
         return self._generate([prompt], system, temperature)
