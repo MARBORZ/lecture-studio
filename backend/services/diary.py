@@ -8,7 +8,6 @@ import shutil
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
 
 from backend.models.diary import DIARY_INBOX, DiaryCategory, DiaryEntry, DiaryEntryMeta
 from backend.settings import paths
@@ -23,7 +22,7 @@ class DiaryError(ValueError):
 
 
 def _root() -> Path:
-    root = paths().data_dir / "diary"
+    root = paths().diary
     (root / DIARY_INBOX).mkdir(parents=True, exist_ok=True)
     return root
 
@@ -70,7 +69,7 @@ def _created(p: Path) -> datetime:
         return datetime.fromtimestamp(p.stat().st_mtime)
 
 
-def _meta(p: Path, text: Optional[str] = None) -> DiaryEntryMeta:
+def _meta(p: Path, text: str | None = None) -> DiaryEntryMeta:
     text = read_text(p) if text is None else text
     title, excerpt = _title_and_excerpt(text)
     return DiaryEntryMeta(
@@ -99,7 +98,7 @@ def _unique_file(directory: Path, stem: str) -> Path:
 
 # ---------------- categories ----------------
 
-def list_categories() -> List[DiaryCategory]:
+def list_categories() -> list[DiaryCategory]:
     root = _root()
     cats = [DiaryCategory(name=d.name, count=sum(1 for _ in d.glob("*.md"))) for d in root.iterdir() if d.is_dir() and not d.name.startswith(".")]
     return sorted(cats, key=lambda c: (c.name != DIARY_INBOX, c.name.lower()))
@@ -143,7 +142,7 @@ def delete_category(name: str) -> int:
 
 # ---------------- entries ----------------
 
-def list_entries(category: Optional[str] = None, query: Optional[str] = None) -> List[DiaryEntry]:
+def list_entries(category: str | None = None, query: str | None = None) -> list[DiaryEntry]:
     dirs = [_category_dir(category)] if category else [d for d in _root().iterdir() if d.is_dir()]
     q = (query or "").strip().lower()
     out = []
@@ -168,7 +167,7 @@ def create_entry(category: str, text: str) -> DiaryEntry:
         return _full(p)
 
 
-def update_entry(entry_id: str, text: Optional[str] = None, category: Optional[str] = None) -> DiaryEntry:
+def update_entry(entry_id: str, text: str | None = None, category: str | None = None) -> DiaryEntry:
     with _lock:
         p = _entry_path(entry_id)
         if text is not None:

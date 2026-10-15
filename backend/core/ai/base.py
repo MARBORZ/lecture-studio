@@ -5,7 +5,8 @@ the audit algorithm (chunking, prompts, post-processing) lives here once.
 
 import re
 from abc import abstractmethod
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
 
 from backend.core.ai import prompts
 from backend.core.ai.meta import AIMeta
@@ -22,13 +23,13 @@ def strip_emoji(text: str) -> str:
     return re.sub(r"[ \t]{2,}", " ", _EMOJI_RE.sub("", text))
 
 
-def clean_output(text: str, duration: Optional[float], timed: bool = True) -> str:
+def clean_output(text: str, duration: float | None, timed: bool = True) -> str:
     text = strip_emoji(text).strip()
     text = re.sub(r"^```(?:markdown|md)?\s*\n(.*)\n```\s*$", r"\1", text, flags=re.S)  # unwrap fenced reply
     return normalize_timecodes(text, duration) if timed else text
 
 
-def split_lines(text: str, limit: int = CHUNK_CHARS) -> List[str]:
+def split_lines(text: str, limit: int = CHUNK_CHARS) -> list[str]:
     """Split on line boundaries into chunks of at most ~limit chars."""
     chunks, buf, size = [], [], 0
     for line in text.splitlines():
@@ -45,11 +46,11 @@ def split_lines(text: str, limit: int = CHUNK_CHARS) -> List[str]:
 class BaseAIProvider(metaclass=AIMeta):
     category: str = "base"
     default_model: str = ""
-    supported_models: List[str] = []
+    supported_models: list[str] = []
     can_transcribe_audio: bool = False
     context_chars: int = 90_000  # safe source budget for one request (chars, not tokens)
 
-    def __init__(self, api_key: str, model: Optional[str] = None):
+    def __init__(self, api_key: str, model: str | None = None):
         if not api_key:
             raise ValueError(f"Не задан API-ключ {self.category}. Укажите его в Настройках → ИИ.")
         self.api_key = api_key
@@ -63,16 +64,16 @@ class BaseAIProvider(metaclass=AIMeta):
     can_see_images: bool = False
 
     @abstractmethod
-    def chat(self, messages: List[Dict[str, str]], system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
+    def chat(self, messages: list[dict[str, str]], system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
         """Multi-turn completion; messages are {'role': 'user'|'assistant', 'content': str}.
         Optional kwarg images: list of (bytes, mime) attached to the last user message."""
 
     def generate_audit(
         self,
         transcript: str,
-        duration: Optional[float],
+        duration: float | None,
         timed: bool = True,
-        on_progress: Optional[Callable[[float, str], None]] = None,
+        on_progress: Callable[[float, str], None] | None = None,
     ) -> str:
         """Audit markdown from a compact '[MM:SS] text' transcript (clean timeline)."""
         report = on_progress or (lambda f, m: None)

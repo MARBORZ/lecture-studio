@@ -7,14 +7,15 @@ import logging
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from functools import lru_cache
-from pathlib import Path
-from typing import Any, Dict, List, Sequence, Tuple, Union
+from typing import Any
+
+from backend.utils.fs import PathLike
 
 logger = logging.getLogger(__name__)
 
-PathLike = Union[str, Path]
-Span = Tuple[float, float]
+Span = tuple[float, float]
 
 
 @lru_cache(maxsize=1)
@@ -27,18 +28,18 @@ def verify_ffmpeg() -> None:
         raise RuntimeError("FFmpeg/FFprobe не найдены в PATH. Установите: brew install ffmpeg")
 
 
-def run_ffmpeg(cmd: List[str], desc: str) -> None:
+def run_ffmpeg(cmd: list[str], desc: str) -> None:
     verify_ffmpeg()
     proc = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
     if proc.returncode != 0:
         raise RuntimeError(f"FFmpeg ({desc}): {(proc.stderr or '').strip()[-600:]}")
 
 
-def ffprobe_json(path: PathLike, *args: str) -> Dict[str, Any]:
+def ffprobe_json(path: PathLike, *args: str) -> dict[str, Any]:
     verify_ffmpeg()
     proc = subprocess.run(
         ["ffprobe", "-v", "error", "-of", "json", *args, str(path)],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        capture_output=True, text=True,
     )
     if proc.returncode != 0:
         raise RuntimeError(f"ffprobe: {proc.stderr.strip()[-300:]}")
@@ -62,8 +63,8 @@ class BaseMediaProcessor(ABC):
     """
 
     @staticmethod
-    def normalize_spans(spans: Sequence[Any], min_dur: float = 0.04) -> List[Span]:
-        out: List[Span] = []
+    def normalize_spans(spans: Sequence[Any], min_dur: float = 0.04) -> list[Span]:
+        out: list[Span] = []
         for s in spans:
             if isinstance(s, dict):
                 a, b = s.get("start", 0), s.get("end", 0)
@@ -79,5 +80,5 @@ class BaseMediaProcessor(ABC):
         return out
 
     @abstractmethod
-    def process(self, input_path: PathLike, output_path: PathLike, spans: Sequence[Any], **kwargs: Any) -> Dict[str, Any]:
+    def process(self, input_path: PathLike, output_path: PathLike, spans: Sequence[Any], **kwargs: Any) -> dict[str, Any]:
         """Cut input by spans into output; return stats."""

@@ -3,7 +3,6 @@ Silero VAD speech detection. Returns speech spans in seconds.
 """
 
 import logging
-from typing import List, Tuple
 
 import numpy as np
 import soundfile as sf
@@ -33,7 +32,7 @@ def detect_speech(
     threshold: float = 0.5,
     min_silence_ms: int = 800,
     speech_pad_ms: int = 250,
-) -> List[Tuple[float, float]]:
+) -> list[tuple[float, float]]:
     """16 kHz mono WAV -> [(start_sec, end_sec)] of speech."""
     from silero_vad import get_speech_timestamps
 

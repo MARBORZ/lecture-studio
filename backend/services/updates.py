@@ -20,7 +20,6 @@ import sys
 import threading
 import time
 import urllib.request
-from typing import List, Optional, Tuple
 
 from backend import config
 from backend.models.system import UpdateBlock, UpdateInfo, UpdateOutcome
@@ -34,8 +33,8 @@ MAX_CHANGES = 40
 _TAG = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
 
 _lock = threading.Lock()
-_cache: Optional[UpdateInfo] = None
-_last: Optional[UpdateOutcome] = None
+_cache: UpdateInfo | None = None
+_last: UpdateOutcome | None = None
 
 
 class UpdateError(Exception):
@@ -44,7 +43,7 @@ class UpdateError(Exception):
         self.code = code
 
 
-def parse_version(tag: str) -> Optional[Tuple[int, int, int]]:
+def parse_version(tag: str) -> tuple[int, int, int] | None:
     m = _TAG.match(tag.strip())
     return (int(m[1]), int(m[2]), int(m[3])) if m else None
 
@@ -68,7 +67,7 @@ def is_git_install() -> bool:
 # ---------------------------------------------------------------- check
 
 
-def _newest_tag() -> Optional[str]:
+def _newest_tag() -> str | None:
     tags = [t for t in _git("tag", "-l", "v*").split() if parse_version(t)]
     return max(tags, key=parse_version) if tags else None
 
@@ -88,7 +87,7 @@ def _check_git() -> UpdateInfo:
     return info
 
 
-def _release_notes(tag: str) -> List[str]:
+def _release_notes(tag: str) -> list[str]:
     """Annotated tag body (curated notes, one "- item" per line); a lightweight tag falls back to commit subjects."""
     if _git("cat-file", "-t", tag).strip() == "tag":
         body = _git("tag", "-l", "--format=%(contents:body)", tag)
@@ -99,7 +98,7 @@ def _release_notes(tag: str) -> List[str]:
     return [line for line in log.splitlines() if line.strip()]
 
 
-def _block_reason(tag: str) -> Optional[UpdateBlock]:
+def _block_reason(tag: str) -> UpdateBlock | None:
     if sys.platform not in ("darwin", "win32"):
         return "platform"
     if _git("status", "--porcelain", "--untracked-files=no").strip():

@@ -172,7 +172,7 @@ function FloatingWindow({ onPip }: { onPip: () => void }) {
       exit="exit"
       style={fullscreen ? undefined : { left: geom.x, top: geom.y, width: geom.w }}
       className={cn(
-        'fixed z-40 flex flex-col overflow-hidden border border-line-strong bg-surface shadow-[0_24px_80px_rgba(0,0,0,0.7)]',
+        'fixed z-40 flex flex-col overflow-hidden border border-line-strong bg-surface shadow-float',
         fullscreen ? 'inset-0 rounded-none' : 'rounded-2xl',
       )}
     >

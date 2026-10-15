@@ -12,7 +12,6 @@ orig -> clean through time_map; the untouched audit is kept as lesson_audit.orig
 
 import logging
 from pathlib import Path
-from typing import List
 
 from backend.core.timeline import TimeMap, parse_srt, rewrite_timecodes
 from backend.core.transcription import write_transcripts
@@ -24,7 +23,7 @@ from backend.utils.fs import copy_file, read_json, read_text, write_text
 logger = logging.getLogger(__name__)
 
 
-def _segments_from_legacy(lesson_dir: Path, tm: TimeMap) -> List[Segment]:
+def _segments_from_legacy(lesson_dir: Path, tm: TimeMap) -> list[Segment]:
     orig_srt = read_text(lesson_dir / Artifacts.ORIG_SRT)
     if orig_srt.strip():
         return [

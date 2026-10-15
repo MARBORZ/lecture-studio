@@ -2,30 +2,28 @@
 AI facade: resolves provider + key + model from settings in one place.
 """
 
-from typing import Dict, List, Optional
 
 from pydantic import BaseModel
-
-from backend.core.ai.base import BaseAIProvider
-from backend.core.ai.meta import AIMeta
-from backend.settings import SettingsService
 
 # Import providers so AIMeta registers them.
 import backend.core.ai.providers.deepseek  # noqa: F401,E402
 import backend.core.ai.providers.gemini  # noqa: F401,E402
+from backend.core.ai.base import BaseAIProvider
+from backend.core.ai.meta import AIMeta
+from backend.settings import SettingsService
 
 
 class ProviderInfo(BaseModel):
     category: str
     default_model: str
-    supported_models: List[str]
+    supported_models: list[str]
     can_transcribe_audio: bool
     configured: bool
 
 
 class AI:
     @staticmethod
-    def get(category: str, model: Optional[str] = None, api_key: Optional[str] = None) -> BaseAIProvider:
+    def get(category: str, model: str | None = None, api_key: str | None = None) -> BaseAIProvider:
         cls = AIMeta.get_provider_class(category)
         if not cls:
             raise ValueError(f"Неизвестный провайдер ИИ: {category}. Доступны: {AIMeta.list_categories()}")
@@ -34,7 +32,7 @@ class AI:
         return cls(api_key=api_key or SettingsService.api_key(category), model=model)
 
     @staticmethod
-    def providers() -> Dict[str, ProviderInfo]:
+    def providers() -> dict[str, ProviderInfo]:
         return {
             cat: ProviderInfo(
                 category=cat,

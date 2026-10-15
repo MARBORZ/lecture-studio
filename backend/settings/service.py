@@ -10,7 +10,6 @@ import shutil
 import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from backend.config import APP_HOME, DEFAULT_DATA_DIR, LOGS_DIR, SETTINGS_FILE
 from backend.settings.schema import (
@@ -47,6 +46,18 @@ class Paths:
     def temp(self) -> Path:
         return self.data_dir / "temp"
 
+    @property
+    def diary(self) -> Path:
+        return self.data_dir / "diary"
+
+    @property
+    def attachments(self) -> Path:
+        return self.data_dir / "attachments"
+
+    def movable(self) -> list[Path]:
+        """What "move the library" carries to a new data folder (temp is dropped)."""
+        return [self.db, self.output, self.diary, self.attachments]
+
     def lesson_dir(self, job_id: str) -> Path:
         return self.output / job_id
 
@@ -58,7 +69,7 @@ class Paths:
 
 class SettingsService:
     _lock = threading.RLock()
-    _cache: Optional[AppSettings] = None
+    _cache: AppSettings | None = None
     _cache_mtime: float = -1.0
 
     # ---------- load / save ----------
@@ -120,7 +131,7 @@ class SettingsService:
             return current
 
     @classmethod
-    def set_prompt(cls, key: str, value: Optional[str]) -> AppSettings:
+    def set_prompt(cls, key: str, value: str | None) -> AppSettings:
         """Store an override for an editable prompt block; None/blank resets it to the default."""
         with cls._lock:
             current = cls.get().model_copy(deep=True)
@@ -170,11 +181,10 @@ class SettingsService:
                 if check.has_library:
                     raise ValueError("В целевой папке уже есть библиотека — выберите «Подключить»")
                 target.mkdir(parents=True, exist_ok=True)
-                for name in (DB_FILENAME, "output", "diary", "attachments"):
-                    src = source / name
+                for src in Paths(source).movable():
                     if src.exists():
-                        shutil.move(str(src), str(target / name))
-                shutil.rmtree(source / "temp", ignore_errors=True)
+                        shutil.move(str(src), str(target / src.name))
+                shutil.rmtree(Paths(source).temp, ignore_errors=True)
 
             current = cls.get().model_copy(deep=True)
             current.data_dir = str(target)

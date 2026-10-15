@@ -2,7 +2,7 @@
 Lessons (= notebook sources): metadata, media streaming, downloads, export, audit regeneration.
 """
 
-from typing import List, Literal, Optional
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
@@ -26,8 +26,8 @@ def _lesson(lesson_id: str) -> Lesson:
     return lesson
 
 
-@router.get("", response_model=List[Lesson])
-def list_lessons(project_id: Optional[str] = None, status: Optional[LessonStatus] = None, search: Optional[str] = None) -> List[Lesson]:
+@router.get("", response_model=list[Lesson])
+def list_lessons(project_id: str | None = None, status: LessonStatus | None = None, search: str | None = None) -> list[Lesson]:
     return Library.list_lessons(project_id, status, search)
 
 
@@ -83,11 +83,11 @@ def export(lesson_id: str, req: ExportRequest) -> ExportResult:
     try:
         return export_lesson(lesson_id, req.target_dir, req.title)
     except (ValueError, FileNotFoundError, OSError) as e:
-        raise HTTPException(400, detail=str(e))
+        raise HTTPException(400, detail=str(e)) from e
 
 
 class AuditRequest(BaseModel):
-    provider: Optional[AIProviderName] = None
+    provider: AIProviderName | None = None
     audit_mode: AuditMode = "srt_timecodes"
 
 

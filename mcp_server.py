@@ -7,7 +7,7 @@ All timecodes are on the CLEAN timeline (the one clean_video.mp4 / clean_speech.
 
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -25,24 +25,24 @@ from backend.utils.fs import read_json, write_text  # noqa: E402
 mcp = MCPServer("lecture-studio", instructions="Local lecture library. All timecodes are [MM:SS] on the clean timeline.")
 
 
-def _not_found(lesson_id: str) -> Dict[str, Any]:
+def _not_found(lesson_id: str) -> dict[str, Any]:
     return {"error": f"Урок '{lesson_id}' не найден"}
 
 
 @mcp.tool()
-def lecture_list_projects() -> List[Dict[str, Any]]:
+def lecture_list_projects() -> list[dict[str, Any]]:
     """List notebooks (courses) with lesson counts."""
     return [p.model_dump() for p in Library.list_projects()]
 
 
 @mcp.tool()
-def lecture_list_lessons(project_id: Optional[str] = None, status: Optional[str] = None, search: Optional[str] = None) -> List[Dict[str, Any]]:
+def lecture_list_lessons(project_id: str | None = None, status: str | None = None, search: str | None = None) -> list[dict[str, Any]]:
     """List lessons. status: in_progress | to_review | completed. search: title/notes/tags substring."""
     return [l.model_dump() for l in Library.list_lessons(project_id, status, search)]
 
 
 @mcp.tool()
-def lecture_get_lesson_material(lesson_id: str) -> Dict[str, Any]:
+def lecture_get_lesson_material(lesson_id: str) -> dict[str, Any]:
     """
     Full lesson package: lesson_audit_md, segments (clean+orig times), clean_timestamps_text ([MM:SS] lines),
     orig_timestamps_text, srt_text (clean SRT), plain_text, time_map.
@@ -51,7 +51,7 @@ def lecture_get_lesson_material(lesson_id: str) -> Dict[str, Any]:
     return lesson.model_dump() if lesson else _not_found(lesson_id)
 
 
-def _track(lesson_id: str, artifact: str, key: str) -> Dict[str, Any]:
+def _track(lesson_id: str, artifact: str, key: str) -> dict[str, Any]:
     lesson = Library.get_lesson(lesson_id)
     if not lesson:
         return _not_found(lesson_id)
@@ -69,19 +69,19 @@ def _track(lesson_id: str, artifact: str, key: str) -> Dict[str, Any]:
 
 
 @mcp.tool()
-def lecture_get_clean_audio_track(lesson_id: str) -> Dict[str, Any]:
+def lecture_get_clean_audio_track(lesson_id: str) -> dict[str, Any]:
     """Absolute path to clean_speech.mp3 (silence removed by Silero VAD) + durations."""
     return _track(lesson_id, Artifacts.AUDIO, "audio_path")
 
 
 @mcp.tool()
-def lecture_get_clean_video_track(lesson_id: str) -> Dict[str, Any]:
+def lecture_get_clean_video_track(lesson_id: str) -> dict[str, Any]:
     """Absolute path to clean_video.mp4 (jump-cut, H.264 CRF) + durations."""
     return _track(lesson_id, Artifacts.VIDEO, "video_path")
 
 
 @mcp.tool()
-def lecture_search_transcripts(query: str, project_id: Optional[str] = None) -> List[Dict[str, Any]]:
+def lecture_search_transcripts(query: str, project_id: str | None = None) -> list[dict[str, Any]]:
     """Case-insensitive search across transcripts. Returns '[MM:SS] line' matches per lesson."""
     q = query.lower().strip()
     results = []
@@ -95,7 +95,7 @@ def lecture_search_transcripts(query: str, project_id: Optional[str] = None) -> 
 
 
 @mcp.tool()
-def lecture_save_audit_markdown(lesson_id: str, audit_markdown: str) -> Dict[str, Any]:
+def lecture_save_audit_markdown(lesson_id: str, audit_markdown: str) -> dict[str, Any]:
     """Save/replace the lesson audit. Timecodes must be [MM:SS] on the clean timeline; out-of-range ones are dropped."""
     lesson = Library.get_lesson(lesson_id)
     if not lesson:
@@ -108,19 +108,19 @@ def lecture_save_audit_markdown(lesson_id: str, audit_markdown: str) -> Dict[str
 @mcp.tool()
 def lecture_update_lesson(
     lesson_id: str,
-    title: Optional[str] = None,
-    project_id: Optional[str] = None,
-    notes: Optional[str] = None,
-    status: Optional[Literal["in_progress", "to_review", "completed"]] = None,
-    tags: Optional[str] = None,
-) -> Dict[str, Any]:
+    title: str | None = None,
+    project_id: str | None = None,
+    notes: str | None = None,
+    status: Literal["in_progress", "to_review", "completed"] | None = None,
+    tags: str | None = None,
+) -> dict[str, Any]:
     """Partial metadata update. Omitted fields are left unchanged."""
     lesson = Library.patch_lesson(lesson_id, LessonPatch(title=title, project_id=project_id, notes=notes, status=status, tags=tags))
     return {"status": "ok", "lesson": lesson.model_dump()} if lesson else _not_found(lesson_id)
 
 
 @mcp.tool()
-def lecture_export_to_local_folder(lesson_id: str, target_dir: Optional[str] = None) -> Dict[str, Any]:
+def lecture_export_to_local_folder(lesson_id: str, target_dir: str | None = None) -> dict[str, Any]:
     """Export to audio/ compressed/ content/ srt/ txt/ + <Title>.md. target_dir defaults to Settings → export folder."""
     try:
         return export_lesson(lesson_id, target_dir).model_dump()
@@ -131,12 +131,12 @@ def lecture_export_to_local_folder(lesson_id: str, target_dir: Optional[str] = N
 @mcp.tool()
 def lecture_apply_agent_transcription(
     lesson_id: str,
-    srt_content: Optional[str] = None,
+    srt_content: str | None = None,
     srt_timeline: Literal["clean", "orig"] = "clean",
-    plain_text: Optional[str] = None,
-    audit_markdown: Optional[str] = None,
-    target_export_folder: Optional[str] = None,
-) -> Dict[str, Any]:
+    plain_text: str | None = None,
+    audit_markdown: str | None = None,
+    target_export_folder: str | None = None,
+) -> dict[str, Any]:
     """
     Apply an agent-made transcription and/or audit, then optionally export.
     srt_content is converted into segments.json and all transcript files are regenerated;

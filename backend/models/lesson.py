@@ -3,7 +3,7 @@ Lesson (= NotebookLM source) schemas.
 """
 
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -11,6 +11,16 @@ from backend.models.project import INBOX_ID
 from backend.models.transcript import Segment
 
 LessonStatus = Literal["in_progress", "to_review", "completed"]
+
+BOOKMARK_LABEL_MAX = 20
+
+
+class Bookmark(BaseModel):
+    """A user's own mark on the clean timeline."""
+
+    id: str = Field(min_length=1, max_length=32)
+    t: float = Field(ge=0)
+    label: str = Field(default="", max_length=BOOKMARK_LABEL_MAX)
 
 SCHEMA_VERSION = 3  # internal lesson-data format number, not the app version
 
@@ -31,6 +41,7 @@ class Lesson(BaseModel):
     has_audit: bool = False
     has_video: bool = False
     schema_version: int = 0
+    bookmarks: list[Bookmark] = Field(default_factory=list)
 
 
 class TimeMapEntry(BaseModel):
@@ -42,32 +53,33 @@ class TimeMapEntry(BaseModel):
 
 
 class LessonFull(Lesson):
-    segments: List[Segment] = Field(default_factory=list)
-    time_map: List[TimeMapEntry] = Field(default_factory=list)
+    segments: list[Segment] = Field(default_factory=list)
+    time_map: list[TimeMapEntry] = Field(default_factory=list)
     lesson_audit_md: str = ""
     plain_text: str = ""
     clean_timestamps_text: str = ""
     orig_timestamps_text: str = ""
     srt_text: str = ""
-    audio_url: Optional[str] = None
-    video_url: Optional[str] = None
+    audio_url: str | None = None
+    video_url: str | None = None
 
 
 class LessonPatch(BaseModel):
-    title: Optional[str] = Field(default=None, min_length=1, max_length=200)
-    notes: Optional[str] = None
-    status: Optional[LessonStatus] = None
-    project_id: Optional[str] = None
-    tags: Optional[str] = None
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    notes: str | None = None
+    status: LessonStatus | None = None
+    project_id: str | None = None
+    tags: str | None = None
+    bookmarks: list[Bookmark] | None = None  # the full list (replaces)
 
 
 class ExportRequest(BaseModel):
-    target_dir: Optional[str] = None  # None -> settings.export_dir
-    title: Optional[str] = None
+    target_dir: str | None = None  # None -> settings.export_dir
+    title: str | None = None
 
 
 class ExportResult(BaseModel):
     target_dir: str
     title: str
     count: int
-    files: List[str]
+    files: list[str]

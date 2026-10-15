@@ -5,7 +5,6 @@ Export a lesson into a local folder (Obsidian vault layout):
 
 import logging
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 from backend.models.lesson import ExportResult
 from backend.services.jobs import JobRegistry
@@ -16,7 +15,7 @@ from backend.utils.fs import copy_file, ensure_dir, sanitize_filename, to_path
 logger = logging.getLogger(__name__)
 
 # (artifact, subfolder, name template)
-EXPORT_RULES: List[Tuple[str, str, str]] = [
+EXPORT_RULES: list[tuple[str, str, str]] = [
     (Artifacts.AUDIO, "compressed", "{title}.mp3"),
     (Artifacts.VIDEO, "compressed", "{title}.mp4"),
     (Artifacts.TIME_MAP, "compressed", "{title}_time_map.json"),
@@ -35,9 +34,9 @@ FOLDERS = ("audio", "compressed", "content", "srt", "txt")
 
 def export_lesson(
     lesson_id: str,
-    target_dir: Optional[str] = None,
-    title: Optional[str] = None,
-    raw_wav: Optional[Path] = None,
+    target_dir: str | None = None,
+    title: str | None = None,
+    raw_wav: Path | None = None,
 ) -> ExportResult:
     lesson = Library.get_lesson(lesson_id)
     if not lesson:

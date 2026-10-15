@@ -24,10 +24,23 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = [
+    "pytest>=8",
+    "ruff>=0.17.0",
+]
 
 [tool.uv]
 package = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 160
+target-version = "py312"
+extend-exclude = ["frontend", "workspace"]
+
+[tool.ruff.lint]
+# errors, pyflakes, warnings, import order, likely bugs, modern syntax
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E741", "B008"]  # short names like l in comprehensions; FastAPI's Query() defaults

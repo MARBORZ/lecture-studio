@@ -3,7 +3,8 @@ Local Faster-Whisper engine. Returns phrases on the clean timeline.
 """
 
 import logging
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ try:
 except ImportError:
     pass
 
-_models: Dict[str, Any] = {}
+_models: dict[str, Any] = {}
 
 
 def _model(size: str):
@@ -42,16 +43,16 @@ def transcribe(
     language: str = "auto",
     vocabulary: str = "",
     check_cancelled: Callable[[], None] = lambda: None,
-    on_progress: Optional[Callable[[float], None]] = None,
-) -> List[dict]:
-    kwargs: Dict[str, Any] = {"beam_size": 5, "vad_filter": False}  # Silero already removed silence
+    on_progress: Callable[[float], None] | None = None,
+) -> list[dict]:
+    kwargs: dict[str, Any] = {"beam_size": 5, "vad_filter": False}  # Silero already removed silence
     if language and language != "auto":
         kwargs["language"] = language
     if vocabulary.strip():
         kwargs["initial_prompt"] = vocabulary.strip()
 
     segments, _info = _model(model_size).transcribe(audio_path, **kwargs)
-    out: List[dict] = []
+    out: list[dict] = []
     for seg in segments:
         check_cancelled()
         out.append({"clean_start": seg.start, "clean_end": seg.end, "text": seg.text})

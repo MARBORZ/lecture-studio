@@ -1,11 +1,21 @@
 /**
  * Motion building blocks. Screens use these instead of raw motion props, so animation stays consistent and DRY.
  */
-import { AnimatePresence, m, type HTMLMotionProps } from 'motion/react'
+import { AnimatePresence, domMax, LazyMotion, m, MotionConfig, type HTMLMotionProps } from 'motion/react'
+import type { ReactNode } from 'react'
 import { useLocation, useOutlet } from 'react-router'
 import { fadeUp, fadeUpFlow, itemDelay, spring } from '@/lib/motion'
 
 export { AnimatePresence, m }
+
+/** The one motion setup for the app: lazy feature bundle (layout animations included), OS reduced-motion respected. */
+export function MotionRoot({ children }: { children: ReactNode }) {
+  return (
+    <LazyMotion features={domMax} strict>
+      <MotionConfig reducedMotion="user">{children}</MotionConfig>
+    </LazyMotion>
+  )
+}
 
 /** Fade-up on mount (and on key change). */
 export function Appear({ delay = 0, ...props }: HTMLMotionProps<'div'> & { delay?: number }) {

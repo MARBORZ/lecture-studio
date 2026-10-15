@@ -2,17 +2,16 @@
 Assistant threads: /api/assistant/{project|lesson}/{id}
 """
 
-from typing import List
 
 import aiofiles
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 
-from backend.models.assistant import AskRequest, Attachment, ChatMessage, Thread, ThreadKind
-from backend.services import assistant, attachments
+from backend.models.assistant import AskRequest, Attachment, CompactRequest, SessionInfo, SessionPatch, Thread, ThreadKind
+from backend.services import assistant, attachments, chats
 from backend.services.jobs import JobRegistry
-from backend.services.storage import Library
+from backend.settings.schema import AIProviderName
 from backend.utils.fs import remove_dir
 
 router = APIRouter(prefix="/api/assistant", tags=["assistant"])
@@ -47,30 +46,89 @@ def download_attachment(att_id: str) -> FileResponse:
     try:
         att = attachments.get(att_id)
     except ValueError as e:
-        raise HTTPException(400, detail=str(e))
+        raise HTTPException(400, detail=str(e)) from e
     if not att or not attachments.file_path(att).is_file():
         raise HTTPException(404, detail="Вложение не найдено")
     return FileResponse(attachments.file_path(att), media_type=att.mime, filename=att.name)
 
 
-@router.get("/{kind}/{thread_id}", response_model=Thread)
-def get_thread(kind: ThreadKind, thread_id: str) -> Thread:
-    return Library.get_thread(kind, thread_id)
+# ---------------------------------------------------------------- threads and sessions
+# Reads take the same view parameters as a question (provider, selected sources), so the context meter is exact.
 
 
-@router.post("/{kind}/{thread_id}", response_model=List[ChatMessage])
-async def ask(kind: ThreadKind, thread_id: str, req: AskRequest) -> List[ChatMessage]:
+def _call(fn, *args, **kwargs):
     try:
-        return await run_in_threadpool(assistant.ask, kind, thread_id, req)
+        return fn(*args, **kwargs)
     except LookupError as e:
-        raise HTTPException(404, detail=str(e))
+        raise HTTPException(404, detail=str(e)) from e
     except ValueError as e:
-        raise HTTPException(400, detail=str(e))
+        raise HTTPException(400, detail=str(e)) from e
+
+
+@router.get("/{kind}/{thread_id}", response_model=Thread)
+def get_thread(
+    kind: ThreadKind,
+    thread_id: str,
+    session: str | None = None,
+    provider: AIProviderName | None = None,
+    sources: list[str] | None = Query(default=None),
+) -> Thread:
+    return _call(assistant.thread, kind, thread_id, session, provider, sources)
+
+
+@router.post("/{kind}/{thread_id}", response_model=Thread)
+async def ask(kind: ThreadKind, thread_id: str, req: AskRequest) -> Thread:
+    try:
+        return await run_in_threadpool(_call, assistant.ask, kind, thread_id, req)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(502, detail=f"Ошибка ИИ: {e}")
+        raise HTTPException(502, detail=f"Ошибка ИИ: {e}") from e
 
 
 @router.delete("/{kind}/{thread_id}")
-def clear_thread(kind: ThreadKind, thread_id: str) -> dict:
-    Library.clear_thread(kind, thread_id)
+def delete_thread(kind: ThreadKind, thread_id: str) -> dict:
+    """Every session of the thread, with their files."""
+    chats.delete_all(kind, thread_id)
+    return {"ok": True}
+
+
+@router.post("/{kind}/{thread_id}/sessions", response_model=SessionInfo)
+def new_session(kind: ThreadKind, thread_id: str) -> SessionInfo:
+    s = chats.create(kind, thread_id)
+    return SessionInfo(id=s.id, title=s.title, created_at=s.created_at, updated_at=s.updated_at, messages=len(s.messages))
+
+
+@router.put("/{kind}/{thread_id}/sessions/{session_id}/active")
+def activate_session(kind: ThreadKind, thread_id: str, session_id: str) -> dict:
+    _call(chats.activate, kind, thread_id, session_id)
+    return {"ok": True}
+
+
+@router.patch("/{kind}/{thread_id}/sessions/{session_id}")
+def patch_session(kind: ThreadKind, thread_id: str, session_id: str, change: SessionPatch) -> dict:
+    _call(chats.patch, kind, thread_id, session_id, change)
+    return {"ok": True}
+
+
+@router.post("/{kind}/{thread_id}/sessions/{session_id}/clear")
+def clear_session(kind: ThreadKind, thread_id: str, session_id: str) -> dict:
+    """History, summary and files of one session: the model starts from the sources only."""
+    _call(chats.clear, kind, thread_id, session_id)
+    return {"ok": True}
+
+
+@router.post("/{kind}/{thread_id}/sessions/{session_id}/compact", response_model=Thread)
+async def compact_session(kind: ThreadKind, thread_id: str, session_id: str, req: CompactRequest) -> Thread:
+    try:
+        return await run_in_threadpool(_call, assistant.compact, kind, thread_id, session_id, req.provider, req.sources)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(502, detail=f"Ошибка ИИ: {e}") from e
+
+
+@router.delete("/{kind}/{thread_id}/sessions/{session_id}")
+def delete_session(kind: ThreadKind, thread_id: str, session_id: str) -> dict:
+    _call(chats.delete, kind, thread_id, session_id)
     return {"ok": True}

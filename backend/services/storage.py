@@ -8,12 +8,12 @@ API handlers and the MCP server (separate process; atomic file replace) never in
 
 import threading
 import uuid
+from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any
 
-from backend.models.assistant import ChatMessage, Thread, ThreadKind
 from backend.models.lesson import Lesson, LessonFull, LessonPatch
 from backend.models.project import INBOX_ID, Project, ProjectCreate, ProjectPatch
 from backend.models.transcript import Segment
@@ -55,7 +55,7 @@ def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
-def _empty_db() -> Dict[str, Any]:
+def _empty_db() -> dict[str, Any]:
     return {
         "projects": [{"id": INBOX_ID, "name": "Входящие", "description": "Неразобранные записи", "created_at": _now()}],
         "lessons": [],
@@ -69,7 +69,7 @@ class Library:
     # ---------------- low level ----------------
 
     @classmethod
-    def _load(cls) -> Dict[str, Any]:
+    def _load(cls) -> dict[str, Any]:
         db = read_json(paths().db, default=None)
         if not isinstance(db, dict):
             db = _empty_db()
@@ -83,7 +83,7 @@ class Library:
 
     @classmethod
     @contextmanager
-    def tx(cls) -> Iterator[Dict[str, Any]]:
+    def tx(cls) -> Iterator[dict[str, Any]]:
         """Locked read-modify-write transaction."""
         with cls._lock:
             db = cls._load()
@@ -91,28 +91,28 @@ class Library:
             write_json(paths().db, db)
 
     @classmethod
-    def read(cls) -> Dict[str, Any]:
+    def read(cls) -> dict[str, Any]:
         with cls._lock:
             return cls._load()
 
     @staticmethod
-    def lesson_dir(lesson: Lesson | Dict[str, Any]) -> Path:
+    def lesson_dir(lesson: Lesson | dict[str, Any]) -> Path:
         job_id = lesson.job_id if isinstance(lesson, Lesson) else lesson["job_id"]
         return paths().lesson_dir(job_id)
 
     # ---------------- projects ----------------
 
     @classmethod
-    def list_projects(cls) -> List[Project]:
+    def list_projects(cls) -> list[Project]:
         db = cls.read()
-        counts: Dict[str, int] = {}
+        counts: dict[str, int] = {}
         for l in db["lessons"]:
             pid = l.get("project_id", INBOX_ID)
             counts[pid] = counts.get(pid, 0) + 1
         return [Project(**{**p, "lesson_count": counts.get(p["id"], 0)}) for p in db["projects"]]
 
     @classmethod
-    def get_project(cls, project_id: str) -> Optional[Project]:
+    def get_project(cls, project_id: str) -> Project | None:
         return next((p for p in cls.list_projects() if p.id == project_id), None)
 
     @classmethod
@@ -123,7 +123,7 @@ class Library:
         return project
 
     @classmethod
-    def patch_project(cls, project_id: str, patch: ProjectPatch) -> Optional[Project]:
+    def patch_project(cls, project_id: str, patch: ProjectPatch) -> Project | None:
         with cls.tx() as db:
             for p in db["projects"]:
                 if p["id"] == project_id:
@@ -153,10 +153,10 @@ class Library:
     @classmethod
     def list_lessons(
         cls,
-        project_id: Optional[str] = None,
-        status: Optional[str] = None,
-        search: Optional[str] = None,
-    ) -> List[Lesson]:
+        project_id: str | None = None,
+        status: str | None = None,
+        search: str | None = None,
+    ) -> list[Lesson]:
         lessons = [Lesson(**l) for l in cls.read()["lessons"]]
         if project_id:
             lessons = [l for l in lessons if l.project_id == project_id]
@@ -168,14 +168,14 @@ class Library:
         return sorted(lessons, key=lambda l: l.created_at, reverse=True)
 
     @classmethod
-    def get_lesson(cls, lesson_or_job_id: str) -> Optional[Lesson]:
+    def get_lesson(cls, lesson_or_job_id: str) -> Lesson | None:
         for l in cls.read()["lessons"]:
             if lesson_or_job_id in (l.get("id"), l.get("job_id")):
                 return Lesson(**l)
         return None
 
     @classmethod
-    def get_lesson_full(cls, lesson_or_job_id: str) -> Optional[LessonFull]:
+    def get_lesson_full(cls, lesson_or_job_id: str) -> LessonFull | None:
         lesson = cls.get_lesson(lesson_or_job_id)
         if not lesson:
             return None
@@ -218,14 +218,17 @@ class Library:
         return lesson
 
     @classmethod
-    def patch_lesson(cls, lesson_id: str, patch: LessonPatch) -> Optional[Lesson]:
+    def patch_lesson(cls, lesson_id: str, patch: LessonPatch) -> Lesson | None:
         lesson = cls.get_lesson(lesson_id)
         if not lesson:
             return None
-        return cls.save_lesson(lesson.model_copy(update=patch.model_dump(exclude_none=True)))
+        update = patch.model_dump(exclude_none=True)
+        if "bookmarks" in update:
+            update["bookmarks"] = sorted(update["bookmarks"], key=lambda b: b["t"])
+        return cls.save_lesson(Lesson(**{**lesson.model_dump(), **update}))
 
     @classmethod
-    def refresh_flags(cls, lesson_id: str) -> Optional[Lesson]:
+    def refresh_flags(cls, lesson_id: str) -> Lesson | None:
         lesson = cls.get_lesson(lesson_id)
         return cls.save_lesson(lesson) if lesson else None
 
@@ -271,31 +274,3 @@ class Library:
             ))
             count += 1
         return count
-
-    # ---------------- assistant threads ----------------
-
-    @staticmethod
-    def _thread_key(kind: ThreadKind, thread_id: str) -> str:
-        return f"{kind}:{thread_id}"
-
-    @classmethod
-    def get_thread(cls, kind: ThreadKind, thread_id: str) -> Thread:
-        raw = cls.read()["threads"].get(cls._thread_key(kind, thread_id), [])
-        return Thread(kind=kind, id=thread_id, messages=[ChatMessage(**m) for m in raw])
-
-    @classmethod
-    def append_messages(cls, kind: ThreadKind, thread_id: str, *messages: ChatMessage) -> None:
-        with cls.tx() as db:
-            db["threads"].setdefault(cls._thread_key(kind, thread_id), []).extend(m.model_dump() for m in messages)
-
-    @classmethod
-    def clear_thread(cls, kind: ThreadKind, thread_id: str) -> None:
-        from backend.services import attachments
-
-        with cls.tx() as db:
-            removed = db["threads"].pop(cls._thread_key(kind, thread_id), None) or []
-        attachments.delete(a["id"] for m in removed for a in m.get("attachments", []))
-
-    @classmethod
-    def referenced_attachments(cls) -> List[str]:
-        return [a["id"] for msgs in cls.read()["threads"].values() for m in msgs for a in m.get("attachments", [])]

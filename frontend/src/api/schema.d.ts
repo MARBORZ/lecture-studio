@@ -487,8 +487,100 @@ export interface paths {
         put?: never;
         /** Ask */
         post: operations["ask_api_assistant__kind___thread_id__post"];
-        /** Clear Thread */
-        delete: operations["clear_thread_api_assistant__kind___thread_id__delete"];
+        /**
+         * Delete Thread
+         * @description Every session of the thread, with their files.
+         */
+        delete: operations["delete_thread_api_assistant__kind___thread_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/assistant/{kind}/{thread_id}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** New Session */
+        post: operations["new_session_api_assistant__kind___thread_id__sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/assistant/{kind}/{thread_id}/sessions/{session_id}/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Activate Session */
+        put: operations["activate_session_api_assistant__kind___thread_id__sessions__session_id__active_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/assistant/{kind}/{thread_id}/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Session */
+        delete: operations["delete_session_api_assistant__kind___thread_id__sessions__session_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Session */
+        patch: operations["patch_session_api_assistant__kind___thread_id__sessions__session_id__patch"];
+        trace?: never;
+    };
+    "/api/assistant/{kind}/{thread_id}/sessions/{session_id}/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clear Session
+         * @description History, summary and files of one session: the model starts from the sources only.
+         */
+        post: operations["clear_session_api_assistant__kind___thread_id__sessions__session_id__clear_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/assistant/{kind}/{thread_id}/sessions/{session_id}/compact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Compact Session */
+        post: operations["compact_session_api_assistant__kind___thread_id__sessions__session_id__compact_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -621,6 +713,8 @@ export interface components {
             provider?: ("deepseek" | "gemini") | null;
             /** Attachments */
             attachments?: string[];
+            /** Session Id */
+            session_id?: string | null;
         };
         /**
          * Attachment
@@ -662,6 +756,21 @@ export interface components {
              */
             audit_mode: "srt_timecodes" | "clean_summary";
         };
+        /**
+         * Bookmark
+         * @description A user's own mark on the clean timeline.
+         */
+        Bookmark: {
+            /** Id */
+            id: string;
+            /** T */
+            t: number;
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+        };
         /** BusyReason */
         BusyReason: {
             /** Kind */
@@ -698,6 +807,94 @@ export interface components {
             provider?: string | null;
             /** Model */
             model?: string | null;
+        };
+        /**
+         * ChatSession
+         * @description One branch of a thread (like a Claude Code session): its own history, summary and files.
+         */
+        ChatSession: {
+            /** Id */
+            id: string;
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+            /** Created At */
+            created_at?: string;
+            /** Updated At */
+            updated_at?: string;
+            /** Messages */
+            messages?: components["schemas"]["ChatMessage"][];
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /**
+             * Summarized
+             * @default 0
+             */
+            summarized: number;
+            /** Excluded Files */
+            excluded_files?: string[];
+        };
+        /** CompactRequest */
+        CompactRequest: {
+            /** Provider */
+            provider?: ("deepseek" | "gemini") | null;
+            /** Sources */
+            sources?: string[] | null;
+        };
+        /**
+         * ContextUsage
+         * @description What one request carries, in characters, against the provider's window (our own context window).
+         */
+        ContextUsage: {
+            /** Provider */
+            provider: string;
+            /** Window */
+            window: number;
+            /**
+             * System
+             * @default 0
+             */
+            system: number;
+            /**
+             * Sources
+             * @default 0
+             */
+            sources: number;
+            /**
+             * Summary
+             * @default 0
+             */
+            summary: number;
+            /**
+             * History
+             * @default 0
+             */
+            history: number;
+            /**
+             * Files
+             * @default 0
+             */
+            files: number;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Summarized
+             * @default 0
+             */
+            summarized: number;
+            /**
+             * Sources Trimmed
+             * @default false
+             */
+            sources_trimmed: boolean;
         };
         /** DataDirChange */
         DataDirChange: {
@@ -1084,6 +1281,8 @@ export interface components {
              * @default 0
              */
             schema_version: number;
+            /** Bookmarks */
+            bookmarks?: components["schemas"]["Bookmark"][];
         };
         /** LessonFull */
         LessonFull: {
@@ -1154,6 +1353,8 @@ export interface components {
              * @default 0
              */
             schema_version: number;
+            /** Bookmarks */
+            bookmarks?: components["schemas"]["Bookmark"][];
             /** Segments */
             segments?: components["schemas"]["Segment"][];
             /** Time Map */
@@ -1200,6 +1401,8 @@ export interface components {
             project_id?: string | null;
             /** Tags */
             tags?: string | null;
+            /** Bookmarks */
+            bookmarks?: components["schemas"]["Bookmark"][] | null;
         };
         /** PathCheckRequest */
         PathCheckRequest: {
@@ -1405,6 +1608,26 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** SessionInfo */
+        SessionInfo: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Created At */
+            created_at: string;
+            /** Updated At */
+            updated_at: string;
+            /** Messages */
+            messages: number;
+        };
+        /** SessionPatch */
+        SessionPatch: {
+            /** Title */
+            title?: string | null;
+            /** Excluded Files */
+            excluded_files?: string[] | null;
+        };
         /** SettingsPatch */
         SettingsPatch: {
             /** Export Dir */
@@ -1462,8 +1685,12 @@ export interface components {
             kind: "project" | "lesson";
             /** Id */
             id: string;
-            /** Messages */
-            messages?: components["schemas"]["ChatMessage"][];
+            session: components["schemas"]["ChatSession"];
+            /** Sessions */
+            sessions?: components["schemas"]["SessionInfo"][];
+            /** Files */
+            files?: components["schemas"]["Attachment"][];
+            context?: components["schemas"]["ContextUsage"] | null;
         };
         /** TimeMapEntry */
         TimeMapEntry: {
@@ -2549,7 +2776,11 @@ export interface operations {
     };
     get_thread_api_assistant__kind___thread_id__get: {
         parameters: {
-            query?: never;
+            query?: {
+                session?: string | null;
+                provider?: ("deepseek" | "gemini") | null;
+                sources?: string[] | null;
+            };
             header?: never;
             path: {
                 kind: "project" | "lesson";
@@ -2601,7 +2832,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChatMessage"][];
+                    "application/json": components["schemas"]["Thread"];
                 };
             };
             /** @description Validation Error */
@@ -2615,7 +2846,7 @@ export interface operations {
             };
         };
     };
-    clear_thread_api_assistant__kind___thread_id__delete: {
+    delete_thread_api_assistant__kind___thread_id__delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -2636,6 +2867,219 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    new_session_api_assistant__kind___thread_id__sessions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: "project" | "lesson";
+                thread_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_session_api_assistant__kind___thread_id__sessions__session_id__active_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: "project" | "lesson";
+                thread_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_session_api_assistant__kind___thread_id__sessions__session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: "project" | "lesson";
+                thread_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_session_api_assistant__kind___thread_id__sessions__session_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: "project" | "lesson";
+                thread_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_session_api_assistant__kind___thread_id__sessions__session_id__clear_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: "project" | "lesson";
+                thread_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    compact_session_api_assistant__kind___thread_id__sessions__session_id__compact_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: "project" | "lesson";
+                thread_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompactRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Thread"];
                 };
             };
             /** @description Validation Error */

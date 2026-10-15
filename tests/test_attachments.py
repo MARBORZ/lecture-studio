@@ -3,7 +3,10 @@ import zipfile
 
 from fastapi.testclient import TestClient
 
-PNG = bytes.fromhex("89504e470d0a1a0a0000000d4948445200000001000000010806000000" "1f15c4890000000d49444154789c6360000000000200015e2b0a5c0000000049454e44ae426082")
+PNG = bytes.fromhex(
+    "89504e470d0a1a0a0000000d4948445200000001000000010806000000"
+    "1f15c4890000000d49444154789c6360000000000200015e2b0a5c0000000049454e44ae426082"
+)
 
 
 def _zip(members: dict) -> bytes:
@@ -74,9 +77,9 @@ def test_attachments_reach_the_model_and_are_cleaned(data_dir, monkeypatch):
         img = _upload(c, "screen.png", PNG)
 
         monkeypatch.setattr(assistant.AI, "get", staticmethod(lambda name: Fake(vision=True)))
-        msgs = c.post("/api/assistant/lesson/less_x", json={"question": "что в файлах?", "attachments": [doc["id"], img["id"]]}).json()
+        thread = c.post("/api/assistant/lesson/less_x", json={"question": "что в файлах?", "attachments": [doc["id"], img["id"]]}).json()
         assert "fix the parser" in seen["prompt"] and len(seen["images"]) == 1
-        assert [a["name"] for a in msgs[0]["attachments"]] == ["task.md", "screen.png"]
+        assert [a["name"] for a in thread["session"]["messages"][0]["attachments"]] == ["task.md", "screen.png"]
 
         monkeypatch.setattr(assistant.AI, "get", staticmethod(lambda name: Fake(vision=False)))
         c.post("/api/assistant/lesson/less_x", json={"question": "а картинка?", "attachments": [img["id"]]})

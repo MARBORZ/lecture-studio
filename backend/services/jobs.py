@@ -3,11 +3,12 @@ In-memory job registry plus activity counters (uploads, exports).
 It is the single authority on "is the system busy?" used by shutdown and data-dir changes.
 """
 
+import builtins
 import threading
 import uuid
+from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Dict, Iterator, List, Optional
 
 from backend.models.job import ACTIVE_STATUSES, Job, JobKind, Stage
 from backend.models.system import BusyReason
@@ -21,14 +22,14 @@ class JobCancelled(Exception):
 
 class JobRegistry:
     _lock = threading.RLock()
-    _jobs: Dict[str, Job] = {}
+    _jobs: dict[str, Job] = {}
     _uploads = 0
     _exports = 0
 
     # ---------------- jobs ----------------
 
     @classmethod
-    def create(cls, kind: JobKind, title: str, stages: List[Stage]) -> Job:
+    def create(cls, kind: JobKind, title: str, stages: list[Stage]) -> Job:
         job = Job(id=uuid.uuid4().hex[:8], kind=kind, title=title, stages=stages, message="В очереди")
         with cls._lock:
             cls._jobs[job.id] = job
@@ -38,18 +39,18 @@ class JobRegistry:
         return job
 
     @classmethod
-    def get(cls, job_id: str) -> Optional[Job]:
+    def get(cls, job_id: str) -> Job | None:
         with cls._lock:
             job = cls._jobs.get(job_id)
             return job.model_copy() if job else None
 
     @classmethod
-    def list(cls) -> List[Job]:
+    def list(cls) -> list[Job]:
         with cls._lock:
             return [j.model_copy() for j in reversed(cls._jobs.values())]
 
     @classmethod
-    def active(cls) -> List[Job]:
+    def active(cls) -> builtins.list[Job]:
         return [j for j in cls.list() if j.status in ACTIVE_STATUSES]
 
     @classmethod
@@ -102,7 +103,7 @@ class JobRegistry:
                 cls._exports -= 1
 
     @classmethod
-    def busy_reasons(cls) -> List[BusyReason]:
+    def busy_reasons(cls) -> builtins.list[BusyReason]:
         with cls._lock:
             reasons = [
                 BusyReason(kind="job", label=f"{j.title or j.id}: {j.message}", progress=j.progress)

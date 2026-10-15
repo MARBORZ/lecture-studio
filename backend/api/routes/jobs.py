@@ -9,7 +9,6 @@ import asyncio
 import json
 import re
 import uuid
-from typing import List, Optional
 
 import aiofiles
 from fastapi import APIRouter, HTTPException, Request
@@ -33,7 +32,7 @@ class UploadResult(BaseModel):
 
 class StartJobRequest(BaseModel):
     options: JobOptions
-    upload_id: Optional[str] = None
+    upload_id: str | None = None
 
 
 def _upload_path(upload_id: str):
@@ -82,8 +81,8 @@ def start_job(req: StartJobRequest) -> Job:
     raise HTTPException(400, detail="Укажите файл или путь к нему")
 
 
-@router.get("/jobs", response_model=List[Job])
-def list_jobs() -> List[Job]:
+@router.get("/jobs", response_model=list[Job])
+def list_jobs() -> list[Job]:
     return JobRegistry.list()
 
 

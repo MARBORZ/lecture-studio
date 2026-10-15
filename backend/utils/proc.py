@@ -5,14 +5,18 @@ Cross-platform process helpers (macOS / Windows / Linux) used by the shutdown fl
 import os
 import signal
 import sys
-from typing import Iterable, Set
+from collections.abc import Iterable
 
 import psutil
 
 
-def pids_listening(port: int) -> Set[int]:
+def pid_alive(pid: int) -> bool:
+    return psutil.pid_exists(pid)
+
+
+def pids_listening(port: int) -> set[int]:
     """PIDs listening on a TCP port. Per-process scan: the global table needs root on macOS."""
-    pids: Set[int] = set()
+    pids: set[int] = set()
     for p in psutil.process_iter(["pid"]):
         try:
             conns = p.net_connections(kind="tcp")
@@ -23,9 +27,9 @@ def pids_listening(port: int) -> Set[int]:
     return pids
 
 
-def pids_with_cmdline(fragment: str) -> Set[int]:
+def pids_with_cmdline(fragment: str) -> set[int]:
     """Processes whose command line contains fragment (e.g. a dedicated --user-data-dir)."""
-    found: Set[int] = set()
+    found: set[int] = set()
     for p in psutil.process_iter(["pid", "cmdline"]):
         cmd = p.info.get("cmdline") or []
         if any(fragment in part for part in cmd):

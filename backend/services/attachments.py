@@ -16,8 +16,8 @@ import shutil
 import time
 import uuid
 import zipfile
+from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from backend.models.assistant import Attachment
 from backend.settings import paths
@@ -39,10 +39,10 @@ TEXT_EXT = {
 
 
 def root() -> Path:
-    return paths().data_dir / "attachments"
+    return paths().attachments
 
 
-def new_slot(filename: str) -> Tuple[str, Path]:
+def new_slot(filename: str) -> tuple[str, Path]:
     """Reserve an id and a target path for an incoming upload."""
     att_id = uuid.uuid4().hex[:12]
     folder = root() / att_id
@@ -52,7 +52,7 @@ def new_slot(filename: str) -> Tuple[str, Path]:
 
 # ---------------- extractors ----------------
 
-def _decode(data: bytes) -> Optional[str]:
+def _decode(data: bytes) -> str | None:
     if b"\x00" in data[:8192]:
         return None
     for enc in ("utf-8-sig", "cp1251", "latin-1"):
@@ -68,7 +68,7 @@ def _xml_text(xml: str) -> str:
     return re.sub(r"[ \t]+", " ", re.sub(r"<[^>]+>", "", xml)).strip()
 
 
-def _office(path: Path, members: Callable[[List[str]], Iterable[str]]) -> str:
+def _office(path: Path, members: Callable[[list[str]], Iterable[str]]) -> str:
     with zipfile.ZipFile(path) as z:
         names = z.namelist()
         return "\n\n".join(_xml_text(z.read(n).decode("utf-8", "replace")) for n in members(names))
@@ -86,7 +86,7 @@ def _slide_no(name: str) -> int:
     return int(m.group(1)) if m else 0
 
 
-EXTRACTORS: Dict[str, Callable[[Path], str]] = {
+EXTRACTORS: dict[str, Callable[[Path], str]] = {
     ".pdf": extract_pdf,
     ".docx": lambda p: _office(p, lambda ns: [n for n in ns if n == "word/document.xml"]),
     ".pptx": lambda p: _office(p, lambda ns: sorted((n for n in ns if re.match(r"ppt/slides/slide\d+\.xml$", n)), key=_slide_no)),
@@ -94,7 +94,7 @@ EXTRACTORS: Dict[str, Callable[[Path], str]] = {
 }
 
 
-def _classify(path: Path) -> Tuple[str, str, str]:
+def _classify(path: Path) -> tuple[str, str, str]:
     """-> (kind, extracted text, note)"""
     ext = path.suffix.lower() or ("." + path.name.lower() if path.name.startswith(".") else "")
     if ext in IMAGE_EXT:
@@ -138,7 +138,7 @@ def _folder(att_id: str) -> Path:
     return root() / att_id
 
 
-def get(att_id: str) -> Optional[Attachment]:
+def get(att_id: str) -> Attachment | None:
     meta = read_json(_folder(att_id) / "meta.json", default=None)
     return Attachment(**meta) if isinstance(meta, dict) else None
 

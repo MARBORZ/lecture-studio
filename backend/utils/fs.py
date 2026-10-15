@@ -8,11 +8,11 @@ import os
 import re
 import shutil
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
-PathLike = Union[str, Path]
+PathLike = str | Path
 
 
 def to_path(p: PathLike) -> Path:
@@ -64,7 +64,7 @@ def write_json(path: PathLike, data: Any) -> Path:
     return write_text(path, json.dumps(data, ensure_ascii=False, indent=2))
 
 
-def remove_file(path: Optional[PathLike]) -> bool:
+def remove_file(path: PathLike | None) -> bool:
     if not path:
         return False
     p = to_path(path)
@@ -102,7 +102,7 @@ def clear_dir(path: PathLike) -> int:
     return freed
 
 
-def copy_file(src: PathLike, dest: PathLike) -> Optional[Path]:
+def copy_file(src: PathLike, dest: PathLike) -> Path | None:
     """Copy if the source exists; returns destination or None."""
     src_p, dest_p = to_path(src), to_path(dest)
     if not src_p.is_file():

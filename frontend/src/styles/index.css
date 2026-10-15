@@ -17,6 +17,8 @@
   --color-fg: #fafafa;
 
   --radius-ui: 8px;
+  --shadow-float: 0 24px 80px rgba(0, 0, 0, 0.7); /* floating windows above the app */
+  --shadow-glow: 0 0 60px rgba(255, 255, 255, 0.12); /* tutorial finale mark */
   --animate-pulse-soft: pulse-soft 1.6s ease-in-out infinite;
 
   /* transform only: a frozen first frame (hidden/background window) must still show the content */

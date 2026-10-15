@@ -6,7 +6,6 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-import psutil
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -17,6 +16,7 @@ from backend.services import updates
 from backend.services.migration import migrate_all
 from backend.services.storage import Library
 from backend.settings import paths
+from backend.utils import proc
 from backend.utils.fs import clear_dir, read_text, remove_file, write_text
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 def _other_live_server() -> int | None:
     """PID of another running Lecture Studio server on this machine (from the pid file), if any."""
     pid = read_text(PID_FILE).strip()
-    if pid.isdigit() and int(pid) != os.getpid() and psutil.pid_exists(int(pid)):
+    if pid.isdigit() and int(pid) != os.getpid() and proc.pid_alive(int(pid)):
         return int(pid)
     return None
 
@@ -48,9 +48,9 @@ async def lifespan(app: FastAPI):
     imported = Library.import_untracked()
     migrated = migrate_all()
     if owner:
-        from backend.services import attachments
+        from backend.services import attachments, chats
 
-        attachments.cleanup_orphans(Library.referenced_attachments())
+        attachments.cleanup_orphans(set(chats.referenced_attachments()))
     logger.info("Library ready: %d imported, %d migrated, data=%s", imported, migrated, data.data_dir)
     yield
     if read_text(PID_FILE).strip() == str(os.getpid()):

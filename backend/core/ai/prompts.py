@@ -11,7 +11,7 @@ Default house style: slide-deck speaker notes. Blunt, architectural, no softenin
 """
 
 from dataclasses import dataclass
-from typing import Dict, Literal
+from typing import Literal
 
 from backend.settings import SettingsService
 
@@ -164,7 +164,7 @@ CITATION_MULTI = """\
 где lesson_id — из заголовка источника, время — из его стенограммы. Пример: [[less_ab12cd34@04:15]].
 """
 
-ROLE_TASKS: Dict[str, str] = {
+ROLE_TASKS: dict[str, str] = {
     "qa": "Ответь на вопрос. Списком, если пунктов больше двух.",
     "key_moments": "Ключевые моменты: 8–15 пунктов, каждый с привязкой ко времени.",
     "quiz": "Тест самопроверки: 6 вопросов. Формат: вопрос → короткий правильный ответ → ссылка на время.",
@@ -173,7 +173,34 @@ ROLE_TASKS: Dict[str, str] = {
     "chapters": "Оглавление-главы: 8–15 строк вида «[MM:SS] Название», начиная с [00:00].",
 }
 
-ROLE_DEFAULT_QUESTIONS: Dict[str, str] = {
+# Compressing the older part of a chat session (our own context window, services/context_window.py).
+ASSISTANT_COMPACT = """\
+Сожми начало переписки пользователя с ассистентом по лекциям в рабочую сводку для продолжения разговора.
+Сохрани: что спрашивал пользователь и зачем; данные ответы и выводы; определения и термины; решения и поправки;
+код, команды и пути — дословно; таймкоды и ссылки на источники — как есть; что осталось непонятным, на чём остановились.
+Убери: повторы, вежливость, пересказ источников, который и так есть в материалах.
+Стиль: заметки, пункты, без вводных и без эмодзи.
+"""
+
+COMPACT_CONTRACT = """\
+Выводи только сводку. Объём — не больше {limit} символов.
+Если дана прошлая сводка, объедини её с новыми сообщениями в одну, ничего важного из неё не теряя.
+"""
+
+
+def compact_system() -> str:
+    return text("assistant.compact")
+
+
+def compact_prompt(previous_summary: str, transcript: str, limit: int) -> str:
+    parts = [COMPACT_CONTRACT.format(limit=limit)]
+    if previous_summary.strip():
+        parts.append(f"ПРОШЛАЯ СВОДКА:\n{previous_summary.strip()}")
+    parts.append(f"НОВЫЕ СООБЩЕНИЯ:\n{transcript}")
+    return "\n\n".join(parts)
+
+
+ROLE_DEFAULT_QUESTIONS: dict[str, str] = {
     "key_moments": "Выдели ключевые моменты.",
     "quiz": "Сделай тест самопроверки.",
     "pitfalls": "Собери ошибки и антипаттерны.",
@@ -194,7 +221,7 @@ class PromptBlock:
     default: str
 
 
-BLOCKS: Dict[str, PromptBlock] = {
+BLOCKS: dict[str, PromptBlock] = {
     b.key: b
     for b in [
         PromptBlock("audit.role", "audit", "Роль", "Кто пишет аудит и для чего.", ROLE_AUDITOR),
@@ -208,6 +235,7 @@ BLOCKS: Dict[str, PromptBlock] = {
         PromptBlock("assistant.role.code_summary", "assistant", "Код", "Кнопка «Код».", ROLE_TASKS["code_summary"]),
         PromptBlock("assistant.role.quiz", "assistant", "Тест", "Кнопка «Тест».", ROLE_TASKS["quiz"]),
         PromptBlock("assistant.role.chapters", "assistant", "Главы", "Кнопка «Главы».", ROLE_TASKS["chapters"]),
+        PromptBlock("assistant.compact", "assistant", "Сжатие истории", "Как сворачивать старую часть длинной сессии в сводку.", ASSISTANT_COMPACT),
     ]
 }
 

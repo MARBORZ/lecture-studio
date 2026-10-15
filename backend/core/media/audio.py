@@ -3,8 +3,9 @@ Audio extraction and the silence-cut clean MP3 (5 ms equal-power micro-fades at 
 """
 
 import logging
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Dict, Sequence
+from typing import Any
 
 import numpy as np
 import soundfile as sf
@@ -38,7 +39,7 @@ class AudioProcessor(BaseMediaProcessor):
         self.fade_ms = fade_ms
         self.bitrate = bitrate
 
-    def process(self, input_path: PathLike, output_path: PathLike, spans: Sequence[Any], **kwargs: Any) -> Dict[str, Any]:
+    def process(self, input_path: PathLike, output_path: PathLike, spans: Sequence[Any], **kwargs: Any) -> dict[str, Any]:
         """
         Slice spans out of the WAV, fade the edges, encode MP3.
         Returns time_map entries computed from the exact sample counts written.

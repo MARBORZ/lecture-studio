@@ -2,7 +2,7 @@
 User-editable settings schema (persisted to APP_HOME/settings.json).
 """
 
-from typing import Dict, Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -46,7 +46,7 @@ class AppSettings(BaseModel):
     onboarding_done: bool = False  # first-run tutorial passed (false -> the UI shows it before anything else)
     ai: AISettings = Field(default_factory=AISettings)
     pipeline: PipelineDefaults = Field(default_factory=PipelineDefaults)
-    prompts: Dict[str, str] = Field(default_factory=dict)  # overrides of editable prompt blocks only
+    prompts: dict[str, str] = Field(default_factory=dict)  # overrides of editable prompt blocks only
 
 
 # ---------- API views ----------
@@ -88,20 +88,20 @@ class SettingsView(BaseModel):
 
 class AISettingsPatch(BaseModel):
     # None = unchanged, "" = clear stored key (falls back to .env)
-    deepseek_api_key: Optional[str] = None
-    gemini_api_key: Optional[str] = None
-    deepseek_model: Optional[str] = None
-    gemini_model: Optional[str] = None
-    whisper_model: Optional[str] = None
-    assistant_provider: Optional[AIProviderName] = None
+    deepseek_api_key: str | None = None
+    gemini_api_key: str | None = None
+    deepseek_model: str | None = None
+    gemini_model: str | None = None
+    whisper_model: str | None = None
+    assistant_provider: AIProviderName | None = None
 
 
 class SettingsPatch(BaseModel):
-    export_dir: Optional[str] = None
-    ui_language: Optional[UILanguage] = None
-    onboarding_done: Optional[bool] = None
-    ai: Optional[AISettingsPatch] = None
-    pipeline: Optional[PipelineDefaults] = None
+    export_dir: str | None = None
+    ui_language: UILanguage | None = None
+    onboarding_done: bool | None = None
+    ai: AISettingsPatch | None = None
+    pipeline: PipelineDefaults | None = None
 
 
 class PathCheckRequest(BaseModel):

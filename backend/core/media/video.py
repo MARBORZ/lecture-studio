@@ -4,7 +4,8 @@ compressed with H.264 CRF (+faststart for instant seeking in the browser).
 """
 
 import logging
-from typing import Any, Dict, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from backend.core.media.base import BaseMediaProcessor, PathLike, ffprobe_json, probe_duration, run_ffmpeg, savings_percent
 from backend.utils.fs import file_size_mb
@@ -15,7 +16,7 @@ _ART_CODECS = {"mjpeg", "png", "bmp", "gif"}
 _SCALE = {"1080p": "scale='min(1920,iw)':-2", "720p": "scale='min(1280,iw)':-2"}
 
 
-def probe_video(path: PathLike) -> Optional[float]:
+def probe_video(path: PathLike) -> float | None:
     """FPS of the first real video stream, or None (no video / cover art only)."""
     try:
         data = ffprobe_json(path, "-select_streams", "v:0", "-show_entries", "stream=codec_name,avg_frame_rate,r_frame_rate:stream_disposition=attached_pic")
@@ -46,7 +47,7 @@ class VideoProcessor(BaseMediaProcessor):
             "-movflags", "+faststart", "-c:a", "aac", "-b:a", "128k",
         ]
 
-    def process(self, input_path: PathLike, output_path: PathLike, spans: Sequence[Any], **kwargs: Any) -> Dict[str, Any]:
+    def process(self, input_path: PathLike, output_path: PathLike, spans: Sequence[Any], **kwargs: Any) -> dict[str, Any]:
         valid = self.normalize_spans(spans)
         scale = _SCALE.get(self.resolution)
 

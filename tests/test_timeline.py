@@ -1,5 +1,13 @@
 from backend.core.timeline import (
-    TimeMap, format_srt, format_tc, frame_snap, normalize_timecodes, parse_srt, parse_tc, rewrite_timecodes, timecodes_in,
+    TimeMap,
+    format_srt,
+    format_tc,
+    frame_snap,
+    normalize_timecodes,
+    parse_srt,
+    parse_tc,
+    rewrite_timecodes,
+    timecodes_in,
 )
 from tests.conftest import TIME_MAP
 

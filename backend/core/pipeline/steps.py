@@ -5,8 +5,8 @@ and how heavy it is (weight) so the runner can map step-local progress to a glob
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple
 
 from backend.core.ai import AI
 from backend.core.media import AudioProcessor, VideoProcessor, extract_wav, probe_video
@@ -33,9 +33,9 @@ class JobContext:
         self,
         job_id: str,
         options: JobOptions,
-        media_path: Optional[str] = None,
+        media_path: str | None = None,
         is_uploaded: bool = False,
-        lesson: Optional[Lesson] = None,
+        lesson: Lesson | None = None,
         cancel_check: Callable[[], bool] = lambda: False,
     ):
         self.job_id = job_id
@@ -51,14 +51,14 @@ class JobContext:
         self.raw_wav: Path = data.temp / f"{job_id}_raw.wav"
         self.work_dir: Path = data.temp / f"{job_id}_work"
 
-        self.fps: Optional[float] = None
+        self.fps: float | None = None
         self.orig_duration = 0.0
         self.clean_duration = lesson.clean_duration_sec if lesson else 0.0
-        self.spans: List[Tuple[float, float]] = []
-        self.time_map: Optional[TimeMap] = None
-        self.segments: List[Segment] = []
+        self.spans: list[tuple[float, float]] = []
+        self.time_map: TimeMap | None = None
+        self.segments: list[Segment] = []
         self.stats = JobStats()
-        self.warning: Optional[str] = None
+        self.warning: str | None = None
 
     @property
     def has_video_source(self) -> bool:
@@ -164,7 +164,8 @@ class TranscribeStep(PipelineStep):
     def execute(self, ctx, progress):
         o, ai = ctx.options, SettingsService.get().ai
         audio = str(ctx.lesson_dir / Artifacts.AUDIO)
-        on_progress = lambda f: progress(f, f"Транскрибация {int(f * 100)}%")
+        def on_progress(f):
+            return progress(f, f"Транскрибация {int(f * 100)}%")
 
         if o.mode == "gemini":
             from backend.core.transcription import gemini
@@ -262,7 +263,7 @@ class SaveLessonStep(PipelineStep):
                 ctx.warning = f"Экспорт не выполнен: {e}"
 
 
-PROCESS_STEPS: List[PipelineStep] = [
+PROCESS_STEPS: list[PipelineStep] = [
     ExtractAudioStep(),
     DetectSpeechStep(),
     BuildCleanAudioStep(),
@@ -272,4 +273,4 @@ PROCESS_STEPS: List[PipelineStep] = [
     SaveLessonStep(),
 ]
 
-AUDIT_STEPS: List[PipelineStep] = [GenerateAuditStep(strict=True), SaveLessonStep()]
+AUDIT_STEPS: list[PipelineStep] = [GenerateAuditStep(strict=True), SaveLessonStep()]

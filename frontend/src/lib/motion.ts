@@ -24,13 +24,19 @@ const leave = { duration: duration.fast, ease: easeIn }
 
 export const base: Transition = { duration: duration.base, ease }
 
-/** translate3d + scale as one transform string (compositor-friendly); identity is `none`, so nothing lingers at rest. */
-const tf = (x = 0, y = 0, scale = 1) => (x || y || scale !== 1 ? `translate3d(${x}px, ${y}px, 0) scale(${scale})` : 'none')
+/** translate3d + scale as one transform string (compositor-friendly). */
+const tf = (x = 0, y = 0, scale = 1) => `translate3d(${x}px, ${y}px, 0px) scale(${scale})`
+/**
+ * Resting state: animate to the identity transform, then drop it. Animating *to* `none` is not interpolated —
+ * the element froze at its start offset (pages sat 12px low, cutting off their bottom edge). `none` at rest also keeps
+ * no stacking context / containing block around the content.
+ */
+const rest = { transform: tf(), transitionEnd: { transform: 'none' } }
 
 /** Content appearing: cards, pages, text. custom = delay in seconds. */
 export const fadeUp: Variants = {
   hidden: { opacity: 0, transform: tf(0, 6) },
-  show: (delay: number = 0) => ({ opacity: 1, transform: tf(), transition: { ...base, delay } }),
+  show: (delay: number = 0) => ({ opacity: 1, ...rest, transition: { ...base, delay } }),
   exit: { opacity: 0, transform: tf(0, -3), transition: leave },
 }
 
@@ -51,7 +57,7 @@ export const fadeUpFlow: Variants = {
 /** Dialog panel. */
 export const pop: Variants = {
   hidden: { opacity: 0, transform: tf(0, 6, 0.97) },
-  show: { opacity: 1, transform: tf(), transition: spring },
+  show: { opacity: 1, ...rest, transition: spring },
   exit: { opacity: 0, transform: tf(0, 4, 0.98), transition: leave },
 }
 
@@ -65,22 +71,22 @@ export const fade: Variants = {
 /** Horizontal step change; custom = direction (1 forward, -1 back). */
 export const slide: Variants = {
   hidden: (dir: number) => ({ opacity: 0, transform: tf(28 * dir) }),
-  show: { opacity: 1, transform: tf(), transition: { duration: duration.slow, ease } },
+  show: { opacity: 1, ...rest, transition: { duration: duration.slow, ease } },
   exit: (dir: number) => ({ opacity: 0, transform: tf(-14 * dir), transition: leave }),
 }
 
 /** Tutorial -> app hand-off: the tutorial dissolves forward, then the app assembles (sidebar, then content). */
 export const sceneOut: Variants = {
-  show: { opacity: 1, transform: tf(), filter: 'blur(0px)' },
+  show: { opacity: 1, ...rest, filter: 'blur(0px)' },
   exit: { opacity: 0, transform: tf(0, 0, 1.03), filter: 'blur(6px)', transition: { duration: 0.42, ease: easeInOut } },
 }
 export const sidebarIn: Variants = {
   hidden: { opacity: 0, transform: tf(-16) },
-  show: { opacity: 1, transform: tf(), transition: { duration: 0.5, ease, delay: 0.05 } },
+  show: { opacity: 1, ...rest, transition: { duration: 0.5, ease, delay: 0.05 } },
 }
 export const contentIn: Variants = {
   hidden: { opacity: 0, transform: tf(0, 12) },
-  show: { opacity: 1, transform: tf(), transition: { duration: 0.55, ease, delay: 0.16 } },
+  show: { opacity: 1, ...rest, transition: { duration: 0.55, ease, delay: 0.16 } },
 }
 
 /** Stagger by list index, capped: the 9th item and later appear together, long lists never crawl. */

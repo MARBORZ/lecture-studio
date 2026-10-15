@@ -30,7 +30,8 @@ Spec: [docs/MCP_REFERENCE.md](docs/MCP_REFERENCE.md).
    The contract (timecode/citation format, part merging) is not editable. Default style: slide notes, no softening, no emoji.
    Providers implement transport only.
 3. **Video never goes to the cloud.** Cloud models get audio (Gemini transcription) or text only.
-4. **User data never goes into the repository.** Paths come from `SettingsService.paths()`, never constants.
+4. **User data never goes into the repository.** Paths come from `SettingsService.paths()` (`Paths`: db, output, temp,
+   diary, attachments), never built from `data_dir` elsewhere.
 5. **Frontend: one provider, no duplicate components.** `AppProvider` (`useUI` / `useLibrary` / `useJobs`); the player is an
    external store (`features/player/store.ts`). UI primitives in `components/ui`, loading states in `components/skeleton`,
    animation only through `components/motion` + `lib/motion.ts`. Monochrome palette, lucide SVG icons via `components/Icon.tsx`.
@@ -39,6 +40,7 @@ Spec: [docs/MCP_REFERENCE.md](docs/MCP_REFERENCE.md).
    Windows scripts: `.ps1` in UTF-8 with BOM, CRLF (see `.gitattributes`); shared helpers in `launcher/windows/common.ps1`.
 7. **Diary** — `services/diary.py`: plain `.md` files in `<data_dir>/diary/<category>/`, no index (files are the source of truth).
 8. **API types are generated** (`npm run gen:api`), never hand-written. Regenerate after changing backend models.
-9. Before committing: `uv run pytest`, `npm --prefix frontend run lint`, `npm --prefix frontend run build`.
+9. Before committing: `uv run ruff check .`, `uv run pytest` (includes `tests/test_architecture.py`, which enforces these
+   rules), `npm --prefix frontend run lint`, `npm --prefix frontend run build`.
 
 Documentation: [docs/README.md](docs/README.md).

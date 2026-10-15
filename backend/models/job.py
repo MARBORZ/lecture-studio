@@ -3,7 +3,7 @@ Processing job schemas.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -23,7 +23,7 @@ class JobOptions(PipelineDefaults):
     lesson_title: str = ""
     project_id: str = INBOX_ID
     notes: str = ""
-    local_path: Optional[str] = None
+    local_path: str | None = None
     export_after: bool = False
 
 
@@ -46,15 +46,15 @@ class Job(BaseModel):
     title: str = ""
     status: JobStatus = "pending"
     stage: Stage = "queued"
-    stages: List[Stage] = Field(default_factory=list)
+    stages: list[Stage] = Field(default_factory=list)
     progress: int = 0
     message: str = ""
-    error: Optional[str] = None
-    warning: Optional[str] = None
-    stats: Optional[JobStats] = None
-    lesson_id: Optional[str] = None
+    error: str | None = None
+    warning: str | None = None
+    stats: JobStats | None = None
+    lesson_id: str | None = None
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
-    finished_at: Optional[str] = None
+    finished_at: str | None = None
     cancel_requested: bool = False
 
     @property
@@ -70,4 +70,4 @@ class JobEvent(BaseModel):
     """SSE payload."""
 
     job: Job
-    extra: Dict[str, Any] = Field(default_factory=dict)
+    extra: dict[str, Any] = Field(default_factory=dict)

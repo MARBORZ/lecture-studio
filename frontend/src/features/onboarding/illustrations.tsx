@@ -223,7 +223,7 @@ export function DoneArt() {
           initial={{ opacity: 0, transform: 'scale(0.4)' }}
           animate={{ opacity: 1, transform: 'scale(1)' }}
           transition={springBouncy}
-          className="relative flex size-24 items-center justify-center rounded-full bg-fg shadow-[0_0_60px_rgba(255,255,255,0.12)]"
+          className="relative flex size-24 items-center justify-center rounded-full bg-fg shadow-glow"
         >
           <svg viewBox="0 0 48 48" className="size-12 text-bg" aria-hidden>
             <m.path

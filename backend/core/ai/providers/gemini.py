@@ -2,7 +2,7 @@
 Google Gemini provider (text). Audio transcription lives in core/transcription/gemini.py.
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
 from backend.core.ai.base import BaseAIProvider
 
@@ -26,7 +26,7 @@ class GeminiProvider(BaseAIProvider):
     def generate_text(self, prompt: str, system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
         return self._generate([prompt], system, temperature)
 
-    def chat(self, messages: List[Dict[str, str]], system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
+    def chat(self, messages: list[dict[str, str]], system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
         from google.genai import types
 
         contents = [

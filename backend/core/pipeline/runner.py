@@ -6,7 +6,6 @@ publishes state to JobRegistry. Jobs run one at a time on a single worker thread
 
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from typing import List
 
 from backend.core.pipeline.steps import AUDIT_STEPS, PROCESS_STEPS, JobContext, PipelineStep
 from backend.core.transcription import load_segments
@@ -19,7 +18,7 @@ logger = logging.getLogger(__name__)
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="pipeline")
 
 
-def _planned(steps: List[PipelineStep], options: JobOptions) -> List[PipelineStep]:
+def _planned(steps: list[PipelineStep], options: JobOptions) -> list[PipelineStep]:
     """Steps expected to run (video is assumed present until probed)."""
     out = []
     for s in steps:
@@ -36,7 +35,7 @@ def _planned(steps: List[PipelineStep], options: JobOptions) -> List[PipelineSte
 
 
 class LecturePipeline:
-    def __init__(self, steps: List[PipelineStep]):
+    def __init__(self, steps: list[PipelineStep]):
         self.steps = steps
 
     def run(self, job: Job, ctx: JobContext) -> None:
@@ -62,7 +61,7 @@ class LecturePipeline:
             done += step.weight
 
 
-def _execute(job: Job, steps: List[PipelineStep], ctx: JobContext) -> None:
+def _execute(job: Job, steps: list[PipelineStep], ctx: JobContext) -> None:
     try:
         LecturePipeline(steps).run(job, ctx)
         JobRegistry.update(
@@ -78,7 +77,7 @@ def _execute(job: Job, steps: List[PipelineStep], ctx: JobContext) -> None:
         ctx.cleanup()
 
 
-def _stages(steps: List[PipelineStep], options: JobOptions) -> List[Stage]:
+def _stages(steps: list[PipelineStep], options: JobOptions) -> list[Stage]:
     return [s.stage for s in _planned(steps, options)]
 
 

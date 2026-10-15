@@ -2,7 +2,6 @@
 Diary: categories (folders) and quick-capture Markdown entries.
 """
 
-from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
 
@@ -17,13 +16,13 @@ def _guard(fn, *args):
     try:
         return fn(*args)
     except DiaryError as e:
-        raise HTTPException(400, detail=str(e))
+        raise HTTPException(400, detail=str(e)) from e
     except FileNotFoundError as e:
-        raise HTTPException(404, detail=str(e))
+        raise HTTPException(404, detail=str(e)) from e
 
 
-@router.get("/categories", response_model=List[DiaryCategory])
-def list_categories() -> List[DiaryCategory]:
+@router.get("/categories", response_model=list[DiaryCategory])
+def list_categories() -> list[DiaryCategory]:
     return diary.list_categories()
 
 
@@ -42,8 +41,8 @@ def delete_category(name: str) -> dict:
     return {"moved": _guard(diary.delete_category, name)}
 
 
-@router.get("/entries", response_model=List[DiaryEntry])
-def list_entries(category: Optional[str] = None, q: Optional[str] = None) -> List[DiaryEntry]:
+@router.get("/entries", response_model=list[DiaryEntry])
+def list_entries(category: str | None = None, q: str | None = None) -> list[DiaryEntry]:
     return _guard(diary.list_entries, category, q)
 
 

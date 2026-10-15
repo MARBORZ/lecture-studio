@@ -2,7 +2,6 @@
 Projects (= notebooks).
 """
 
-from typing import List
 
 from fastapi import APIRouter, HTTPException
 
@@ -12,8 +11,8 @@ from backend.services.storage import Library
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
 
-@router.get("", response_model=List[Project])
-def list_projects() -> List[Project]:
+@router.get("", response_model=list[Project])
+def list_projects() -> list[Project]:
     return Library.list_projects()
 
 

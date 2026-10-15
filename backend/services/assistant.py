@@ -4,59 +4,26 @@ NotebookLM-style assistant: answers grounded in selected lesson sources, with ci
 Threads:
   project:<id> — sources are lessons of the notebook (subset selectable), citations [[lesson_id@MM:SS]]
   lesson:<id>  — one source, citations [MM:SS]
+Each thread has sessions (services/chats.py); what one request carries is decided by services/context_window.py.
 """
 
 import re
 import uuid
-from typing import List, Optional
 
-from backend.core.ai import AI
-from backend.core.ai import prompts
+from backend.core.ai import AI, prompts
 from backend.core.ai.base import strip_emoji
 from backend.core.timeline import normalize_timecodes
-from backend.core.transcription import compact_transcript
-from backend.models.assistant import AskRequest, Attachment, ChatMessage, ThreadKind
+from backend.models.assistant import AskRequest, ChatMessage, Thread, ThreadKind
 from backend.models.lesson import LessonFull
 from backend.services import attachments as attachment_store
+from backend.services import chats, context_window
 from backend.services.storage import Library
 from backend.settings import SettingsService
-
-HISTORY_TURNS = 6
 
 _CITE_RE = re.compile(r"\[\[([A-Za-z0-9_\-]+)@(\d{1,2}:\d{2}(?::\d{2})?)\]\]")
 
 
-def _source_block(lesson: LessonFull, budget: int) -> str:
-    transcript = compact_transcript(lesson.segments) or lesson.clean_timestamps_text or lesson.plain_text
-    audit = lesson.lesson_audit_md
-    head = f"### ИСТОЧНИК lesson_id={lesson.id} | {lesson.title}\n"
-    audit_part = f"--- АУДИТ ---\n{audit[: budget // 3]}\n" if audit else ""
-    rest = max(2000, budget - len(head) - len(audit_part))
-    return f"{head}{audit_part}--- СТЕНОГРАММА ---\n{transcript[:rest]}\n"
-
-
-def _attachments_block(files: List[Attachment], vision: bool, budget: int) -> tuple[str, list]:
-    """Text of attached files for the prompt (+ images for vision models). Unreadable files are named, not hidden."""
-    if not files:
-        return "", []
-    parts, images = [], []
-    per_file = max(2000, budget // len(files))
-    for f in files:
-        head = f"### ФАЙЛ: {f.name} ({f.mime}, {f.size} байт)"
-        if f.kind == "image":
-            if vision:
-                images.append((attachment_store.image_bytes(f), f.mime))
-                parts.append(f"{head}\n[изображение приложено к сообщению]")
-            else:
-                parts.append(f"{head}\n[изображение: эта модель не видит изображения — скажи об этом, если вопрос о нём]")
-        elif f.chars:
-            parts.append(f"{head}\n{attachment_store.text(f)[:per_file]}")
-        else:
-            parts.append(f"{head}\n[содержимое не читается: доступны только имя и размер]")
-    return "ВЛОЖЕНИЯ ПОЛЬЗОВАТЕЛЯ:\n\n" + "\n\n".join(parts), images
-
-
-def _resolve_sources(kind: ThreadKind, thread_id: str, requested: Optional[List[str]]) -> List[LessonFull]:
+def _resolve_sources(kind: ThreadKind, thread_id: str, requested: list[str] | None) -> list[LessonFull]:
     if kind == "lesson":
         lesson = Library.get_lesson_full(thread_id)
         if not lesson:
@@ -72,46 +39,69 @@ def _resolve_sources(kind: ThreadKind, thread_id: str, requested: Optional[List[
     return full
 
 
-def _clean_citations(text: str, sources: List[LessonFull]) -> str:
-    known = {s.id: s.clean_duration_sec for s in sources}
-
-    def repl(m: re.Match) -> str:
-        return m.group(0) if m.group(1) in known else ""
-
-    return _CITE_RE.sub(repl, text)
+def _clean_citations(text: str, sources: list[LessonFull]) -> str:
+    known = {s.id for s in sources}
+    return _CITE_RE.sub(lambda m: m.group(0) if m.group(1) in known else "", text)
 
 
-def ask(kind: ThreadKind, thread_id: str, req: AskRequest) -> List[ChatMessage]:
+def _provider_name(requested: str | None) -> str:
+    return requested or SettingsService.get().ai.assistant_provider
+
+
+def thread(kind: ThreadKind, thread_id: str, session_id: str | None = None, provider: str | None = None, sources: list[str] | None = None) -> Thread:
+    """The session with its files and the context the next question would carry (no API call, no key needed)."""
+    session, infos = chats.get(kind, thread_id, session_id)
+    name = _provider_name(provider)
+    usage = None
+    try:
+        resolved = _resolve_sources(kind, thread_id, sources)
+    except (LookupError, ValueError):
+        resolved = []
+    if resolved:
+        window = context_window.window_for(name)
+        usage = context_window.build(provider_name=name, window=window, vision=False, sources=resolved, session=session, multi=kind == "project").usage
+    return Thread(kind=kind, id=thread_id, session=session, sessions=infos, files=chats.session_files(session), context=usage)
+
+
+def ask(kind: ThreadKind, thread_id: str, req: AskRequest) -> Thread:
     sources = _resolve_sources(kind, thread_id, req.sources)
     question = req.question.strip() or prompts.ROLE_DEFAULT_QUESTIONS.get(req.role, "")
     if not question:
         raise ValueError("Пустой вопрос")
 
-    provider_name = req.provider or SettingsService.get().ai.assistant_provider
-    provider = AI.get(provider_name)
+    name = _provider_name(req.provider)
+    provider = AI.get(name)
+    window = provider.context_chars
+    session, _ = chats.get(kind, thread_id, req.session_id, create_missing=True)
+    if context_window.needs_compaction(session, window):
+        context_window.compact(provider, session, window)
 
-    files = [a for a in (attachment_store.get(i) for i in req.attachments) if a]
-    files_block, images = _attachments_block(files, provider.can_see_images, provider.context_chars // 3)
-    budget = (provider.context_chars - len(files_block)) // len(sources)
-    corpus = "\n\n".join(_source_block(s, budget) for s in sources)
+    new_files = [a for a in (attachment_store.get(i) for i in req.attachments) if a]
     multi = kind == "project"
-
-    history = Library.get_thread(kind, thread_id).messages[-HISTORY_TURNS * 2:]
-    messages = [{"role": "user", "content": f"ИСТОЧНИКИ:\n\n{corpus}"}, {"role": "assistant", "content": "Источники приняты."}]
-    messages += [{"role": m.role, "content": m.content} for m in history]
-    messages.append({"role": "user", "content": f"{files_block}\n\nВОПРОС:\n{question}" if files_block else question})
-
-    answer = strip_emoji(provider.chat(messages, prompts.assistant_system(req.role, multi), images=images)).strip()
-    if multi:
-        answer = _clean_citations(answer, sources)
-    else:
-        answer = normalize_timecodes(answer, sources[0].clean_duration_sec or None)
+    request = context_window.build(
+        provider_name=name, window=window, vision=provider.can_see_images, sources=sources, session=session,
+        role=req.role, multi=multi, question=question, new_files=new_files,
+    )
+    answer = strip_emoji(provider.chat(request.messages, request.system, images=request.images)).strip()
+    answer = _clean_citations(answer, sources) if multi else normalize_timecodes(answer, sources[0].clean_duration_sec or None)
 
     source_ids = [s.id for s in sources]
-    user_msg = ChatMessage(id=uuid.uuid4().hex[:10], role="user", content=question, sources=source_ids, attachments=files, assistant_role=req.role)
-    bot_msg = ChatMessage(
-        id=uuid.uuid4().hex[:10], role="assistant", content=answer or "Пустой ответ",
-        sources=source_ids, assistant_role=req.role, provider=provider_name, model=provider.model,
-    )
-    Library.append_messages(kind, thread_id, user_msg, bot_msg)
-    return [user_msg, bot_msg]
+    session.messages += [
+        ChatMessage(id=uuid.uuid4().hex[:10], role="user", content=question, sources=source_ids, attachments=new_files, assistant_role=req.role),
+        ChatMessage(
+            id=uuid.uuid4().hex[:10], role="assistant", content=answer or "Пустой ответ",
+            sources=source_ids, assistant_role=req.role, provider=name, model=provider.model,
+        ),
+    ]
+    chats.save(kind, thread_id, session)
+    return thread(kind, thread_id, session.id, name, req.sources)
+
+
+def compact(kind: ThreadKind, thread_id: str, session_id: str, provider: str | None = None, sources: list[str] | None = None) -> Thread:
+    """Fold the session down to its last two messages now (the button), instead of waiting for the window to fill."""
+    name = _provider_name(provider)
+    p = AI.get(name)
+    session, _ = chats.get(kind, thread_id, session_id)
+    context_window.compact(p, session, p.context_chars, keep=2)
+    chats.save(kind, thread_id, session)
+    return thread(kind, thread_id, session.id, name, sources)

@@ -12,14 +12,15 @@ before cutting, so the audio and video clean timelines are identical.
 
 import bisect
 import re
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any
 
 # [MM:SS] or [H:MM:SS] / [HH:MM:SS], optionally wrapped in a `code span` (unwrapped on rewrite)
 TIMECODE_RE = re.compile(r"(`?)\[(\d{1,2}):(\d{2})(?::(\d{2}))?\]\1")
 _SRT_TIME_RE = re.compile(r"(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})")
 
-Span = Tuple[float, float]
+Span = tuple[float, float]
 
 
 # ---------------- formatting / parsing ----------------
@@ -62,12 +63,12 @@ def _tc_match_seconds(m: re.Match) -> float:
 
 # ---------------- segments ----------------
 
-def frame_snap(spans: Sequence[Span], fps: Optional[float], duration: Optional[float] = None) -> List[Span]:
+def frame_snap(spans: Sequence[Span], fps: float | None, duration: float | None = None) -> list[Span]:
     """Round span boundaries to the nearest video frame so audio and video cut identically."""
     if not fps or fps <= 0:
         return [(round(s, 3), round(e, 3)) for s, e in spans]
     frame = 1.0 / fps
-    out: List[Span] = []
+    out: list[Span] = []
     for s, e in spans:
         s2 = round(round(s / frame) * frame, 6)
         e2 = round(round(e / frame) * frame, 6)
@@ -91,8 +92,8 @@ class MapEntry:
 class TimeMap:
     """clean <-> orig conversion over the list of kept speech spans (time_map.json)."""
 
-    def __init__(self, entries: Iterable[Dict[str, Any]]):
-        self.entries: List[MapEntry] = [
+    def __init__(self, entries: Iterable[dict[str, Any]]):
+        self.entries: list[MapEntry] = [
             MapEntry(float(e["orig_start"]), float(e["orig_end"]), float(e["clean_start"]), float(e["clean_end"]))
             for e in entries
         ]
@@ -130,9 +131,9 @@ class TimeMap:
         return round(e.clean_end, 3)
 
     @staticmethod
-    def build(spans: Sequence[Span], clean_lengths: Optional[Sequence[float]] = None) -> List[Dict[str, float]]:
+    def build(spans: Sequence[Span], clean_lengths: Sequence[float] | None = None) -> list[dict[str, float]]:
         """time_map.json payload for kept spans laid end-to-end."""
-        out: List[Dict[str, float]] = []
+        out: list[dict[str, float]] = []
         cursor = 0.0
         for idx, (s, e) in enumerate(spans):
             length = clean_lengths[idx] if clean_lengths else (e - s)
@@ -149,9 +150,9 @@ class TimeMap:
 
 # ---------------- SRT ----------------
 
-def parse_srt(text: str) -> List[Dict[str, Any]]:
+def parse_srt(text: str) -> list[dict[str, Any]]:
     """SRT text -> [{start, end, text}] (seconds)."""
-    items: List[Dict[str, Any]] = []
+    items: list[dict[str, Any]] = []
     for block in re.split(r"\n\s*\n", text.strip()):
         lines = [l for l in block.strip().splitlines() if l.strip()]
         arrow = next((i for i, l in enumerate(lines) if "-->" in l), None)
@@ -169,7 +170,7 @@ def parse_srt(text: str) -> List[Dict[str, Any]]:
 
 # ---------------- timecodes inside text ----------------
 
-def rewrite_timecodes(text: str, transform: Callable[[float], Optional[float]]) -> str:
+def rewrite_timecodes(text: str, transform: Callable[[float], float | None]) -> str:
     """Apply transform to every [MM:SS]/[HH:MM:SS]; None removes the timecode."""
 
     def repl(m: re.Match) -> str:
@@ -179,11 +180,11 @@ def rewrite_timecodes(text: str, transform: Callable[[float], Optional[float]]) 
     return re.sub(r"[ \t]?\x00", "", TIMECODE_RE.sub(repl, text))
 
 
-def normalize_timecodes(text: str, duration: Optional[float]) -> str:
+def normalize_timecodes(text: str, duration: float | None) -> str:
     """Canonical format; drop timecodes beyond the clean duration (model hallucinations)."""
     limit = (duration + 1.0) if duration else None
     return rewrite_timecodes(text, lambda t: None if (limit is not None and t > limit) else t)
 
 
-def timecodes_in(text: str) -> List[float]:
+def timecodes_in(text: str) -> list[float]:
     return [_tc_match_seconds(m) for m in TIMECODE_RE.finditer(text)]

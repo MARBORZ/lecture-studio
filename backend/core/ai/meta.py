@@ -3,11 +3,10 @@ AIMeta registers every provider subclass by its `category`.
 """
 
 from abc import ABCMeta
-from typing import Dict, List, Optional, Type
 
 
 class AIMeta(ABCMeta):
-    _registry: Dict[str, Type] = {}
+    _registry: dict[str, type] = {}
 
     def __new__(mcs, name, bases, attrs):
         cls = super().__new__(mcs, name, bases, attrs)
@@ -17,13 +16,13 @@ class AIMeta(ABCMeta):
         return cls
 
     @classmethod
-    def get_provider_class(mcs, category: str) -> Optional[Type]:
+    def get_provider_class(mcs, category: str) -> type | None:
         return mcs._registry.get(category.lower())
 
     @classmethod
-    def list_categories(mcs) -> List[str]:
+    def list_categories(mcs) -> list[str]:
         return list(mcs._registry)
 
     @classmethod
-    def get_all_providers(mcs) -> Dict[str, Type]:
+    def get_all_providers(mcs) -> dict[str, type]:
         return dict(mcs._registry)

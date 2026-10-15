@@ -2,7 +2,6 @@
 Diary schemas. Entries are plain Markdown files: <data_dir>/diary/<category>/<timestamp>.md (Obsidian-compatible).
 """
 
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -37,5 +36,5 @@ class DiaryEntryCreate(BaseModel):
 
 
 class DiaryEntryUpdate(BaseModel):
-    text: Optional[str] = Field(default=None, max_length=200_000)
-    category: Optional[str] = None
+    text: str | None = Field(default=None, max_length=200_000)
+    category: str | None = None

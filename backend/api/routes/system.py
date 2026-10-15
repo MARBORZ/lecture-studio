@@ -59,7 +59,7 @@ def update_apply() -> UpdateInfo:
         try:
             return updates.apply()
         except updates.UpdateError as e:
-            raise HTTPException(409, detail={"message": str(e), "code": e.code})
+            raise HTTPException(409, detail={"message": str(e), "code": e.code}) from e
 
 
 def _stop_everything() -> None:

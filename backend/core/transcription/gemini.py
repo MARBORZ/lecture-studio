@@ -7,8 +7,8 @@ import json
 import logging
 import shutil
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple
 
 from backend.core.ai.prompts import gemini_transcription_instruction
 from backend.core.media.base import probe_duration, run_ffmpeg
@@ -21,7 +21,7 @@ CHUNK_THRESHOLD_SEC = 1500
 CHUNK_SEC = 1200
 
 
-def _chunks(audio: Path, duration: float, work_dir: Path) -> List[Tuple[Path, float]]:
+def _chunks(audio: Path, duration: float, work_dir: Path) -> list[tuple[Path, float]]:
     if duration <= CHUNK_THRESHOLD_SEC:
         return [(audio, 0.0)]
     work_dir.mkdir(parents=True, exist_ok=True)
@@ -46,15 +46,15 @@ def transcribe(
     language: str = "auto",
     vocabulary: str = "",
     check_cancelled: Callable[[], None] = lambda: None,
-    on_progress: Optional[Callable[[float], None]] = None,
-) -> List[dict]:
+    on_progress: Callable[[float], None] | None = None,
+) -> list[dict]:
     from google import genai
     from google.genai import types
 
     client = genai.Client(api_key=api_key)
     instruction = gemini_transcription_instruction(language, vocabulary)
     chunks = _chunks(Path(audio_path), duration, work_dir)
-    out: List[dict] = []
+    out: list[dict] = []
 
     try:
         for idx, (chunk, offset) in enumerate(chunks):

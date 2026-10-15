@@ -2,7 +2,7 @@
 System status / shutdown schemas.
 """
 
-from typing import List, Literal
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -15,7 +15,7 @@ class BusyReason(BaseModel):
 
 class SystemStatus(BaseModel):
     busy: bool
-    reasons: List[BusyReason]
+    reasons: list[BusyReason]
     pid: int
     version: str
     ffmpeg: bool
@@ -42,7 +42,7 @@ class UpdateInfo(BaseModel):
     latest: str | None = None
     available: bool = False
     mode: Literal["git", "zip"]
-    changes: List[str] = []
+    changes: list[str] = []
     blocked: UpdateBlock | None = None  # why it cannot be applied from the app
     error: str | None = None  # the check itself failed (offline, git missing)
     checked_at: float | None = None

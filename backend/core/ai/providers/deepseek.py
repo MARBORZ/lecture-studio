@@ -2,7 +2,7 @@
 DeepSeek provider (OpenAI-compatible chat completions).
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
 import httpx
 
@@ -16,8 +16,8 @@ class DeepSeekProvider(BaseAIProvider):
     default_model = "deepseek-chat"
     supported_models = ["deepseek-chat", "deepseek-reasoner", "deepseek-v4-flash", "deepseek-v4-pro"]
 
-    def _complete(self, messages: List[Dict[str, str]], temperature: float, max_tokens: int = 8000) -> str:
-        payload: Dict[str, Any] = {"model": self.model, "messages": messages, "max_tokens": max_tokens}
+    def _complete(self, messages: list[dict[str, str]], temperature: float, max_tokens: int = 8000) -> str:
+        payload: dict[str, Any] = {"model": self.model, "messages": messages, "max_tokens": max_tokens}
         if self.model != "deepseek-reasoner":
             payload["temperature"] = temperature
         with httpx.Client(timeout=httpx.Timeout(600.0, connect=15.0)) as client:
@@ -30,6 +30,6 @@ class DeepSeekProvider(BaseAIProvider):
         msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
         return self._complete(msgs, temperature)
 
-    def chat(self, messages: List[Dict[str, str]], system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
+    def chat(self, messages: list[dict[str, str]], system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
         msgs = ([{"role": "system", "content": system}] if system else []) + messages
         return self._complete(msgs, temperature)

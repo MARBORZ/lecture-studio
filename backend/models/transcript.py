@@ -2,7 +2,6 @@
 Transcript segment schemas. segments.json is the canonical transcript of a lesson.
 """
 
-from typing import List
 
 from pydantic import BaseModel, Field
 
@@ -26,4 +25,4 @@ class GeminiSegment(BaseModel):
 
 
 class GeminiTranscript(BaseModel):
-    segments: List[GeminiSegment]
+    segments: list[GeminiSegment]
