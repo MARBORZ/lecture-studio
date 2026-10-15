@@ -65,14 +65,18 @@ export function LessonLayout() {
   // media + deep link ?t=
   useEffect(() => {
     if (!lesson) return
-    player.load(lesson.id, lesson.audio_url ?? null, lesson.video_url ?? null)
+    player.load(lesson.id, lesson.audio_url ?? null, lesson.video_url ?? null, lesson.title ?? '')
     const t0 = search.get('t')
     if (t0) {
       player.seek(Number(t0), true)
       setSearch((p) => (p.delete('t'), p), { replace: true })
     }
   }, [lesson, search, setSearch])
-  useEffect(() => () => player.unload(), [lessonId])
+  useEffect(() => {
+    if (lesson && player.getState().lessonId === lesson.id) player.setChapters(chapters)
+  }, [lesson, chapters])
+  // Leaving the page stops playback unless the video is out in a window (then it keeps playing).
+  useEffect(() => () => player.leave(), [lessonId])
 
   // reload when a job for this lesson finishes (e.g. audit regeneration)
   const finished = jobs.filter((j) => j.lesson_id === lessonId && j.status === 'completed').length
@@ -151,7 +155,7 @@ export function LessonLayout() {
           style={{ ['--player-w' as string]: `${playerWidth}%` }}
           className="flex shrink-0 flex-col gap-5 p-6 lg:w-[var(--player-w)] lg:overflow-y-auto lg:p-8"
         >
-          {lesson ? <MediaPlayer chapters={chapters} /> : <SkeletonPlayer />}
+          {lesson ? <MediaPlayer /> : <SkeletonPlayer />}
           <AnimatePresence initial={false}>
           {!focusMode && (
           <m.div key="player-extras" variants={collapse} initial="hidden" animate="show" exit="exit" className="flex flex-col gap-5 overflow-hidden">

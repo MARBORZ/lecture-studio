@@ -2,9 +2,9 @@
 workspace/
 
 # Environments & secrets
-.venv/
+.venv
 .env
-node_modules/
+node_modules
 
 # Build output
 frontend/dist/

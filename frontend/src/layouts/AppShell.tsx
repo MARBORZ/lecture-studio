@@ -4,6 +4,7 @@ import { useJobs, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { AnimatePresence, m, RouteOutlet } from '@/components/motion'
 import { Onboarding } from '@/features/onboarding/Onboarding'
+import { FloatingPlayer } from '@/features/player/FloatingPlayer'
 import { StoppedScreen } from '@/features/system/StoppedScreen'
 import { cn } from '@/lib/cn'
 import { contentIn, ease, fadeUpFlow, sceneOut, sidebarIn } from '@/lib/motion'
@@ -42,6 +43,7 @@ export function AppShell() {
             <m.main variants={contentIn} className="min-w-0 flex-1 overflow-hidden">
               <RouteOutlet depth={1} className="h-full" />
             </m.main>
+            <FloatingPlayer />
           </m.div>
         )}
       </AnimatePresence>
