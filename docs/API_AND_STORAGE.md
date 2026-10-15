@@ -16,7 +16,7 @@ API: `http://127.0.0.1:3000` (the UI reaches it through the Vite proxy at `:5173
 | GET | `/api/settings/prompts` | AI instruction blocks: default, current, modified |
 | PUT / DELETE | `/api/settings/prompts/{key}` | save a custom block text / reset to default |
 | GET | `/api/settings/providers` | AI providers and models |
-| GET | `/api/settings/transcription-device` | where local Whisper runs: `cuda` (+ GPU name) or `cpu` (+ reason: apple, torch_cpu, no_gpu, cuda_failed) |
+| GET | `/api/settings/compute` | what local transcription runs on: `cuda` / `apple` / `cpu`, GPU name, threads, cores; on the CPU the reason (user, no_gpu, old_gpu, old_driver, torch_cpu, apple_unavailable, gpu_failed). The preference itself is `settings.compute` (`device`: auto/gpu/cpu, `cpu_threads`: 0 = all cores) |
 | POST | `/api/settings/check-path` | check a folder (exists, writable, contains a library) |
 | POST | `/api/settings/data-dir` | switch the data folder: `attach` or `move`; refused while busy |
 | GET / POST | `/api/projects` | notebooks |

@@ -113,9 +113,15 @@ Installs without `.git` (the release zip) are told about a new release and get a
 
 ## Platforms
 
-- **Whisper device** (`core/transcription/whisper.py:device`): CUDA when torch sees an NVIDIA GPU (on Windows `torch/lib`
-  is added to the DLL search path so CTranslate2 finds cuBLAS/cuDNN), otherwise the CPU with the reason. A failed CUDA load
-  falls back to the CPU instead of failing the job.
+- **Compute** (`core/compute.py`): `probe()` — what the machine has (NVIDIA CUDA through torch, the Apple GPU through MLX,
+  cores via `utils/proc.py`, the Windows launcher's `state/compute.json`); `plan(preference, cpu_threads)` — `cuda` / `apple` /
+  `cpu` with threads and, for the CPU, the reason. Any local model asks the same plan.
+- **Engines** (`core/transcription/engines.py`): one interface, `FasterWhisperEngine` (CUDA float16 / CPU int8, N threads;
+  on Windows `torch/lib` is added to the DLL path for cuBLAS/cuDNN) and `MlxWhisperEngine` (Apple GPU, 5-minute windows for
+  progress and cancel). A new engine is a subclass in `ENGINES`. `whisper.transcribe(plan=…)` runs the plan's engine; a GPU
+  failure is recorded (`compute.mark_failed`) and the job continues on the CPU.
+- **torch on Windows**: extras `cpu` / `cu126` (mutually exclusive, both pinned in `uv.lock`); the launcher picks one by
+  probing `nvidia-smi` and syncs with `--extra`; the fingerprint includes the build, so a driver/card change re-syncs.
 
 - Settings home `config.APP_HOME`: macOS `~/Library/Application Support/Lecture Studio`, Windows `%APPDATA%\Lecture Studio`,
   Linux `~/.local/share/lecture-studio`. `LECTURE_STUDIO_HOME` overrides it.

@@ -101,12 +101,18 @@ The data folder can be switched or moved at runtime in Settings → Paths.
 Video is processed only locally. Cloud models receive either audio (Gemini transcription, if you choose it) or text
 (transcripts for audits and the assistant). With Whisper selected and no AI audit, nothing leaves the machine.
 
-## GPU
+## GPU and CPU
 
-On Windows with an NVIDIA card, local Whisper runs on the GPU (CUDA), several times faster than on the CPU: torch for
-Windows comes from the PyTorch CUDA 12.6 index (pinned in `uv.lock`, so updates keep it). The first install or update
-downloads about 2.5 GB. Settings → AI shows where recognition runs and, on the CPU, why. On macOS Whisper runs on the CPU
-(CTranslate2 has no Metal backend); Apple Silicon is fast enough.
+Local speech recognition runs on the GPU when there is a usable one, several times faster than on the CPU:
+
+- **Apple Silicon:** the Apple GPU through MLX Whisper (about 7× faster than the CPU on an M-series Mac).
+- **Windows + NVIDIA:** CUDA. Setup and every launch probe the card with `nvidia-smi`: compute capability 5.0+ (Maxwell
+  and newer) and driver 528+ get the CUDA 12.6 build of torch (~2.5 GB), anything else the CPU build (~200 MB). A new driver
+  or card switches the build by itself on the next launch. Force one with `LS_TORCH_BUILD=cpu` or `cu126`. The decision is
+  in `state\compute.json` and in `logs\launcher.log` / `setup.log` ("torch: …").
+- **Settings → AI → Where speech recognition runs:** Auto / GPU / CPU and the number of CPU threads (all cores by
+  default), with a line saying what the next job will use and, on the CPU, why. A GPU that fails at runtime hands the job
+  to the CPU instead of failing it.
 
 ## Known limitations
 
