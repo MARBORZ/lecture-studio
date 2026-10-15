@@ -1,6 +1,6 @@
 [project]
 name = "lecture-studio"
-version = "1.1.1"
+version = "1.1.2"
 description = "Local NotebookLM-style lecture studio: Silero VAD jump-cut, transcription, blunt AI audits"
 requires-python = ">=3.12,<3.13"
 license = "MIT"
