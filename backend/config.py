@@ -9,6 +9,9 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+# Windows without Developer Mode keeps the model cache as copies, not symlinks, and huggingface_hub warns about it on every load.
+os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+
 APP_NAME = "Lecture Studio"
 REPO_DIR = Path(__file__).resolve().parent.parent
 

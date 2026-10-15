@@ -4,7 +4,8 @@ Self-update. Releases are git tags vX.Y.Z on origin; APP_VERSION is what is runn
   check() — fetch tags (cached), compare the newest with APP_VERSION, list the changes, say if it can be applied.
   apply() — fast-forward the current branch to the release tag, write the hand-over file, start the launcher
             in update mode. The launcher restarts everything (deps re-sync by lockfile hash, keeps the app window)
-            and rolls back to the previous commit if the new version does not come up.
+            and rolls back to the previous commit if the new version does not come up. If the launcher itself never
+            starts (antivirus, policy), this server is still alive a few seconds later: check() reports restart_failed.
   consume_outcome() — on startup: did the last update land (version matches) or was it rolled back.
                       Reported by check() for OUTCOME_SEC: the page reloads more than once around a restart.
 
@@ -30,11 +31,13 @@ logger = logging.getLogger(__name__)
 CACHE_SEC = 3600
 OUTCOME_SEC = 600
 MAX_CHANGES = 40
+LAUNCHER_WAIT_SEC = 15  # the launcher writes to launcher.log at once; silence after this long = it did not start
 _TAG = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
 
 _lock = threading.Lock()
 _cache: UpdateInfo | None = None
 _last: UpdateOutcome | None = None
+_restart_failed = False
 
 
 class UpdateError(Exception):
@@ -56,7 +59,15 @@ def _git(*args: str, timeout: float = 30) -> str:
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
     res = subprocess.run(["git", *args], cwd=config.REPO_DIR, env=env, capture_output=True, text=True, timeout=timeout)
     if res.returncode != 0:
-        raise UpdateError("git", (res.stderr or res.stdout).strip() or f"git {args[0]} failed")
+        message = (res.stderr or res.stdout).strip() or f"git {args[0]} failed"
+        if "dubious ownership" in message:
+            # The folder belongs to another account (e.g. created by an administrator): git refuses until told to trust it.
+            repo = config.REPO_DIR.as_posix()
+            raise UpdateError(
+                "ownership",
+                f'Git не доверяет папке приложения (detected dubious ownership). Выполните в терминале: git config --global --add safe.directory "{repo}"',
+            )
+        raise UpdateError("git", message)
     return res.stdout
 
 
@@ -84,6 +95,8 @@ def _check_git() -> UpdateInfo:
     info.url = f"{config.REPO_URL}/releases/tag/{tag}"
     info.changes = _release_notes(tag)
     info.blocked = _block_reason(tag)
+    if info.blocked == "dirty":
+        info.dirty_files = _dirty_files()[:MAX_CHANGES]
     return info
 
 
@@ -98,10 +111,15 @@ def _release_notes(tag: str) -> list[str]:
     return [line for line in log.splitlines() if line.strip()]
 
 
+def _dirty_files() -> list[str]:
+    """Tracked files with local changes ("XY path" lines of porcelain status)."""
+    return [line[3:] for line in _git("status", "--porcelain", "--untracked-files=no").splitlines() if line.strip()]
+
+
 def _block_reason(tag: str) -> UpdateBlock | None:
     if sys.platform not in ("darwin", "win32"):
         return "platform"
-    if _git("status", "--porcelain", "--untracked-files=no").strip():
+    if _dirty_files():
         return "dirty"
     try:
         _git("merge-base", "--is-ancestor", "HEAD", tag)
@@ -137,10 +155,11 @@ def check(force: bool = False) -> UpdateInfo:
                 info = _check_git() if is_git_install() else _check_zip()
             except Exception as e:  # offline, git missing, GitHub rate limit: report, never raise
                 logger.warning("Update check failed: %s", e)
-                info = UpdateInfo(current=config.APP_VERSION, mode="git" if is_git_install() else "zip", url=f"{config.REPO_URL}/releases", error=str(e)[:300])
+                info = UpdateInfo(current=config.APP_VERSION, mode="git" if is_git_install() else "zip", url=f"{config.REPO_URL}/releases", error=str(e)[:500])
             info.checked_at = time.time()
             _cache = info.model_copy()
     info.last = _last if _last and time.time() - _last.at < OUTCOME_SEC else None
+    info.restart_failed = _restart_failed
     return info
 
 
@@ -169,21 +188,42 @@ def apply() -> UpdateInfo:
         remove_file(handover_file())
         raise
     logger.info("Updated code %s -> v%s (%s), restarting through the launcher", config.APP_VERSION, info.latest, from_sha[:8])
-    threading.Timer(0.8, spawn_launcher).start()
+    threading.Timer(0.8, _restart).start()
     return info
+
+
+def _restart() -> None:
+    since = time.time()
+    spawn_launcher()
+    watch = threading.Timer(LAUNCHER_WAIT_SEC, lambda: _verify_launcher(since))
+    watch.daemon = True
+    watch.start()
+
+
+def _verify_launcher(since: float) -> None:
+    """Runs on the old server, so reaching this point means the launcher did not stop it. If launcher.log was not
+    touched since the spawn, the launcher never started: the code is already updated, the restart is not."""
+    global _restart_failed
+    try:
+        started = (config.LOGS_DIR / "launcher.log").stat().st_mtime > since
+    except OSError:
+        started = False
+    if started:
+        return  # still working (dependency install): the page keeps waiting
+    _restart_failed = True
+    logger.error("Launcher did not start within %ss after the update: restart failed, code is already updated", LAUNCHER_WAIT_SEC)
 
 
 def spawn_launcher() -> None:
     """Start the launcher detached from this process: it stops this server, so it must outlive it."""
     common = {"cwd": config.REPO_DIR, "stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
     if sys.platform == "win32":
-        script = config.REPO_DIR / "launcher" / "windows" / "start.ps1"
+        # The way the Desktop shortcut starts it. A hidden detached powershell.exe spawned from Python is silently killed
+        # on some machines (antivirus) before it logs anything.
+        script = config.REPO_DIR / "launcher" / "windows" / "start.vbs"
+        wscript = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "System32", "wscript.exe")
         flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP  # type: ignore[attr-defined]
-        subprocess.Popen(
-            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", str(script), "-Mode", "update"],
-            creationflags=flags,
-            **common,
-        )
+        subprocess.Popen([wscript, str(script), "update"], creationflags=flags, **common)
     else:
         script = config.REPO_DIR / "launcher" / "macos" / "start.zsh"
         subprocess.Popen(["/bin/zsh", str(script), "update"], start_new_session=True, **common)

@@ -154,3 +154,112 @@ def test_lightweight_tag_lists_commits_of_the_release_only(release_repos, tmp_pa
     with client() as c:
         info = c.get("/api/system/update?force=true").json()
     assert info["changes"] == ["Chat attachments", "Floating player"]  # tag range only, not unreleased main
+
+
+def test_windows_spawn_goes_through_wscript_like_the_shortcut(release_repos, monkeypatch):
+    clone, _, _ = release_repos
+    from backend.services import updates
+
+    calls = []
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setenv("WINDIR", r"C:\Windows")
+    monkeypatch.setattr(subprocess, "DETACHED_PROCESS", 8, raising=False)
+    monkeypatch.setattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 512, raising=False)
+    monkeypatch.setattr(subprocess, "Popen", lambda cmd, **kw: calls.append((cmd, kw)))
+    import importlib
+
+    real = importlib.reload(updates)  # the fixture replaced spawn_launcher: load the real one again
+    monkeypatch.setattr(real.config, "REPO_DIR", clone)
+    real.spawn_launcher()
+    cmd, kw = calls[0]
+    assert cmd[0].lower().endswith("wscript.exe") and "System32" in cmd[0]
+    assert cmd[1:] == [str(clone / "launcher" / "windows" / "start.vbs"), "update"]
+    assert kw["creationflags"] == 8 | 512 and kw["cwd"] == clone
+
+
+def test_macos_spawn_is_unchanged(release_repos, monkeypatch):
+    clone, _, _ = release_repos
+    import importlib
+
+    from backend.services import updates
+
+    calls = []
+    monkeypatch.setattr(subprocess, "Popen", lambda cmd, **kw: calls.append((cmd, kw)))
+    real = importlib.reload(updates)
+    monkeypatch.setattr(real.config, "REPO_DIR", clone)
+    real.spawn_launcher()
+    assert calls[0][0] == ["/bin/zsh", str(clone / "launcher" / "macos" / "start.zsh"), "update"]
+
+
+def test_restart_failed_when_launcher_log_is_untouched(release_repos, data_dir, monkeypatch):
+    import importlib
+    import os
+
+    import backend.config as config
+    from backend.services import updates
+
+    real = importlib.reload(updates)
+    monkeypatch.setattr(config, "LOGS_DIR", data_dir.parent / "home" / "logs")
+    config.LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    log = config.LOGS_DIR / "launcher.log"
+
+    # no log at all, or an old one: the launcher did not start
+    real._verify_launcher(since=time_now())
+    assert real._restart_failed
+    real._restart_failed = False
+    log.write_text("=== launch (normal)")
+    os.utime(log, (1, 1))
+    real._verify_launcher(since=time_now())
+    assert real._restart_failed
+    assert real.check().restart_failed
+
+    # the launcher wrote after the spawn: it is working, nothing to report
+    real._restart_failed = False
+    log.write_text("=== launch (update)")
+    real._verify_launcher(since=time_now() - 5)
+    assert not real._restart_failed and not real.check().restart_failed
+
+
+def test_apply_watches_the_launcher(release_repos, monkeypatch):
+    from backend.services import updates
+
+    timers = []
+    monkeypatch.setattr(updates.threading, "Timer", lambda delay, fn: timers.append((delay, fn)) or type("T", (), {"start": lambda self: None})())
+    with client() as c:
+        assert c.post("/api/system/update").status_code == 200
+    assert [d for d, _ in timers] == [0.8]  # the verification is scheduled once the launcher has been spawned
+    monkeypatch.setattr(updates, "_verify_launcher", lambda since: timers.append(("verify", since)))
+    timers[0][1]()
+    assert [d for d, _ in timers] == [0.8, updates.LAUNCHER_WAIT_SEC]
+
+
+def test_dubious_ownership_gets_a_ready_command(release_repos, monkeypatch):
+    clone, _, _ = release_repos
+    from backend.services import updates
+
+    real_run = subprocess.run
+
+    def refusing(cmd, **kw):
+        if cmd[:2] == ["git", "fetch"]:
+            return subprocess.CompletedProcess(cmd, 128, "", "fatal: detected dubious ownership in repository at 'C:/x'")
+        return real_run(cmd, **kw)
+
+    monkeypatch.setattr(updates.subprocess, "run", refusing)
+    with client() as c:
+        info = c.get("/api/system/update?force=true").json()
+    assert not info["available"]
+    assert f'git config --global --add safe.directory "{clone.as_posix()}"' in info["error"]
+
+
+def test_dirty_block_lists_changed_files(release_repos):
+    clone, _, _ = release_repos
+    (clone / "a.txt").write_text("edited by hand")
+    with client() as c:
+        info = c.get("/api/system/update?force=true").json()
+    assert info["blocked"] == "dirty" and info["dirty_files"] == ["a.txt"]
+
+
+def time_now() -> float:
+    import time
+
+    return time.time()

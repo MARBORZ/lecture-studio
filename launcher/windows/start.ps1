@@ -88,7 +88,9 @@ if (-not (Test-Path (Join-Path $Repo '.venv\Scripts\python.exe')) -or (Test-Chan
 $nodeFp = Get-Fingerprint @('frontend\package-lock.json')
 if (-not (Test-Path (Join-Path $Repo 'frontend\node_modules\vite')) -or (Test-Changed 'node' $nodeFp)) {
     Write-Log $Log 'npm ci'
-    if ((Invoke-Logged -Exe 'cmd.exe' -Arguments @('/c', 'npm', 'ci', '--no-audit', '--no-fund') -Cwd (Join-Path $Repo 'frontend') -LogFile $Log) -ne 0) { Fail "npm ci не удался. Лог: $Log" }
+    # cmd /c npm can return a non-zero code after a successful install: judge by the result, not the exit code.
+    $code = Invoke-Logged -Exe 'cmd.exe' -Arguments @('/c', 'npm', 'ci', '--no-audit', '--no-fund') -Cwd (Join-Path $Repo 'frontend') -LogFile $Log
+    if (-not (Test-Path (Join-Path $Repo 'frontend\node_modules\vite'))) { Fail "npm ci не удался (npm код $code). Лог: $Log" }
     Set-Content -Path (Join-Path $State 'node') -Value $nodeFp
 }
 
