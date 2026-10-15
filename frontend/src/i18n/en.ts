@@ -373,6 +373,12 @@ export const en: Record<TKey, string> = {
   'diary.deleteEntryText': 'The entry file will be deleted.',
   'diary.editHint': 'Saved automatically. Esc to finish',
   'diary.saving': 'Saving…',
+  'diary.fold': 'Fold entry',
+  'diary.unfold': 'Unfold entry',
+  'diary.foldAll': 'Fold all',
+  'diary.unfoldAll': 'Unfold all',
+  'diary.showAll': 'Show all',
+  'diary.showLess': 'Show less',
   'diary.move': 'Move to category',
 
   // onboarding

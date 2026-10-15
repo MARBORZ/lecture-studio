@@ -458,6 +458,12 @@ export const ru = {
   'diary.deleteEntryText': 'Файл записи будет удалён.',
   'diary.editHint': 'Сохраняется автоматически. Esc — закончить',
   'diary.saving': 'Сохранение…',
+  'diary.fold': 'Свернуть запись',
+  'diary.unfold': 'Развернуть запись',
+  'diary.foldAll': 'Свернуть все',
+  'diary.unfoldAll': 'Развернуть все',
+  'diary.showAll': 'Показать полностью',
+  'diary.showLess': 'Скрыть',
   'diary.move': 'Перенести в категорию',
 
   'error.title': 'Что-то пошло не так',

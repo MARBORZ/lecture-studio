@@ -10,6 +10,7 @@ import { Button, EmptyState, IconButton, PageHeader } from '@/components/ui'
 import { Skeleton, SkeletonChat } from '@/components/skeleton'
 import { EntryCard } from '@/features/diary/EntryCard'
 import { cn } from '@/lib/cn'
+import { storage } from '@/lib/format'
 import { useResource } from '@/lib/useResource'
 
 /** Diary: Obsidian-style categories on the left, quick-capture stream on the right. */
@@ -23,6 +24,14 @@ export function DiaryPage() {
   const entries = useResource(() => api.diaryEntries(category, q || undefined), [category, q])
   const [draft, setDraft] = useState('')
   const [adding, setAdding] = useState(false)
+  // folded entries (ids), remembered; "fold all" folds what is on screen
+  const [folded, setFolded] = useState<string[]>(() => storage.get('diary.folded', []))
+  const fold = (ids: string[], on: boolean) =>
+    setFolded((prev) => {
+      const next = on ? [...new Set([...prev, ...ids])] : prev.filter((x) => !ids.includes(x))
+      storage.set('diary.folded', next.slice(-500))
+      return next
+    })
 
   const categories = cats.data ?? []
   const target = category ?? categories[0]?.name
@@ -123,8 +132,9 @@ export function DiaryPage() {
                 }
               }}
               rows={Math.min(12, Math.max(3, draft.split('\n').length + 1))}
+              // grows up to 12 lines, then scrolls inside
               placeholder={t('diary.composer')}
-              className="read-14 w-full resize-none bg-transparent px-5 py-4 leading-relaxed text-fg placeholder:text-dim focus:outline-none"
+              className="read-14 max-h-[40vh] w-full resize-none overflow-y-auto bg-transparent px-5 py-4 leading-relaxed text-fg placeholder:text-dim focus:outline-none"
             />
             <div className="flex items-center justify-between border-t border-line px-3 py-2">
               <span className="pl-2 text-[12px] text-dim">→ {target}</span>
@@ -144,6 +154,12 @@ export function DiaryPage() {
             />
           </div>
 
+          {Boolean(entries.data?.length) && (
+            <div className="mb-2 flex justify-end gap-3 text-[12px]">
+              <button type="button" className="text-muted hover:text-fg" onClick={() => fold(entries.data!.map((e) => e.id), true)}>{t('diary.foldAll')}</button>
+              <button type="button" className="text-muted hover:text-fg" onClick={() => fold(entries.data!.map((e) => e.id), false)}>{t('diary.unfoldAll')}</button>
+            </div>
+          )}
           {entries.loading && !entries.data ? (
             <div className="flex flex-col gap-3"><SkeletonChat /><SkeletonChat /></div>
           ) : !entries.data?.length ? (
@@ -158,6 +174,8 @@ export function DiaryPage() {
                       categories={categories}
                       showCategory={!category}
                       onChanged={changed}
+                      folded={folded.includes(e.id)}
+                      onFold={(on) => fold([e.id], on)}
                       onRemoved={(id) => (entries.setData((prev) => (prev ?? []).filter((x) => x.id !== id)), void cats.reload())}
                     />
                   </ListItem>
