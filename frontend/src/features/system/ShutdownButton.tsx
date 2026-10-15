@@ -1,13 +1,14 @@
 import { Power } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { api, ApiError } from '@/api/client'
 import type { BusyReason } from '@/api/types'
-import { useJobs, useUI } from '@/app/AppProvider'
+import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { Button, Modal } from '@/components/ui'
 import { player } from '@/features/player/store'
 import { useSidebarCollapsed } from '@/layouts/Sidebar'
 import { cn } from '@/lib/cn'
+import { BusyList, useBusyReasons } from './busy'
 
 /**
  * Sidebar power button. Shuts the local server down only when nothing is running:
@@ -31,17 +32,8 @@ export function ShutdownButton() {
 
 function ShutdownDialog({ close }: { close: () => void }) {
   const { t, setStopped, toast } = useUI()
-  const { uploads } = useJobs()
-  const [reasons, setReasons] = useState<BusyReason[] | null>(null)
+  const [reasons, setReasons] = useBusyReasons()
   const [stopping, setStopping] = useState(false)
-
-  useEffect(() => {
-    const local = uploads.map((u) => ({ kind: 'upload', label: `${t('system.localUpload')}: ${u.name}`, progress: Math.round(u.progress * 100) }))
-    api.status().then(
-      (s) => setReasons([...local, ...s.reasons]),
-      () => setReasons(local),
-    )
-  }, [uploads, t])
 
   const busy = Boolean(reasons?.length)
 
@@ -78,17 +70,7 @@ function ShutdownDialog({ close }: { close: () => void }) {
       {reasons === null ? (
         <p className="animate-pulse-soft text-[13px] text-muted">{t('system.checking')}</p>
       ) : busy ? (
-        <div className="flex flex-col gap-2">
-          <p className="text-[13px] text-soft">{t('system.busyText')}</p>
-          <ul className="flex flex-col gap-1.5">
-            {reasons.map((r, i) => (
-              <li key={i} className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2 text-[13px] text-fg">
-                <span className="truncate">{r.label}</span>
-                {r.progress != null && <span className="font-mono text-[12px] text-muted">{r.progress}%</span>}
-              </li>
-            ))}
-          </ul>
-        </div>
+        <BusyList reasons={reasons} />
       ) : (
         <p className="text-[13.5px] leading-relaxed text-soft">{t('system.shutdownText')}</p>
       )}

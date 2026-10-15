@@ -58,6 +58,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Update Info
+         * @description Newest release vs the running version. Cached for an hour; force=true fetches now.
+         */
+        get: operations["update_info_api_system_update_get"];
+        put?: never;
+        /**
+         * Update Apply
+         * @description Move the code to the newest release and restart through the launcher. Refused while busy.
+         */
+        post: operations["update_apply_api_system_update_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings": {
         parameters: {
             query?: never;
@@ -1457,6 +1481,51 @@ export interface components {
             /** Clean End */
             clean_end: number;
         };
+        /** UpdateInfo */
+        UpdateInfo: {
+            /** Current */
+            current: string;
+            /** Latest */
+            latest?: string | null;
+            /**
+             * Available
+             * @default false
+             */
+            available: boolean;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "git" | "zip";
+            /**
+             * Changes
+             * @default []
+             */
+            changes: string[];
+            /** Blocked */
+            blocked?: ("dirty" | "diverged" | "zip" | "platform") | null;
+            /** Error */
+            error?: string | null;
+            /** Checked At */
+            checked_at?: number | null;
+            /** Url */
+            url: string;
+            last?: components["schemas"]["UpdateOutcome"] | null;
+        };
+        /**
+         * UpdateOutcome
+         * @description Result of the last update attempt. Reported for a few minutes after the restart; the UI shows it once (by `at`).
+         */
+        UpdateOutcome: {
+            /** From Version */
+            from_version: string;
+            /** To Version */
+            to_version: string;
+            /** Ok */
+            ok: boolean;
+            /** At */
+            at: number;
+        };
         /** UploadResult */
         UploadResult: {
             /** Upload Id */
@@ -1544,6 +1613,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ShutdownResult"];
+                };
+            };
+        };
+    };
+    update_info_api_system_update_get: {
+        parameters: {
+            query?: {
+                force?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_apply_api_system_update_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateInfo"];
                 };
             };
         };

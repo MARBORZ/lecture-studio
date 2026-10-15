@@ -2,15 +2,41 @@
 #   API: FastAPI on 127.0.0.1:3000      UI: Vite on 127.0.0.1:5173 (proxies /api -> 3000)
 # Every launch: stop old processes -> sync deps if changed -> start API + UI -> open the app window.
 # Lesson data is never touched; temp\ is cleared by the API on startup.
+#   -Mode normal    Desktop shortcut
+#   -Mode update    started by the API after it moved the code to a new release (state\update.json):
+#                   keeps the app window, rolls back to the previous commit if the new version fails
+#   -Mode rollback  the second pass after such a rollback
+
+param([ValidateSet('normal', 'update', 'rollback')][string]$Mode = 'normal')
 
 $ErrorActionPreference = 'Continue'
 . (Join-Path $PSScriptRoot 'common.ps1')
 $Log = Join-Path $Logs 'launcher.log'
-Write-Log $Log "=== launch from $Repo"
+Write-Log $Log "=== launch ($Mode) from $Repo"
 Update-Path
+
+$Self = $PSCommandPath
+$Handover = Join-Path $State 'update.json'
+$FromSha = ''
+if ($Mode -eq 'update') {
+    try { $FromSha = (Get-Content $Handover -Raw | ConvertFrom-Json).from_sha } catch { $FromSha = '' }
+} elseif ($Mode -eq 'normal') {
+    Remove-Item $Handover -ErrorAction SilentlyContinue  # stale hand-over from an interrupted update
+}
 
 function Fail([string]$Message) {
     Write-Log $Log "FAIL: $Message"
+    if ($Mode -eq 'update' -and $FromSha) {
+        # The new release did not come up: back to the previous commit, start again (deps re-sync by fingerprint).
+        Write-Log $Log "rolling back to $FromSha"
+        & git -C $Repo reset --keep $FromSha 2>&1 | Add-Content -Path $Log -Encoding UTF8
+        if ($LASTEXITCODE -eq 0) {
+            Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden `
+                -ArgumentList (Join-Args @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', $Self, '-Mode', 'rollback'))
+            exit 1
+        }
+    }
+    Remove-Item $Handover -ErrorAction SilentlyContinue
     Show-Message $Message 'OK' 'Error' | Out-Null
     exit 1
 }
@@ -24,8 +50,9 @@ function Test-Changed([string]$Name, [string]$Fingerprint) {
     return -not (Test-Path $f) -or ((Get-Content $f -Raw).Trim() -ne $Fingerprint)
 }
 
-# ---- 0. Already running and busy? Don't kill a long job by accident.
-try { $status = Invoke-RestMethod -Uri "$ApiUrl/api/system/status" -TimeoutSec 2 } catch { $status = $null }
+# ---- 0. Already running and busy? Don't kill a long job by accident. (An update was checked by the API.)
+$status = $null
+if ($Mode -eq 'normal') { try { $status = Invoke-RestMethod -Uri "$ApiUrl/api/system/status" -TimeoutSec 2 } catch { $status = $null } }
 if ($status -and $status.busy) {
     $answer = Show-Message "Сейчас идёт обработка. Перезапуск прервёт её.`n`nПерезапустить всё равно?" 'YesNo' 'Warning'
     if ($answer -ne 'Yes') {
@@ -43,7 +70,7 @@ foreach ($name in 'server.pid', 'frontend.pid') {
 $old += Get-ListeningPids @($ApiPort, $UiPort)
 if ($old) { Write-Log $Log "stopping: $($old -join ' ')" }
 Stop-Pids $old
-Stop-Pids (Get-AppWindowPids)
+if ($Mode -eq 'normal') { Stop-Pids (Get-AppWindowPids) }  # an update keeps the window: it waits and reloads
 Remove-Item -Path (Join-Path $AppHome 'server.pid'), (Join-Path $AppHome 'frontend.pid') -ErrorAction SilentlyContinue
 
 # ---- 2. Toolchain.
@@ -67,9 +94,9 @@ if (-not (Test-Path (Join-Path $Repo 'frontend\node_modules\vite')) -or (Test-Ch
 
 # ---- 4. API (writes its own server.pid).
 Write-Log $Log "starting api :$ApiPort"
-Start-Process -FilePath (Join-Path $Repo '.venv\Scripts\python.exe') -WorkingDirectory $Repo -NoNewWindow `
+$api = Start-Process -FilePath (Join-Path $Repo '.venv\Scripts\python.exe') -WorkingDirectory $Repo -NoNewWindow -PassThru `
     -ArgumentList (Join-Args @('-m', 'uvicorn', 'backend.main:app', '--host', '127.0.0.1', '--port', "$ApiPort", '--timeout-graceful-shutdown', '3')) `
-    -RedirectStandardOutput (Join-Path $Logs 'server.out.log') -RedirectStandardError (Join-Path $Logs 'server.log') | Out-Null
+    -RedirectStandardOutput (Join-Path $Logs 'server.out.log') -RedirectStandardError (Join-Path $Logs 'server.log')
 
 # ---- 5. UI (Vite).
 Write-Log $Log "starting ui :$UiPort"
@@ -79,11 +106,13 @@ $ui = Start-Process -FilePath (Get-Command node).Source -WorkingDirectory (Join-
 Set-Content -Path (Join-Path $AppHome 'frontend.pid') -Value $ui.Id
 
 $deadline = (Get-Date).AddSeconds(90)
-while (-not (Test-Http "$ApiUrl/api/health") -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
-if (-not (Test-Http "$ApiUrl/api/health")) { Fail "API не запустился за 90 с. Лог: $(Join-Path $Logs 'server.log')" }
+# gives up at once if the API process has exited (a broken release: roll back without waiting 90 s)
+while (-not (Test-Http "$ApiUrl/api/health") -and -not $api.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
+if (-not (Test-Http "$ApiUrl/api/health")) { Fail "API не запустился. Лог: $(Join-Path $Logs 'server.log')" }
 while (-not (Test-Http "$UiUrl/") -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
 if (-not (Test-Http "$UiUrl/")) { Fail "Интерфейс не запустился. Лог: $(Join-Path $Logs 'frontend.log')" }
 
 # ---- 6. App window.
-Open-AppWindow
+if (-not (Get-AppWindowPids)) { Open-AppWindow }
+Remove-Item $Handover -ErrorAction SilentlyContinue  # the API has read it (outcome is reported once in the UI)
 Write-Log $Log 'ready'

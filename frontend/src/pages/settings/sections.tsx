@@ -11,6 +11,7 @@ import { KeyField } from '@/features/system/KeyField'
 import { cn } from '@/lib/cn'
 import type { TKey } from '@/i18n'
 import { useResource } from '@/lib/useResource'
+import { UpdateCard } from '@/features/system/Update'
 
 function PathRow({ label, value }: { label: string; value: string }) {
   return (
@@ -231,6 +232,7 @@ export function InterfaceSettings() {
       <Card title={t('onboarding.replay')} description={t('onboarding.replayHint')}>
         <Button icon={GraduationCap} onClick={() => setTutorialOpen(true)}>{t('onboarding.replay')}</Button>
       </Card>
+      <UpdateCard />
     </div>
   )
 }

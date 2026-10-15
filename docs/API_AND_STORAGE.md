@@ -9,6 +9,8 @@ API: `http://127.0.0.1:3000` (the UI reaches it through the Vite proxy at `:5173
 | GET | `/api/health` | liveness |
 | GET | `/api/system/status` | `busy` plus reasons (jobs, uploads, exports) |
 | POST | `/api/system/shutdown` | shut down; `409` with reasons when busy. Stops the API, Vite and the app window |
+| GET | `/api/system/update?force` | newest release tag vs the running version, changes, `blocked` reason, last update outcome (cached 1 h) |
+| POST | `/api/system/update` | fast-forward to the release and restart through the launcher; `409` when busy or blocked |
 | GET / PATCH | `/api/settings` | settings (keys are masked, with their source: settings / env / none) |
 | POST | `/api/settings/test-key` | test a key with one tiny model request |
 | GET | `/api/settings/prompts` | AI instruction blocks: default, current, modified |
@@ -29,7 +31,9 @@ API: `http://127.0.0.1:3000` (the UI reaches it through the Vite proxy at `:5173
 | GET | `/api/jobs`, `/api/jobs/{id}` | jobs |
 | GET | `/api/jobs/stream` | SSE: the full job list on every change |
 | POST | `/api/jobs/{id}/cancel` | cancel |
-| GET / POST / DELETE | `/api/assistant/{project\|lesson}/{id}` | chat: history / ask / clear |
+| GET / POST / DELETE | `/api/assistant/{project\|lesson}/{id}` | chat: history / ask (`attachments: [id]`) / clear (deletes its attachments) |
+| PUT | `/api/assistant/attachments/{filename}` | upload a chat attachment, any type, up to 500 MB (body = file bytes) |
+| GET | `/api/assistant/attachments/{id}/file` | download an attachment |
 | GET / POST | `/api/diary/categories` | diary categories (folders) / create |
 | PATCH / DELETE | `/api/diary/categories/{name}` | rename / delete (entries move to the inbox) |
 | GET | `/api/diary/entries?category&q` | entries (full text), newest first, text search |
@@ -44,6 +48,8 @@ API: `http://127.0.0.1:3000` (the UI reaches it through the Vite proxy at `:5173
 | `notebook_db.json` | `<data_dir>/` |
 | Lessons | `<data_dir>/output/<job_id>/` |
 | Diary | `<data_dir>/diary/<category>/*.md` |
+| Chat attachments | `<data_dir>/attachments/<id>/` (original file, `content.txt`, `meta.json`); unreferenced ones older than 24 h are removed on start |
+| Update hand-over | `state/update.json` in the settings home, while the launcher restarts after an update |
 | Temporary files | `<data_dir>/temp/` — cleared on every API start and stop |
 
 `data_dir` is set in Settings → Paths. API keys: settings, with `.env` as an optional fallback.

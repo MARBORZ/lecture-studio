@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/skeleton'
 import { JobIndicator } from '@/features/jobs/JobIndicator'
 import { ProjectFormModal } from '@/features/library/modals'
 import { ShutdownButton } from '@/features/system/ShutdownButton'
+import { UpdateButton } from '@/features/system/Update'
 import { cn } from '@/lib/cn'
 import { storage } from '@/lib/format'
 import { ease } from '@/lib/motion'
@@ -133,6 +134,7 @@ export function Sidebar() {
         )}
         <div className="flex flex-col gap-0.5 border-t border-line p-3">
           {collapsed && <IconButton icon={PanelLeftOpen} label={toggleLabel} onClick={toggle} className="w-full" />}
+          <UpdateButton />
           <ShutdownButton />
         </div>
       </m.aside>

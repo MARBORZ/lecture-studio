@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.api.routes import assistant, diary, jobs, lessons, projects, settings, system
 from backend.config import APP_NAME, APP_VERSION, FRONTEND_ORIGINS, PID_FILE
 from backend.core.media import ffmpeg_available
+from backend.services import updates
 from backend.services.migration import migrate_all
 from backend.services.storage import Library
 from backend.settings import paths
@@ -39,6 +40,7 @@ async def lifespan(app: FastAPI):
         if freed:
             logger.info("Temp cleared: %.1f MB", freed / 1024 / 1024)
         write_text(PID_FILE, str(os.getpid()))
+        updates.consume_outcome()
     else:
         logger.warning("Another Lecture Studio server is running (pid %s): temp/ and pid file left alone", read_text(PID_FILE).strip())
     if not ffmpeg_available():

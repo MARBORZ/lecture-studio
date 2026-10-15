@@ -1,6 +1,6 @@
 import type {
   AIProvider, AskRequest, Attachment, ChatMessage, DiaryCategory, DiaryEntry, ExportResult, Job, JobOptions, Lesson, LessonFull, LessonPatch, LessonStatus,
-  PathCheckResult, Project, PromptView, ProjectCreate, ProjectPatch, ProviderInfo, SettingsPatch, SettingsView, SystemStatus, Thread,
+  PathCheckResult, Project, PromptView, ProjectCreate, ProjectPatch, ProviderInfo, SettingsPatch, SettingsView, SystemStatus, Thread, UpdateInfo,
 } from './types'
 
 export class ApiError extends Error {
@@ -68,6 +68,8 @@ export const api = {
   // system
   status: () => get<SystemStatus>('/api/system/status'),
   shutdown: () => request<{ ok: boolean }>('POST', '/api/system/shutdown'),
+  update: (force = false) => get<UpdateInfo>(`/api/system/update${force ? '?force=true' : ''}`),
+  applyUpdate: () => request<UpdateInfo>('POST', '/api/system/update'),
 
   // settings
   settings: () => get<SettingsView>('/api/settings'),

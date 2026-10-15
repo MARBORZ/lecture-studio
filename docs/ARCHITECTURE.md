@@ -76,6 +76,22 @@ categories are folders (as in Obsidian — `diary/` can be opened as a vault). N
 An entry's title is its first line; its creation date comes from the file name. Deleting a category moves its entries
 to the inbox. The entry id `<category>/<file>.md` is checked so it cannot escape `diary/`.
 
+## Updates
+
+`services/updates.py`. A release is a git tag `vX.Y.Z`; `config.APP_VERSION` is what runs. The check fetches tags
+(no tag newer than the running version = nothing to offer, unreleased commits on `main` are never offered).
+The dialog lists the annotated tag's body as release notes, or the commit subjects up to the tag for a lightweight tag.
+Applying requires an idle system, a clean working tree and a fast-forward (no local commits); then:
+
+1. the API writes `state/update.json` (`from_sha`, versions) and runs `git merge --ff-only vX.Y.Z`;
+2. it starts the launcher detached in update mode (`start.zsh update`, `start.ps1 -Mode update`) and gets stopped by it;
+3. the launcher syncs dependencies if lock files changed and starts everything, keeping the app window;
+4. if the API or UI does not come up (a dead API process fails at once), it runs `git reset --keep <from_sha>`
+   and starts again in rollback mode;
+5. the starting API compares `update.json` with its version and reports the outcome; the launcher deletes the file.
+
+Installs without `.git` (the release zip) are told about a new release and get a link; they update by running Setup again.
+
 ## Platforms
 
 - Settings home `config.APP_HOME`: macOS `~/Library/Application Support/Lecture Studio`, Windows `%APPDATA%\Lecture Studio`,

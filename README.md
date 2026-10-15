@@ -21,7 +21,10 @@ that jump to the exact moment in the video. Video never leaves your machine.
   `[MM:SS]` timecodes. Long lectures are processed in parts and merged; nothing is truncated.
   The instructions are editable in **Settings → Instructions**; the timecode format stays system-owned so clicks keep working.
 - **Lesson workspace.** Player with chapter markers, synced transcript, audit with clickable timecodes,
-  per-lesson assistant, downloads and an Obsidian-style export.
+  per-lesson assistant, downloads and an Obsidian-style export. The video can be popped out into a floating window
+  or an always-on-top window and keeps playing while you move around the app.
+- **Attachments in chat.** Attach any file to a question: PDFs, Office documents and code are read as text,
+  images are seen by Gemini.
 - **Notebooks.** Lessons are grouped into notebooks (courses). A notebook chat answers from the lessons you tick,
   with citations like "Lesson 2 · 04:15" that open the lesson at that moment.
 - **Diary.** A quick-capture stream of Markdown notes in categories. Plain `.md` files, so the folder opens in Obsidian.
@@ -29,6 +32,9 @@ that jump to the exact moment in the video. Video never leaves your machine.
   everything except the video and the content (Esc to leave).
 - **Interface.** Monochrome, keyboard-friendly, English and Russian. ⌘B / Ctrl+B collapses the sidebar.
   A short tutorial runs on first start (language first) and can be replayed from Settings → Interface.
+- **Updates.** When a new release is tagged, the sidebar offers it with the list of changes. One click moves the code to
+  the release and restarts the app; if the new version does not start, the previous one comes back automatically.
+  Lessons and settings are never touched. Settings → Interface → Check for updates.
 - **MCP server.** AI agents (Claude Code, Claude Desktop, Cursor, Cline) can read lessons, search transcripts and
   write audits through the bundled MCP server.
 
@@ -109,8 +115,13 @@ npm --prefix frontend run gen:api          # regenerate TypeScript API types fro
 ```
 
 To run a second instance next to the installed app:
-`LECTURE_STUDIO_HOME=/tmp/ls uv run uvicorn backend.main:app --port 3001` and
-`LS_API_PORT=3001 LS_UI_PORT=5174 npm --prefix frontend run dev`.
+`LECTURE_STUDIO_HOME=/tmp/ls LS_API_PORT=3001 uv run uvicorn backend.main:app --port 3001` and
+`LS_API_PORT=3001 LS_UI_PORT=5174 npm --prefix frontend run dev`. The macOS launcher honours the same variables
+(plus `LS_NO_WINDOW=1`), which is how self-update is tested end to end without touching the running app.
+
+Releasing: `uv version X.Y.Z` (the only version source, `pyproject.toml`), commit, then an annotated tag whose body is
+the release notes (`git tag -a vX.Y.Z`, one `- item` per line), push `main` and the tag. Installed apps show those notes
+in the update dialog on their next check.
 
 Stack: FastAPI, Silero VAD, Faster-Whisper, FFmpeg, DeepSeek / Gemini, React 19, Vite, TypeScript, Tailwind 4, Motion.
 

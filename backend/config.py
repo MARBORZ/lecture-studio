@@ -4,14 +4,17 @@ Static, process-wide constants. Everything user-configurable lives in backend.se
 
 import os
 import sys
+import tomllib
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 APP_NAME = "Lecture Studio"
-APP_VERSION = "1.0.0"
-
 REPO_DIR = Path(__file__).resolve().parent.parent
+
+# The one version source is pyproject.toml (release: `uv version X.Y.Z`, commit, tag vX.Y.Z).
+with open(REPO_DIR / "pyproject.toml", "rb") as _f:
+    APP_VERSION: str = tomllib.load(_f)["project"]["version"]
 
 # Machine-local home: settings.json, pid file, logs, launcher state, Chrome app profile.
 # Lives outside the repository and outside the data dir so paths can change freely.
@@ -30,14 +33,19 @@ PID_FILE = APP_HOME / "server.pid"
 FRONTEND_PID_FILE = APP_HOME / "frontend.pid"
 LOGS_DIR = APP_HOME / "logs"
 CHROME_PROFILE_DIR = APP_HOME / "chrome-profile"
+STATE_DIR = APP_HOME / "state"  # launcher fingerprints, update hand-over (update.json)
+
+# Releases are git tags vX.Y.Z on this repository.
+REPO_URL = "https://github.com/MARBORZ/lecture-studio"
 
 # Default data location for a fresh install (existing installs keep whatever settings.json says).
 DEFAULT_DATA_DIR = REPO_DIR / "workspace"
 
 # Backend API on 3000; the UI is the Vite server on 5173 (proxies /api here).
+# LS_API_PORT / LS_UI_PORT: a second instance next to the running app (same names as vite.config.ts and the launcher).
 HOST = "127.0.0.1"
-PORT = 3000
-FRONTEND_PORT = 5173
+PORT = int(os.getenv("LS_API_PORT") or 3000)
+FRONTEND_PORT = int(os.getenv("LS_UI_PORT") or 5173)
 FRONTEND_ORIGINS = [f"http://127.0.0.1:{FRONTEND_PORT}", f"http://localhost:{FRONTEND_PORT}"]
 
 # .env is only a fallback source for API keys (settings.json takes precedence).

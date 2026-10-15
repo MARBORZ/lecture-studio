@@ -12,6 +12,7 @@ APP="$WORK/Lecture Studio.app"
 
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
+VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' "$REPO/pyproject.toml" | head -1)
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -20,8 +21,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleName</key><string>Lecture Studio</string>
   <key>CFBundleDisplayName</key><string>Lecture Studio</string>
   <key>CFBundleIdentifier</key><string>local.lecture-studio.launcher</string>
-  <key>CFBundleVersion</key><string>1.0.0</string>
-  <key>CFBundleShortVersionString</key><string>1.0.0</string>
+  <key>CFBundleVersion</key><string>$VERSION</string>
+  <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleExecutable</key><string>LectureStudio</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>

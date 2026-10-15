@@ -27,6 +27,11 @@ Motion for animation. Geist / Geist Mono fonts are bundled; no external CDNs.
   remembered). **Focus mode** (player button or **F**, Esc to leave) hides the sidebar, the lesson header and everything
   under the player — only the video and the content remain. Not fullscreen; the window stays a normal window.
 - **Player**: Space play/pause, ←/→ 5 seconds, speed up to 2×, audio/video switch keeps the position.
+  The video can leave the page: a **floating window** inside the app (drag, corner resize at 16:9, S/M/L, fullscreen;
+  keeps playing across routes, geometry remembered) or an **always-on-top OS window** (Document Picture-in-Picture,
+  native video PiP as a fallback). Only one `PlayerSurface` exists at a time; `player.setDisplay` carries time and state over.
+- **Assistant**: files of any type are attached with the paperclip, drag and drop or paste. Text is extracted on the server
+  (PDF, DOCX, PPTX, XLSX, text/code); images go to Gemini as images, other providers get a note that they cannot see them.
 
 ## First run
 
@@ -48,7 +53,12 @@ the `onboarding_done` flag is untouched.
 - `useJobs()` — jobs from SSE, in-tab uploads.
 
 The player is an external store (`features/player/store.ts`, `useSyncExternalStore`): `currentTime` updates only its
-subscribers. One `<video>` or `<audio>` element on one clean timeline.
+subscribers. One `<video>` or `<audio>` element on one clean timeline; `display` = inline / window / pip.
+
+Self-update is the same kind of store (`features/system/updateStore.ts`): `info` from `/api/system/update` (checked on
+start and every 3 hours, or from Settings → Interface), and `phase` while the launcher restarts. `phase` lives in
+sessionStorage because the page reloads under the restarting Vite server; `UpdatingScreen` waits for a server with a
+new pid and reloads. The outcome toast (updated / rolled back) is shown once per outcome.
 
 ## Timecodes in text
 

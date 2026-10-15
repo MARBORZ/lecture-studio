@@ -6,6 +6,8 @@ import { AnimatePresence, m, RouteOutlet } from '@/components/motion'
 import { Onboarding } from '@/features/onboarding/Onboarding'
 import { FloatingPlayer } from '@/features/player/FloatingPlayer'
 import { StoppedScreen } from '@/features/system/StoppedScreen'
+import { UpdatingScreen, useUpdateWatcher } from '@/features/system/Update'
+import { useUpdates } from '@/features/system/updateStore'
 import { cn } from '@/lib/cn'
 import { contentIn, ease, fadeUpFlow, sceneOut, sidebarIn } from '@/lib/motion'
 import { Sidebar } from './Sidebar'
@@ -13,7 +15,10 @@ import { Sidebar } from './Sidebar'
 export function AppShell() {
   const { modals, toasts, dismissToast, stopped, settings, tutorialOpen, setTutorialOpen, focusMode } = useUI()
   const { connected } = useJobs()
+  const updating = useUpdates((s) => Boolean(s.phase))
+  useUpdateWatcher()
   if (stopped) return <StoppedScreen />
+  if (updating) return <UpdatingScreen />
 
   // Which scene is on stage. First run: only the tutorial (flag in settings.json); a blank screen while settings load.
   // AnimatePresence mode="wait": the tutorial dissolves first, then the app assembles (sidebar, then content).
