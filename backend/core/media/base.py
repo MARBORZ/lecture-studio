@@ -28,11 +28,33 @@ def verify_ffmpeg() -> None:
         raise RuntimeError("FFmpeg/FFprobe не найдены в PATH. Установите: brew install ffmpeg")
 
 
+class MediaError(ValueError):
+    """The input cannot be processed; the message is for the user."""
+
+
 def run_ffmpeg(cmd: list[str], desc: str) -> None:
+    """Errors only on stderr (no banner, no stats): a failure message is the reason, not the tail of a progress log."""
     verify_ffmpeg()
+    if cmd and cmd[0] == "ffmpeg":
+        cmd = [cmd[0], "-hide_banner", "-nostats", "-loglevel", "error", *cmd[1:]]
     proc = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
     if proc.returncode != 0:
-        raise RuntimeError(f"FFmpeg ({desc}): {(proc.stderr or '').strip()[-600:]}")
+        lines = [line.strip() for line in (proc.stderr or "").splitlines() if line.strip()]
+        raise RuntimeError(f"FFmpeg ({desc}): {' | '.join(lines[-4:])[-500:] or f'код {proc.returncode}'}")
+
+
+def check_input(path: PathLike) -> float:
+    """Before a job starts: the file must be readable media with a sound track. Returns the duration.
+    Common failure: a stream downloaded from YouTube ("videoplayback") carries video only — sound is a separate file."""
+    try:
+        data = ffprobe_json(path, "-show_entries", "stream=codec_type:format=duration")
+    except RuntimeError as e:
+        raise MediaError(f"FFmpeg не может прочитать файл ({e}). Возможно, он повреждён или скачан не полностью.") from e
+    kinds = {s.get("codec_type") for s in data.get("streams", [])}
+    if "audio" not in kinds:
+        hint = " Похоже на поток, скачанный с YouTube: там видео и звук — отдельные файлы. Скачайте версию со звуком." if "video" in kinds else ""
+        raise MediaError(f"В файле нет звуковой дорожки — обрабатывать нечего.{hint}")
+    return float(data.get("format", {}).get("duration") or 0.0)
 
 
 def ffprobe_json(path: PathLike, *args: str) -> dict[str, Any]:
