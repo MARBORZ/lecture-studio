@@ -1839,6 +1839,11 @@ export interface components {
             changes: string[];
             /** Blocked */
             blocked?: ("dirty" | "diverged" | "zip" | "platform") | null;
+            /**
+             * Dirty Files
+             * @default []
+             */
+            dirty_files: string[];
             /** Error */
             error?: string | null;
             /** Checked At */
@@ -1846,6 +1851,11 @@ export interface components {
             /** Url */
             url: string;
             last?: components["schemas"]["UpdateOutcome"] | null;
+            /**
+             * Restart Failed
+             * @default false
+             */
+            restart_failed: boolean;
         };
         /**
          * UpdateOutcome

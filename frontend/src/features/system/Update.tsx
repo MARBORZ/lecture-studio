@@ -12,7 +12,7 @@ import { BusyList, useBusyReasons } from './busy'
 import { updates, useUpdates } from './updateStore'
 
 const RECHECK_MS = 3 * 60 * 60 * 1000
-const GIVE_UP_MS = 6 * 60 * 1000
+const GIVE_UP_MS = 25 * 60 * 1000 // a changed torch build (CUDA on Windows) is a multi-GB download
 
 const SHOWN_KEY = 'update.outcomeShown'
 
@@ -145,7 +145,16 @@ function UpdateDialog({ close }: { close: () => void }) {
           </ul>
         )}
         {blocked ? (
-          <p className="rounded-lg border border-line-strong px-3 py-2.5 text-[13px] leading-relaxed text-soft">{blocked}</p>
+          <div className="flex flex-col gap-2 rounded-lg border border-line-strong px-3 py-2.5 text-[13px] leading-relaxed text-soft">
+            <p>{blocked}</p>
+            {info.blocked === 'dirty' && info.dirty_files.length > 0 && (
+              <ul className="flex max-h-32 flex-col gap-0.5 overflow-y-auto font-mono text-[12px] text-muted">
+                {info.dirty_files.map((f) => (
+                  <li key={f}>{f}</li>
+                ))}
+              </ul>
+            )}
+          </div>
         ) : busy ? (
           <BusyList reasons={reasons!} />
         ) : (
@@ -164,6 +173,7 @@ export function UpdatingScreen() {
   const { t } = useUI()
   const phase = useUpdates((s) => s.phase)!
   const [stuck, setStuck] = useState(false)
+  const [restartFailed, setRestartFailed] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -178,6 +188,11 @@ export function UpdatingScreen() {
         if (s.pid !== phase.pid) {
           updates.finish()
           window.location.reload()
+          return
+        }
+        // The same server still answers: if the launcher never started, it says so (the code is updated, the restart is not).
+        if ((await api.update(false)).restart_failed) {
+          setRestartFailed(true)
           return
         }
       } catch {
@@ -195,11 +210,15 @@ export function UpdatingScreen() {
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-bg px-6 text-center">
       <span className="flex size-14 items-center justify-center rounded-full border border-line-strong">
-        <Icon as={stuck ? CircleArrowUp : LoaderCircle} size={22} className={stuck ? undefined : 'animate-spin'} />
+        <Icon as={stuck || restartFailed ? CircleArrowUp : LoaderCircle} size={22} className={stuck || restartFailed ? undefined : 'animate-spin'} />
       </span>
-      <h1 className="text-[18px] font-semibold">{stuck ? t('update.stuck') : t('update.updating', { v: phase.to })}</h1>
-      <p className="max-w-sm text-[13.5px] text-muted">{stuck ? t('update.stuckHint') : t('update.updatingHint')}</p>
-      {stuck && (
+      <h1 className="text-[18px] font-semibold">
+        {restartFailed ? t('update.restartFailed') : stuck ? t('update.stuck') : t('update.updating', { v: phase.to })}
+      </h1>
+      <p className="max-w-sm text-[13.5px] text-muted">
+        {restartFailed ? t('update.restartFailedHint', { v: phase.to }) : stuck ? t('update.stuckHint') : t('update.updatingHint')}
+      </p>
+      {stuck && !restartFailed && (
         <Button onClick={() => { updates.finish(); window.location.reload() }}>{t('update.reload')}</Button>
       )}
     </div>

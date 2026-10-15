@@ -44,7 +44,9 @@ class UpdateInfo(BaseModel):
     mode: Literal["git", "zip"]
     changes: list[str] = []
     blocked: UpdateBlock | None = None  # why it cannot be applied from the app
+    dirty_files: list[str] = []  # blocked == "dirty": the changed tracked files
     error: str | None = None  # the check itself failed (offline, git missing)
     checked_at: float | None = None
     url: str
     last: UpdateOutcome | None = None
+    restart_failed: bool = False  # the code is updated but the launcher never started: the user has to start the app

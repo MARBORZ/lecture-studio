@@ -74,7 +74,9 @@ $steps = @(
         if ((Invoke-Logged -Exe (Get-Command uv).Source -Arguments @('sync', '--frozen') -LogFile $SetupLog -Tick $tick) -ne 0) { Fail 'Установка Python-зависимостей не удалась.' }
     } },
     @{ Label = 'Интерфейс'; Run = {
-        if ((Invoke-Logged -Exe 'cmd.exe' -Arguments @('/c', 'npm', 'ci', '--no-audit', '--no-fund') -Cwd (Join-Path $Repo 'frontend') -LogFile $SetupLog -Tick $tick) -ne 0) { Fail 'Установка интерфейса не удалась.' }
+        # cmd /c npm can return a non-zero code after a successful install: judge by the result, not the exit code.
+        $code = Invoke-Logged -Exe 'cmd.exe' -Arguments @('/c', 'npm', 'ci', '--no-audit', '--no-fund') -Cwd (Join-Path $Repo 'frontend') -LogFile $SetupLog -Tick $tick
+        if (-not (Test-Path (Join-Path $Repo 'frontend\node_modules\vite'))) { Fail "Установка интерфейса не удалась (npm код $code). Лог: $SetupLog" }
     } },
     @{ Label = 'Настройки'; Run = {
         if ($installed) { return }
