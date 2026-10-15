@@ -56,3 +56,36 @@ def test_onboarding_flag(data_dir):
         r = c.patch("/api/settings", json={"ui_language": "en", "onboarding_done": True}).json()
         assert (r["ui_language"], r["onboarding_done"]) == ("en", True)
         assert c.patch("/api/settings", json={"export_dir": ""}).json()["onboarding_done"] is True  # untouched by other patches
+
+
+def test_transcription_device_reports_and_explains(data_dir, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from backend.core.transcription import whisper
+    from backend.main import app
+
+    monkeypatch.setattr(whisper, "_device", {"device": "cpu", "name": "", "reason": "torch_cpu"})
+    with TestClient(app) as c:
+        assert c.get("/api/settings/transcription-device").json() == {"device": "cpu", "name": "", "reason": "torch_cpu"}
+
+
+def test_cuda_failure_falls_back_to_cpu(monkeypatch):
+    import sys
+    import types
+
+    from backend.core.transcription import whisper
+
+    made = []
+
+    class FakeModel:
+        def __init__(self, size, device, compute_type, **kw):
+            if device == "cuda":
+                raise RuntimeError("Library cublas64_12.dll is not found")
+            made.append((device, compute_type))
+
+    monkeypatch.setitem(sys.modules, "faster_whisper", types.SimpleNamespace(WhisperModel=FakeModel))
+    monkeypatch.setattr(whisper, "_models", {})
+    monkeypatch.setattr(whisper, "_device", {"device": "cuda", "name": "RTX 3080", "reason": ""})
+    whisper._model("small")
+    assert made == [("cpu", "int8")]
+    assert whisper.device()["device"] == "cpu" and "cublas64_12" in whisper.device()["reason"]

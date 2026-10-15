@@ -206,6 +206,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/transcription-device": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Transcription Device
+         * @description GPU or CPU for local Whisper, and why (the first call imports torch: about a second).
+         */
+        get: operations["transcription_device_api_settings_transcription_device_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects": {
         parameters: {
             query?: never;
@@ -1775,6 +1795,27 @@ export interface components {
              */
             mode: "whisper" | "gemini" | "deepseek";
         };
+        /**
+         * TranscriptionDevice
+         * @description Where local Whisper runs. reason (cpu only): apple | torch_cpu | no_gpu | cuda_failed: <error>.
+         */
+        TranscriptionDevice: {
+            /**
+             * Device
+             * @enum {string}
+             */
+            device: "cuda" | "cpu";
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+        };
         /** UpdateInfo */
         UpdateInfo: {
             /** Current */
@@ -2218,6 +2259,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transcription_device_api_settings_transcription_device_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranscriptionDevice"];
                 };
             };
         };

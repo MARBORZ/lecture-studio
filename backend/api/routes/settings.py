@@ -18,6 +18,7 @@ from backend.settings.schema import (
     PromptView,
     SettingsPatch,
     SettingsView,
+    TranscriptionDevice,
 )
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -99,3 +100,11 @@ def change_data_dir(req: DataDirChange) -> SettingsView:
     Library.import_untracked()
     migrate_all()
     return SettingsService.view()
+
+
+@router.get("/transcription-device", response_model=TranscriptionDevice)
+def transcription_device() -> TranscriptionDevice:
+    """GPU or CPU for local Whisper, and why (the first call imports torch: about a second)."""
+    from backend.core.transcription.whisper import device
+
+    return TranscriptionDevice(**device())

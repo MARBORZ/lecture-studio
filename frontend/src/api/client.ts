@@ -1,7 +1,7 @@
 import type {
   AIProvider, AskRequest, Attachment, DiaryCategory, DiaryEntry, ExportResult, Job, JobOptions, Lesson, LessonFull, LessonPatch, LessonStatus,
   PathCheckResult, Project, PromptView, ProjectCreate, ProjectPatch, ProviderInfo, SessionInfo, SessionPatch, SettingsPatch, SettingsView, SystemStatus,
-  Thread, ThreadKind, UpdateInfo,
+  Thread, ThreadKind, TranscriptionDevice, UpdateInfo,
 } from './types'
 
 export class ApiError extends Error {
@@ -91,6 +91,7 @@ export const api = {
   // settings
   settings: () => get<SettingsView>('/api/settings'),
   patchSettings: (patch: SettingsPatch) => request<SettingsView>('PATCH', '/api/settings', patch),
+  transcriptionDevice: () => get<TranscriptionDevice>('/api/settings/transcription-device'),
   providers: () => get<Record<string, ProviderInfo>>('/api/settings/providers'),
   prompts: () => get<PromptView[]>('/api/settings/prompts'),
   savePrompt: (key: string, value: string) => request<PromptView[]>('PUT', `/api/settings/prompts/${key}`, { value }),

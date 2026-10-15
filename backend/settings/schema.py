@@ -153,3 +153,11 @@ class KeyTestResult(BaseModel):
 class DataDirChange(BaseModel):
     path: str
     mode: Literal["attach", "move"] = "attach"
+
+
+class TranscriptionDevice(BaseModel):
+    """Where local Whisper runs. reason (cpu only): apple | torch_cpu | no_gpu | cuda_failed: <error>."""
+
+    device: Literal["cuda", "cpu"]
+    name: str = ""
+    reason: str = ""

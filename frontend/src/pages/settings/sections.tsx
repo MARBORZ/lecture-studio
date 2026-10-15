@@ -1,4 +1,4 @@
-import { Check, FolderInput, GraduationCap, RotateCcw } from 'lucide-react'
+import { Check, Cpu, FolderInput, GraduationCap, RotateCcw, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { api } from '@/api/client'
 import type { PathCheckResult, PipelineDefaults, PromptView, UILanguage } from '@/api/types'
@@ -177,6 +177,7 @@ export function AISettingsSection() {
           <KeyField provider="gemini" />
         </div>
       </Card>
+      <DeviceCard />
       <Card title={t('settings.models')}>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="DeepSeek">
@@ -213,6 +214,29 @@ export function ProcessingSettings() {
       }
     >
       <PipelineOptionsFields value={opts} onChange={setOpts} />
+    </Card>
+  )
+}
+
+/** Where local Whisper runs (GPU or CPU) and, on the CPU, why. */
+function DeviceCard() {
+  const { t } = useUI()
+  const dev = useResource(() => api.transcriptionDevice(), [])
+  const d = dev.data
+  const reason = d?.reason.startsWith('cuda_failed') ? 'cuda_failed' : d?.reason
+  return (
+    <Card title={t('settings.device')} description={t('settings.deviceHint')}>
+      {!d ? (
+        <p className="animate-pulse-soft text-[13px] text-muted">{t('settings.deviceChecking')}</p>
+      ) : (
+        <div className="flex items-start gap-3">
+          <Icon as={d.device === 'cuda' ? Zap : Cpu} size={18} className="mt-0.5 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-[13.5px] text-fg">{d.device === 'cuda' ? `${t('settings.device.gpu')}: ${d.name}` : t('settings.device.cpu')}</p>
+            {reason && <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted">{t(`settings.device.why.${reason as 'apple' | 'torch_cpu' | 'no_gpu' | 'cuda_failed'}`)}</p>}
+          </div>
+        </div>
+      )}
     </Card>
   )
 }
