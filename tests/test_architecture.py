@@ -78,3 +78,13 @@ def test_api_types_are_generated_not_hand_written():
     # types.ts only aliases the generated schema
     src = (FRONT / "api" / "types.ts").read_text("utf-8")
     assert not re.search(r"^export (interface|type \w+ = \{)", src, re.M)
+
+
+def test_subprocess_text_is_decoded_as_utf8():
+    # text=True alone decodes with the OS locale: cp1252 on Windows turns "–" into "â€“" and Cyrillic into garbage
+    bad = []
+    for p in files(BACKEND, "*.py"):
+        for call in re.findall(r"subprocess\.(?:run|Popen|check_output)\((?:[^()]|\([^()]*\))*\)", p.read_text("utf-8"), re.S):
+            if re.search(r"\btext=True|universal_newlines=True", call) and "encoding=" not in call:
+                bad.append(str(p.relative_to(ROOT)))
+    assert bad == []

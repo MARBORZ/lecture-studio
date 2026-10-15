@@ -37,7 +37,7 @@ def run_ffmpeg(cmd: list[str], desc: str) -> None:
     verify_ffmpeg()
     if cmd and cmd[0] == "ffmpeg":
         cmd = [cmd[0], "-hide_banner", "-nostats", "-loglevel", "error", *cmd[1:]]
-    proc = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
     if proc.returncode != 0:
         lines = [line.strip() for line in (proc.stderr or "").splitlines() if line.strip()]
         raise RuntimeError(f"FFmpeg ({desc}): {' | '.join(lines[-4:])[-500:] or f'код {proc.returncode}'}")
@@ -61,7 +61,7 @@ def ffprobe_json(path: PathLike, *args: str) -> dict[str, Any]:
     verify_ffmpeg()
     proc = subprocess.run(
         ["ffprobe", "-v", "error", "-of", "json", *args, str(path)],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     if proc.returncode != 0:
         raise RuntimeError(f"ffprobe: {proc.stderr.strip()[-300:]}")

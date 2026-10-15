@@ -57,7 +57,10 @@ def handover_file():
 
 def _git(*args: str, timeout: float = 30) -> str:
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
-    res = subprocess.run(["git", *args], cwd=config.REPO_DIR, env=env, capture_output=True, text=True, timeout=timeout)
+    # Always UTF-8: without it Windows decodes git output as cp1252 and release notes show "â€“" for "–".
+    res = subprocess.run(
+        ["git", *args], cwd=config.REPO_DIR, env=env, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout
+    )
     if res.returncode != 0:
         message = (res.stderr or res.stdout).strip() or f"git {args[0]} failed"
         if "dubious ownership" in message:

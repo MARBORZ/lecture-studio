@@ -263,3 +263,15 @@ def time_now() -> float:
     import time
 
     return time.time()
+
+
+def test_release_notes_stay_utf8_under_a_windows_locale(release_repos, monkeypatch):
+    # Windows decodes text=True output as cp1252 unless told otherwise: "–" became "â€“" in the update dialog
+    _, work, _ = release_repos
+    commit(work, "e.txt", "Theme")
+    git(work, "tag", "-a", "v1.2.0", "-m", "Lecture Studio 1.2.0\n\n- Reading text size (80–150%)\n- Тёмная тема")
+    git(work, "push", "-q", "origin", "main", "v1.2.0")
+    monkeypatch.setattr(subprocess, "_text_encoding", lambda: "cp1252")
+    with client() as c:
+        info = c.get("/api/system/update?force=true").json()
+    assert info["latest"] == "1.2.0" and info["changes"] == ["Reading text size (80–150%)", "Тёмная тема"]
