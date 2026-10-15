@@ -36,6 +36,9 @@ Motion for animation. Geist / Geist Mono fonts are bundled; no external CDNs.
   The video can leave the page: a **floating window** inside the app (drag, corner resize at 16:9, S/M/L, fullscreen;
   keeps playing across routes, geometry remembered) or an **always-on-top OS window** (Document Picture-in-Picture,
   native video PiP as a fallback). Only one `PlayerSurface` exists at a time; `player.setDisplay` carries time and state over.
+- **Studio** (`pages/StudioPage.tsx`): a wizard — file, lesson, processing, start — with the queue beside it.
+- **Diary**: entries fold to their title (one or all, remembered); long ones open as a preview; editors are bounded and
+  scroll inside instead of growing the page.
 - **Assistant** (`features/assistant`, server calls only in `useThread`): **sessions** like Claude Code — a menu to switch,
   rename, delete, a new session starts with an empty history; **Clear** empties the current session (history, summary,
   files). The **context meter** shows how much of the provider's window the next question takes and of what (sources,
@@ -44,6 +47,14 @@ Motion for animation. Geist / Geist Mono fonts are bundled; no external CDNs.
   clicking it). Text is extracted on the server (PDF, DOCX, PPTX, XLSX, text/code); images go to Gemini as images with the
   message they were attached to. **Select text** in an answer or in the audit → "Ask about this" puts it into the input
   as a quote. Without a key for the chosen model the notice offers to switch to the model that has one.
+
+## Appearance
+
+`settings.json` keeps `theme` (`system` by default, `dark`, `light`) and `text_scale` (80–150, %). `lib/appearance.ts` puts
+`data-theme` and `--text-scale` on `<html>` and caches them so `index.html` applies them before the first paint. The light
+theme redefines the same color tokens (`styles/index.css`), so components never branch on the theme. Reading text
+(markdown, transcript, chat, diary) is sized as `calc(base × --text-scale)` — `.md` and the `.read-13/14/15` classes;
+the rest of the UI keeps its size.
 
 ## First run
 

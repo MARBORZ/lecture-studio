@@ -72,6 +72,11 @@ audit timecodes to the clean timeline; the original audit is kept as `lesson_aud
   summary and files. Stored in `notebook_db.json` under `threads`; the old flat list of messages is read as one session.
 - `BaseAIProvider.generate_audit` exists once: a long transcript is split into ~30k-character parts, each part becomes
   notes, then a final merge. Nothing is truncated.
+- **Retries** (`core/ai/retry.py`): every cloud call (Gemini text and transcription, DeepSeek) goes through `with_retry`.
+  503/429/5xx, timeouts and dropped connections are retried 5 times over ~1 minute (cancellable); other errors fail at
+  once; exhausted retries raise `AIUnavailable` with a plain explanation.
+- **Transcription inside processing is soft**, like the audit: if it fails, the lesson is saved with its clean audio and
+  video and a warning; `POST /api/lessons/{id}/transcribe` (`TRANSCRIBE_STEPS`) redoes only recognition (+ audit).
 - Providers (`DeepSeekProvider`, `GeminiProvider`) implement transport only. Registration via the `AIMeta` metaclass.
 - Default audit style: slide notes, one line per point, no softening, "Wrong: …" / "Simplification: …" said plainly.
   The default texts are in Russian; output follows the lecture language.

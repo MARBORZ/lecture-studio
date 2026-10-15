@@ -33,7 +33,12 @@ that jump to the exact moment in the video. Video never leaves your machine.
 - **Diary.** A quick-capture stream of Markdown notes in categories. Plain `.md` files, so the folder opens in Obsidian.
 - **Focus mode and resizable video.** Drag the divider between the video and the content, or press **F** to hide
   everything except the video and the content (Esc to leave).
-- **Interface.** Monochrome, keyboard-friendly, English and Russian. ⌘B / Ctrl+B collapses the sidebar.
+- **Studio** is a four-step wizard: file → lesson → processing (engine cards say what runs locally and what goes to the
+  cloud) → start. Temporary cloud failures (overload, rate limits) are retried; if transcription still fails, the lesson
+  is saved with its clean audio and video, and **Recognize speech** in the lesson redoes only that step.
+- **Notebooks** can have a cover image. **Diary** entries fold to their title; long ones open as previews.
+- **Interface.** Monochrome, light or dark (follows the system by default), adjustable reading text size (80–150%),
+  keyboard-friendly, English and Russian. ⌘B / Ctrl+B collapses the sidebar.
   A short tutorial runs on first start (language first) and can be replayed from Settings → Interface.
 - **Updates.** When a new release is tagged, the sidebar offers it with the list of changes. One click moves the code to
   the release and restarts the app; if the new version does not start, the previous one comes back automatically.

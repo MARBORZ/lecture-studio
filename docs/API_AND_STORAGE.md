@@ -26,6 +26,8 @@ API: `http://127.0.0.1:3000` (the UI reaches it through the Vite proxy at `:5173
 | GET | `/api/lessons/{id}/files/{kind}` | download: audio, video, audit, srt, orig_srt, txt, clean_ts, orig_ts, segments, time_map |
 | POST | `/api/lessons/{id}/export` | export to a folder (default: from settings) |
 | POST | `/api/lessons/{id}/audit` | regenerate the audit (background job) |
+| POST | `/api/lessons/{id}/transcribe` | recognize speech again from the clean audio `{mode: whisper\|gemini}`; media is kept (background job) |
+| PUT / DELETE / GET | `/api/projects/{id}/cover` | notebook cover: upload (body = image, PNG/JPEG/WebP/GIF ≤ 10 MB) / remove / the image |
 | PUT | `/api/uploads/{filename}` | streamed upload into `temp/` (body = file bytes) |
 | POST | `/api/jobs` | start: `{options, upload_id?}` or `options.local_path`; `400` at once for unreadable media or no sound track |
 | GET | `/api/jobs`, `/api/jobs/{id}` | jobs |
@@ -55,6 +57,7 @@ API: `http://127.0.0.1:3000` (the UI reaches it through the Vite proxy at `:5173
 | `notebook_db.json` | `<data_dir>/` |
 | Lessons | `<data_dir>/output/<job_id>/` |
 | Diary | `<data_dir>/diary/<category>/*.md` |
+| Notebook covers | `<data_dir>/covers/<project_id>-<hash>.<ext>` (`Project.cover` = file name) |
 | Chat attachments | `<data_dir>/attachments/<id>/` (original file, `content.txt`, `meta.json`); unreferenced ones older than 24 h are removed on start |
 | Update hand-over | `state/update.json` in the settings home, while the launcher restarts after an update |
 | Temporary files | `<data_dir>/temp/` — cleared on every API start and stop |
