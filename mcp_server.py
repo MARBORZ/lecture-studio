@@ -1,0 +1,174 @@
+"""
+MCP server `lecture-studio`: gives AI agents (Claude Desktop / Code, Cursor, Cline) direct access
+to the local lesson library. Thin layer over backend services — no file logic of its own.
+
+All timecodes are on the CLEAN timeline (the one clean_video.mp4 / clean_speech.mp3 play on).
+"""
+
+import sys
+from pathlib import Path
+from typing import Any, Dict, List, Literal, Optional
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from mcp.server.mcpserver import MCPServer  # noqa: E402
+
+from backend.core.ai.base import clean_output  # noqa: E402
+from backend.core.timeline import TimeMap, parse_srt  # noqa: E402
+from backend.core.transcription import write_transcripts  # noqa: E402
+from backend.models.lesson import LessonPatch  # noqa: E402
+from backend.models.transcript import Segment  # noqa: E402
+from backend.services.export import export_lesson  # noqa: E402
+from backend.services.storage import Artifacts, Library  # noqa: E402
+from backend.utils.fs import read_json, write_text  # noqa: E402
+
+mcp = MCPServer("lecture-studio", instructions="Local lecture library. All timecodes are [MM:SS] on the clean timeline.")
+
+
+def _not_found(lesson_id: str) -> Dict[str, Any]:
+    return {"error": f"Урок '{lesson_id}' не найден"}
+
+
+@mcp.tool()
+def lecture_list_projects() -> List[Dict[str, Any]]:
+    """List notebooks (courses) with lesson counts."""
+    return [p.model_dump() for p in Library.list_projects()]
+
+
+@mcp.tool()
+def lecture_list_lessons(project_id: Optional[str] = None, status: Optional[str] = None, search: Optional[str] = None) -> List[Dict[str, Any]]:
+    """List lessons. status: in_progress | to_review | completed. search: title/notes/tags substring."""
+    return [l.model_dump() for l in Library.list_lessons(project_id, status, search)]
+
+
+@mcp.tool()
+def lecture_get_lesson_material(lesson_id: str) -> Dict[str, Any]:
+    """
+    Full lesson package: lesson_audit_md, segments (clean+orig times), clean_timestamps_text ([MM:SS] lines),
+    orig_timestamps_text, srt_text (clean SRT), plain_text, time_map.
+    """
+    lesson = Library.get_lesson_full(lesson_id)
+    return lesson.model_dump() if lesson else _not_found(lesson_id)
+
+
+def _track(lesson_id: str, artifact: str, key: str) -> Dict[str, Any]:
+    lesson = Library.get_lesson(lesson_id)
+    if not lesson:
+        return _not_found(lesson_id)
+    path = Library.lesson_dir(lesson) / artifact
+    if not path.is_file():
+        return {"error": f"{artifact} отсутствует у урока '{lesson_id}'"}
+    return {
+        "lesson_id": lesson.id,
+        "title": lesson.title,
+        key: str(path),
+        "clean_duration_sec": lesson.clean_duration_sec,
+        "orig_duration_sec": lesson.orig_duration_sec,
+        "saved_percent": lesson.saved_percent,
+    }
+
+
+@mcp.tool()
+def lecture_get_clean_audio_track(lesson_id: str) -> Dict[str, Any]:
+    """Absolute path to clean_speech.mp3 (silence removed by Silero VAD) + durations."""
+    return _track(lesson_id, Artifacts.AUDIO, "audio_path")
+
+
+@mcp.tool()
+def lecture_get_clean_video_track(lesson_id: str) -> Dict[str, Any]:
+    """Absolute path to clean_video.mp4 (jump-cut, H.264 CRF) + durations."""
+    return _track(lesson_id, Artifacts.VIDEO, "video_path")
+
+
+@mcp.tool()
+def lecture_search_transcripts(query: str, project_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Case-insensitive search across transcripts. Returns '[MM:SS] line' matches per lesson."""
+    q = query.lower().strip()
+    results = []
+    for l in Library.list_lessons(project_id=project_id):
+        full = Library.get_lesson_full(l.id)
+        lines = (full.clean_timestamps_text if full else "").splitlines()
+        matches = [line.strip() for line in lines if q in line.lower()]
+        if matches:
+            results.append({"lesson_id": l.id, "title": l.title, "project_id": l.project_id, "matches": matches[:15], "match_count": len(matches)})
+    return results
+
+
+@mcp.tool()
+def lecture_save_audit_markdown(lesson_id: str, audit_markdown: str) -> Dict[str, Any]:
+    """Save/replace the lesson audit. Timecodes must be [MM:SS] on the clean timeline; out-of-range ones are dropped."""
+    lesson = Library.get_lesson(lesson_id)
+    if not lesson:
+        return _not_found(lesson_id)
+    path = write_text(Library.lesson_dir(lesson) / Artifacts.AUDIT, clean_output(audit_markdown, lesson.clean_duration_sec or None))
+    Library.refresh_flags(lesson.id)
+    return {"status": "ok", "file_path": str(path)}
+
+
+@mcp.tool()
+def lecture_update_lesson(
+    lesson_id: str,
+    title: Optional[str] = None,
+    project_id: Optional[str] = None,
+    notes: Optional[str] = None,
+    status: Optional[Literal["in_progress", "to_review", "completed"]] = None,
+    tags: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Partial metadata update. Omitted fields are left unchanged."""
+    lesson = Library.patch_lesson(lesson_id, LessonPatch(title=title, project_id=project_id, notes=notes, status=status, tags=tags))
+    return {"status": "ok", "lesson": lesson.model_dump()} if lesson else _not_found(lesson_id)
+
+
+@mcp.tool()
+def lecture_export_to_local_folder(lesson_id: str, target_dir: Optional[str] = None) -> Dict[str, Any]:
+    """Export to audio/ compressed/ content/ srt/ txt/ + <Title>.md. target_dir defaults to Settings → export folder."""
+    try:
+        return export_lesson(lesson_id, target_dir).model_dump()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@mcp.tool()
+def lecture_apply_agent_transcription(
+    lesson_id: str,
+    srt_content: Optional[str] = None,
+    srt_timeline: Literal["clean", "orig"] = "clean",
+    plain_text: Optional[str] = None,
+    audit_markdown: Optional[str] = None,
+    target_export_folder: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Apply an agent-made transcription and/or audit, then optionally export.
+    srt_content is converted into segments.json and all transcript files are regenerated;
+    srt_timeline says which timeline its times are on. plain_text is used only without SRT.
+    """
+    lesson = Library.get_lesson(lesson_id)
+    if not lesson:
+        return _not_found(lesson_id)
+    d = Library.lesson_dir(lesson)
+    tm = TimeMap(read_json(d / Artifacts.TIME_MAP, default=[]) or [])
+
+    if srt_content:
+        segs = []
+        for item in parse_srt(srt_content):
+            cs, ce = (item["start"], item["end"]) if srt_timeline == "clean" else (tm.orig_to_clean(item["start"]), tm.orig_to_clean(item["end"]))
+            segs.append(Segment(clean_start=cs, clean_end=ce, orig_start=tm.clean_to_orig(cs), orig_end=tm.clean_to_orig(ce), text=item["text"]))
+        write_transcripts(d, segs)
+    elif plain_text:
+        write_text(d / Artifacts.PLAIN, plain_text.strip() + "\n")
+
+    if audit_markdown:
+        write_text(d / Artifacts.AUDIT, clean_output(audit_markdown, lesson.clean_duration_sec or None))
+
+    Library.refresh_flags(lesson.id)
+    export = None
+    if target_export_folder:
+        try:
+            export = export_lesson(lesson.id, target_export_folder).model_dump()
+        except Exception as e:
+            export = {"error": str(e)}
+    return {"status": "ok", "lesson_id": lesson.id, "export": export}
+
+
+if __name__ == "__main__":
+    mcp.run()

@@ -1,0 +1,32 @@
+[project]
+name = "lecture-studio"
+version = "1.0.0"
+description = "Local NotebookLM-style lecture studio: Silero VAD jump-cut, transcription, blunt AI audits"
+requires-python = ">=3.12,<3.13"
+license = "MIT"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "aiofiles>=24.1",
+    "pydantic>=2.9",
+    "python-dotenv>=1.0",
+    "httpx>=0.28",
+    "psutil>=6.0",
+    "mcp>=2.3",
+    "numpy>=1.26,<3",
+    "soundfile>=0.12",
+    "torch>=2.2",
+    "silero-vad>=5.1",
+    "onnxruntime>=1.19",
+    "faster-whisper>=1.1",
+    "google-genai>=1.0",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

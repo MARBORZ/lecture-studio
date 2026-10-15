@@ -1,0 +1,44 @@
+"""
+Static, process-wide constants. Everything user-configurable lives in backend.settings.
+"""
+
+import os
+import sys
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+APP_NAME = "Lecture Studio"
+APP_VERSION = "1.0.0"
+
+REPO_DIR = Path(__file__).resolve().parent.parent
+
+# Machine-local home: settings.json, pid file, logs, launcher state, Chrome app profile.
+# Lives outside the repository and outside the data dir so paths can change freely.
+def _default_home() -> Path:
+    if sys.platform == "darwin":
+        return Path("~/Library/Application Support/Lecture Studio").expanduser()
+    if sys.platform == "win32":
+        return Path(os.getenv("APPDATA") or Path.home() / "AppData" / "Roaming") / "Lecture Studio"
+    return Path(os.getenv("XDG_DATA_HOME") or "~/.local/share").expanduser() / "lecture-studio"
+
+
+APP_HOME = Path(os.getenv("LECTURE_STUDIO_HOME") or _default_home()).expanduser()
+
+SETTINGS_FILE = APP_HOME / "settings.json"
+PID_FILE = APP_HOME / "server.pid"
+FRONTEND_PID_FILE = APP_HOME / "frontend.pid"
+LOGS_DIR = APP_HOME / "logs"
+CHROME_PROFILE_DIR = APP_HOME / "chrome-profile"
+
+# Default data location for a fresh install (existing installs keep whatever settings.json says).
+DEFAULT_DATA_DIR = REPO_DIR / "workspace"
+
+# Backend API on 3000; the UI is the Vite server on 5173 (proxies /api here).
+HOST = "127.0.0.1"
+PORT = 3000
+FRONTEND_PORT = 5173
+FRONTEND_ORIGINS = [f"http://127.0.0.1:{FRONTEND_PORT}", f"http://localhost:{FRONTEND_PORT}"]
+
+# .env is only a fallback source for API keys (settings.json takes precedence).
+load_dotenv(REPO_DIR / ".env")

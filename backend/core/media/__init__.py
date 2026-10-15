@@ -1,0 +1,8 @@
+from backend.core.media.audio import AudioProcessor, extract_wav
+from backend.core.media.base import BaseMediaProcessor, ffmpeg_available, probe_duration, verify_ffmpeg
+from backend.core.media.video import VideoProcessor, probe_video
+
+__all__ = [
+    "AudioProcessor", "BaseMediaProcessor", "VideoProcessor",
+    "extract_wav", "ffmpeg_available", "probe_duration", "probe_video", "verify_ffmpeg",
+]

@@ -1,0 +1,33 @@
+/** Aliases over the OpenAPI-generated schema (npm run gen:api). Never hand-write API shapes. */
+import type { components } from './schema'
+
+type S = components['schemas']
+
+export type Project = S['Project']
+export type ProjectCreate = S['ProjectCreate']
+export type ProjectPatch = S['ProjectPatch']
+export type Lesson = S['Lesson']
+export type LessonFull = S['LessonFull']
+export type LessonPatch = S['LessonPatch']
+export type LessonStatus = Lesson['status']
+export type Segment = S['Segment']
+export type Job = S['Job']
+export type JobStage = Job['stage']
+export type JobOptions = S['JobOptions']
+export type PipelineDefaults = S['PipelineDefaults']
+export type SettingsView = S['SettingsView']
+export type SettingsPatch = S['SettingsPatch']
+export type PathCheckResult = S['PathCheckResult']
+export type ProviderInfo = S['ProviderInfo']
+export type SystemStatus = S['SystemStatus']
+export type BusyReason = S['BusyReason']
+export type ChatMessage = S['ChatMessage']
+export type Thread = S['Thread']
+export type AskRequest = S['AskRequest']
+export type AssistantRole = NonNullable<AskRequest['role']>
+export type ExportResult = S['ExportResult']
+export type AIProvider = SettingsView['ai']['assistant_provider']
+export type UILanguage = SettingsView['ui_language']
+export type PromptView = S['PromptView']
+export type DiaryCategory = S['DiaryCategory']
+export type DiaryEntry = S['DiaryEntry']

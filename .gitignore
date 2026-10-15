@@ -1,0 +1,23 @@
+# Personal data (lessons DB, media, transcripts) — never in git
+workspace/
+
+# Environments & secrets
+.venv/
+.env
+node_modules/
+
+# Build output
+frontend/dist/
+
+# Caches
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+*.log
+*.tsbuildinfo
+dist/
+
+# Local editor/agent tooling with machine-specific paths
+.claude/launch.json

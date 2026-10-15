@@ -1,0 +1,10 @@
+# Windows scripts need CRLF; macOS/Linux scripts need LF. Keep both regardless of the cloning OS.
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.vbs text eol=crlf
+*.zsh text eol=lf
+*.sh  text eol=lf
+*.applescript text eol=lf
+*.ico binary
+*.icns binary
+*.scpt binary

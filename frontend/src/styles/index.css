@@ -1,0 +1,50 @@
+@import 'tailwindcss';
+
+/* Monochrome design tokens. No hue anywhere: hierarchy = luminance, weight, shape. */
+@theme {
+  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', monospace;
+
+  --color-bg: #000000;
+  --color-surface: #0a0a0a;
+  --color-raised: #121212;
+  --color-hover: #1a1a1a;
+  --color-line: #222222;
+  --color-line-strong: #3a3a3a;
+  --color-dim: #5a5a5a;
+  --color-muted: #8f8f8f;
+  --color-soft: #c8c8c8;
+  --color-fg: #fafafa;
+
+  --radius-ui: 8px;
+  --animate-pulse-soft: pulse-soft 1.6s ease-in-out infinite;
+
+  /* transform only: a frozen first frame (hidden/background window) must still show the content */
+  @keyframes fade-in {
+    from { transform: translateY(6px); }
+    to { transform: none; }
+  }
+
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 0.45; }
+    50% { opacity: 0.9; }
+  }
+}
+
+@layer base {
+  html, body, #root { height: 100%; }
+  body {
+    @apply bg-bg text-fg font-sans antialiased;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+  ::selection { background: #fafafa; color: #000; }
+  :focus-visible { outline: 1px solid var(--color-fg); outline-offset: 2px; }
+  * { scrollbar-width: thin; scrollbar-color: var(--color-line-strong) transparent; }
+  input[type='range'] { accent-color: #fafafa; }
+}
+
+@layer components {
+  .scroll-area { @apply overflow-y-auto overscroll-contain; }
+  .hairline { @apply border-line; }
+  .label-caps { @apply text-[11px] font-medium uppercase tracking-[0.08em] text-muted; }
+}
