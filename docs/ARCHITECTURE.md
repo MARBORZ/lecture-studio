@@ -102,9 +102,20 @@ Applying requires an idle system, a clean working tree and a fast-forward (no lo
    and starts again in rollback mode;
 5. the starting API compares `update.json` with its version and reports the outcome; the launcher deletes the file.
 
+6. if the launcher never starts (antivirus, policy), the old server is still alive 15 s later and `launcher.log` was not
+   touched: `check()` reports `restart_failed` and the UI says the code is updated and the shortcut finishes the job.
+
+On Windows the launcher is started like the shortcut, `wscript start.vbs update` (and `rollback`): a hidden detached
+`powershell.exe` spawned by Python is the pattern Defender kills silently. The installer and the launcher judge `npm ci`
+by its result (`node_modules\vite` exists), not by its exit code, which `cmd /c npm` reports wrongly on Windows.
+
 Installs without `.git` (the release zip) are told about a new release and get a link; they update by running Setup again.
 
 ## Platforms
+
+- **Whisper device** (`core/transcription/whisper.py:device`): CUDA when torch sees an NVIDIA GPU (on Windows `torch/lib`
+  is added to the DLL search path so CTranslate2 finds cuBLAS/cuDNN), otherwise the CPU with the reason. A failed CUDA load
+  falls back to the CPU instead of failing the job.
 
 - Settings home `config.APP_HOME`: macOS `~/Library/Application Support/Lecture Studio`, Windows `%APPDATA%\Lecture Studio`,
   Linux `~/.local/share/lecture-studio`. `LECTURE_STUDIO_HOME` overrides it.

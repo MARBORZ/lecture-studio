@@ -15,7 +15,6 @@ $Log = Join-Path $Logs 'launcher.log'
 Write-Log $Log "=== launch ($Mode) from $Repo"
 Update-Path
 
-$Self = $PSCommandPath
 $Handover = Join-Path $State 'update.json'
 $FromSha = ''
 if ($Mode -eq 'update') {
@@ -31,8 +30,10 @@ function Fail([string]$Message) {
         Write-Log $Log "rolling back to $FromSha"
         & git -C $Repo reset --keep $FromSha 2>&1 | Add-Content -Path $Log -Encoding UTF8
         if ($LASTEXITCODE -eq 0) {
-            Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden `
-                -ArgumentList (Join-Args @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', $Self, '-Mode', 'rollback'))
+            # Same path as the shortcut and the update restart (wscript + start.vbs): a hidden detached powershell.exe
+            # is a pattern antivirus may silently kill.
+            Start-Process -FilePath (Join-Path $env:WINDIR 'System32\wscript.exe') `
+                -ArgumentList (Join-Args @((Join-Path $PSScriptRoot 'start.vbs'), 'rollback'))
             exit 1
         }
     }

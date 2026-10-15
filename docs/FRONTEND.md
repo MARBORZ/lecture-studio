@@ -48,6 +48,16 @@ Motion for animation. Geist / Geist Mono fonts are bundled; no external CDNs.
   message they were attached to. **Select text** in an answer or in the audit → "Ask about this" puts it into the input
   as a quote. Without a key for the chosen model the notice offers to switch to the model that has one.
 
+## Adaptive columns
+
+Inside the lesson the video and the content are resizable columns, so their contents follow the **column** width with
+Tailwind container queries (`@container` on the column, `@md:` / `@xl:` / `@4xl:` inside), not the window width: the audit
+outline shows only when its column is wide enough, paddings shrink in a narrow column, the player bar becomes two full rows.
+Container queries style descendants only — paddings live on an inner wrapper.
+
+Hotkeys match physical keys (`e.code` via `lib/keys.ts:isHotkey`): with a Cyrillic layout Ctrl+B types "и" on Windows.
+Labels are platform-aware (`shortcutLabel`: ⌘B on macOS, Ctrl+B elsewhere). `tests/test_architecture.py` enforces it.
+
 ## Appearance
 
 `settings.json` keeps `theme` (`system` by default, `dark`, `light`) and `text_scale` (80–150, %). `lib/appearance.ts` puts

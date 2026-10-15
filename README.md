@@ -101,9 +101,19 @@ The data folder can be switched or moved at runtime in Settings → Paths.
 Video is processed only locally. Cloud models receive either audio (Gemini transcription, if you choose it) or text
 (transcripts for audits and the assistant). With Whisper selected and no AI audit, nothing leaves the machine.
 
+## GPU
+
+On Windows with an NVIDIA card, local Whisper runs on the GPU (CUDA), several times faster than on the CPU: torch for
+Windows comes from the PyTorch CUDA 12.6 index (pinned in `uv.lock`, so updates keep it). The first install or update
+downloads about 2.5 GB. Settings → AI shows where recognition runs and, on the CPU, why. On macOS Whisper runs on the CPU
+(CTranslate2 has no Metal backend); Apple Silicon is fast enough.
+
 ## Known limitations
 
-- Built and used on macOS (Apple Silicon). Windows scripts are untested; Linux has no launcher.
+- Built and used on macOS (Apple Silicon); Windows is tested by a friend on Windows 11 + RTX 3080. Linux has no launcher.
+- Requires Node.js 22 or newer (`engines` in `frontend/package.json`).
+- Self-update needs a clean app folder: local code edits block it (discard them: `git checkout -- .`; a local commit
+  blocks it too). If git reports "dubious ownership", the update dialog shows the `git config --global --add safe.directory` command.
 - One processing job at a time (Whisper and FFmpeg saturate the machine anyway); others wait in a queue.
 - The default AI instructions are written in Russian; the audit is written in the lecture's language.
   Change them in Settings → Instructions.
