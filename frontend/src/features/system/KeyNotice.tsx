@@ -34,7 +34,7 @@ export function KeyNotice({ provider, onSwitch, className }: { provider?: AIProv
   return (
     <div className={cn('flex flex-wrap items-center gap-3 rounded-xl border border-fg px-4 py-3', className)}>
       <Icon as={KeyRound} size={16} />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-[12rem] flex-1">
         <p className="text-[13.5px] font-medium text-fg">{t('keys.missingTitle')}{name && `: ${name}`}</p>
         <p className="text-[12.5px] text-muted">{other ? t('keys.otherHasKey', { name: PROVIDER_NAME[other] }) : t('keys.missingText')}</p>
       </div>

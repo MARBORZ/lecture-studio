@@ -7,11 +7,14 @@ publishes state to JobRegistry. Jobs run one at a time on a single worker thread
 import logging
 from concurrent.futures import ThreadPoolExecutor
 
-from backend.core.pipeline.steps import AUDIT_STEPS, PROCESS_STEPS, JobContext, PipelineStep
+from backend.core.pipeline.steps import AUDIT_STEPS, PROCESS_STEPS, TRANSCRIBE_STEPS, JobContext, PipelineStep
+from backend.core.timeline import TimeMap
 from backend.core.transcription import load_segments
 from backend.models.job import Job, JobOptions, Stage
 from backend.models.lesson import Lesson
 from backend.services.jobs import JobCancelled, JobRegistry
+from backend.services.storage import Artifacts
+from backend.utils.fs import read_json
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +89,15 @@ def start_processing(options: JobOptions, media_path: str, is_uploaded: bool) ->
     job = JobRegistry.create("process", title, _stages(PROCESS_STEPS, options))
     ctx = JobContext(job.id, options, media_path, is_uploaded, cancel_check=lambda: JobRegistry.is_cancel_requested(job.id))
     _executor.submit(_execute, job, PROCESS_STEPS, ctx)
+    return job
+
+
+def start_transcription(lesson: Lesson, options: JobOptions) -> Job:
+    """Recognize speech of an existing lesson from its clean audio (media is not redone), then the audit if enabled."""
+    job = JobRegistry.create("process", f"Распознавание: {lesson.title}", _stages(TRANSCRIBE_STEPS, options))
+    ctx = JobContext(job.id, options, lesson=lesson, cancel_check=lambda: JobRegistry.is_cancel_requested(job.id))
+    ctx.time_map = TimeMap(read_json(ctx.lesson_dir / Artifacts.TIME_MAP, default=[]) or [])
+    _executor.submit(_execute, job, TRANSCRIBE_STEPS, ctx)
     return job
 
 

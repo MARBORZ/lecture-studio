@@ -13,12 +13,15 @@ export function Popover({
   align = 'start',
   side = 'bottom',
   className,
+  rootClassName,
 }: {
   trigger: (p: { open: boolean; toggle: () => void }) => ReactNode
   children: (close: () => void) => ReactNode
   align?: 'start' | 'end'
   side?: 'bottom' | 'top'
   className?: string
+  /** the wrapper around the trigger (e.g. min-w-0 so a truncating trigger can shrink in a flex row) */
+  rootClassName?: string
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -40,7 +43,7 @@ export function Popover({
   }, [open])
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className={cn('relative', rootClassName)}>
       {trigger({ open, toggle: () => setOpen((v) => !v) })}
       <AnimatePresence>
         {open && (

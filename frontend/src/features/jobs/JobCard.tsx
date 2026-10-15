@@ -19,7 +19,13 @@ export function JobCard({ job }: { job: Job }) {
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="truncate text-[14px] font-medium text-fg">{job.title || job.id}</h3>
-          <p className="mt-0.5 truncate text-[12.5px] text-muted">{job.status === 'error' ? job.error : job.message}</p>
+          {/* errors wrap (the reason matters); progress messages stay on one line */}
+          <p
+            title={job.status === 'error' ? job.error ?? undefined : undefined}
+            className={cn('mt-0.5 text-[12.5px]', job.status === 'error' ? 'line-clamp-4 break-words text-soft' : 'truncate text-muted')}
+          >
+            {job.status === 'error' ? job.error : job.message}
+          </p>
         </div>
         <span className="shrink-0 font-mono text-[12px] text-fg">{active ? `${job.progress}%` : t(`job.${job.status ?? 'pending'}`)}</span>
       </header>

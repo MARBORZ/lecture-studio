@@ -116,6 +116,7 @@ export const api = {
   deleteLesson: (id: string) => request<{ ok: boolean }>('DELETE', `/api/lessons/${id}`),
   exportLesson: (id: string, target_dir?: string, title?: string) =>
     request<ExportResult>('POST', `/api/lessons/${id}/export`, { target_dir: target_dir || null, title: title || null }),
+  transcribe: (id: string, mode: 'whisper' | 'gemini') => request<Job>('POST', `/api/lessons/${id}/transcribe`, { mode }),
   regenerateAudit: (id: string, provider?: AIProvider, audit_mode?: 'srt_timecodes' | 'clean_summary') =>
     request<Job>('POST', `/api/lessons/${id}/audit`, { provider, audit_mode }),
   fileUrl: (id: string, kind: string) => `/api/lessons/${id}/files/${kind}`,

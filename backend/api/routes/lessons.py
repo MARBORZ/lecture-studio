@@ -8,8 +8,8 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from backend.core.pipeline import start_audit
-from backend.models.job import Job
+from backend.core.pipeline import start_audit, start_transcription
+from backend.models.job import Job, JobOptions
 from backend.models.lesson import ExportRequest, ExportResult, Lesson, LessonFull, LessonPatch, LessonStatus
 from backend.services.export import export_lesson
 from backend.services.storage import Artifacts, Library
@@ -89,6 +89,23 @@ def export(lesson_id: str, req: ExportRequest) -> ExportResult:
 class AuditRequest(BaseModel):
     provider: AIProviderName | None = None
     audit_mode: AuditMode = "srt_timecodes"
+
+
+class TranscribeRequest(BaseModel):
+    mode: Literal["whisper", "gemini", "deepseek"] = "whisper"  # gemini = Gemini transcription; others = local Whisper
+
+
+@router.post("/{lesson_id}/transcribe", response_model=Job)
+def transcribe(lesson_id: str, req: TranscribeRequest) -> Job:
+    """Recognize speech again from the lesson's clean audio (e.g. after the cloud was unavailable); media is kept."""
+    lesson = _lesson(lesson_id)
+    if not (Library.lesson_dir(lesson) / Artifacts.AUDIO).is_file():
+        raise HTTPException(400, detail="У урока нет чистого аудио")
+    if req.mode == "gemini" and not SettingsService.api_key("gemini"):
+        raise HTTPException(400, detail="Нет API-ключа Gemini. Настройки → ИИ")
+    defaults = SettingsService.get().pipeline
+    options = JobOptions(**{**defaults.model_dump(), "mode": req.mode, "clean_video": False, "project_id": lesson.project_id})
+    return start_transcription(lesson, options)
 
 
 @router.post("/{lesson_id}/audit", response_model=Job)

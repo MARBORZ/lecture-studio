@@ -44,7 +44,7 @@ export function ProjectFormModal({ project, close }: { project?: Project; close:
 
   return (
     <Modal
-      title={project ? t('library.rename') : t('nav.newNotebook')}
+      title={project ? t('library.edit') : t('nav.newNotebook')}
       onClose={close}
       footer={
         <>

@@ -354,6 +354,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lessons/{lesson_id}/transcribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transcribe
+         * @description Recognize speech again from the lesson's clean audio (e.g. after the cloud was unavailable); media is kept.
+         */
+        post: operations["transcribe_api_lessons__lesson_id__transcribe_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/lessons/{lesson_id}/audit": {
         parameters: {
             query?: never;
@@ -1746,6 +1766,15 @@ export interface components {
             /** Clean End */
             clean_end: number;
         };
+        /** TranscribeRequest */
+        TranscribeRequest: {
+            /**
+             * Mode
+             * @default whisper
+             * @enum {string}
+             */
+            mode: "whisper" | "gemini" | "deepseek";
+        };
         /** UpdateInfo */
         UpdateInfo: {
             /** Current */
@@ -2627,6 +2656,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExportResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transcribe_api_lessons__lesson_id__transcribe_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lesson_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TranscribeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Job"];
                 };
             };
             /** @description Validation Error */

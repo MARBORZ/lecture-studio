@@ -1,10 +1,11 @@
-import { Download, FileText, FolderOutput, RefreshCw, ScrollText } from 'lucide-react'
-import { useRef } from 'react'
+import { AudioLines, Download, FileText, FolderOutput, RefreshCw, ScrollText } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '@/api/client'
 import { useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
-import { Button, EmptyState } from '@/components/ui'
+import { Button, EmptyState, Segmented } from '@/components/ui'
+import { useAiKeys } from '@/features/system/KeyNotice'
 import { AssistantPanel, type AskState } from '@/features/assistant/AssistantPanel'
 import { SelectionAsk } from '@/features/assistant/SelectionAsk'
 import { ExportModal } from '@/features/library/modals'
@@ -48,10 +49,42 @@ export function LessonNotes() {
 export function LessonTranscript() {
   const { lesson } = useLesson()
   const { t } = useUI()
-  if (!lesson.segments?.length) return <EmptyState icon={ScrollText} title={t('lesson.noTranscript')} hint={t('lesson.noTranscriptHint')} />
+  if (!lesson.segments?.length) return <EmptyState icon={ScrollText} title={t('lesson.noTranscript')} hint={t('lesson.noTranscriptHint')} action={lesson.audio_url && <TranscribeAction lessonId={lesson.id} />} />
   return (
     <div className="flex min-h-0 flex-1 flex-col px-6 pt-5 pb-3 lg:px-8">
       <TranscriptView segments={lesson.segments} />
+    </div>
+  )
+}
+
+/** Recognize speech again from the lesson's clean audio: the media is kept, only text (and the audit) is made. */
+function TranscribeAction({ lessonId }: { lessonId: string }) {
+  const { t, toast } = useUI()
+  const keys = useAiKeys()
+  const [engine, setEngine] = useState<'whisper' | 'gemini'>('whisper')
+  const [busy, setBusy] = useState(false)
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <Segmented size="sm" value={engine} onChange={setEngine} options={[{ value: 'whisper', label: t('lesson.engine.whisper') }, { value: 'gemini', label: 'Gemini' }]} />
+      <Button
+        variant="primary"
+        icon={AudioLines}
+        loading={busy}
+        disabled={engine === 'gemini' && !keys.gemini}
+        onClick={async () => {
+          setBusy(true)
+          try {
+            await api.transcribe(lessonId, engine)
+            toast(t('lesson.transcribeStarted'))
+          } catch (e) {
+            toast((e as Error).message, 'error')
+          } finally {
+            setBusy(false)
+          }
+        }}
+      >
+        {t('lesson.transcribe')}
+      </Button>
     </div>
   )
 }

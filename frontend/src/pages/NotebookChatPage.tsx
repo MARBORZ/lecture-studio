@@ -19,7 +19,8 @@ export function NotebookChatPage() {
   const [state, setState] = useState(() => ({ key, ids: storage.get<string[] | null>(key, null) }))
   if (state.key !== key) setState({ key, ids: storage.get<string[] | null>(key, null) }) // notebook changed
   const selected = state.ids
-  const effective = selected ?? sources.map((s) => s.id)
+  // stored ids can outlive their lessons (deleted, moved): only current sources count
+  const effective = selected ? selected.filter((id) => sources.some((s) => s.id === id)) : sources.map((s) => s.id)
   const update = (ids: string[]) => {
     setState({ key, ids })
     storage.set(key, ids)
@@ -29,7 +30,7 @@ export function NotebookChatPage() {
 
   return (
     <div className="flex h-full">
-      <aside className="flex w-72 shrink-0 flex-col border-r border-line">
+      <aside className="flex w-60 shrink-0 flex-col border-r border-line xl:w-72">
         <div className="px-5 pt-6 pb-4">
           <Link to={`/library/${projectId}`} className="mb-3 inline-flex items-center gap-1.5 text-[12.5px] text-muted hover:text-fg">
             <Icon as={ArrowLeft} size={14} />
@@ -55,7 +56,7 @@ export function NotebookChatPage() {
                     type="checkbox"
                     checked={on}
                     onChange={() => update(on ? effective.filter((x) => x !== s.id) : [...effective, s.id])}
-                    className="size-3.5 accent-white"
+                    className="size-3.5 accent-fg"
                   />
                   <StatusMark status={s.status ?? 'in_progress'} />
                   <span className="truncate">{s.title}</span>

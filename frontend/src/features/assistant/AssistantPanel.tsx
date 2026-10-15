@@ -108,9 +108,10 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
         </div>
       )}
 
-      <div className="flex items-center gap-2 pb-2">
-        <SessionBar chat={chat} />
-        <div className="flex-1" />
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pb-2">
+        <div className="min-w-0 flex-1 basis-48">
+          <SessionBar chat={chat} />
+        </div>
         <ContextMeter chat={chat} />
         <Segmented size="sm" value={provider} onChange={setProvider} options={[{ value: 'deepseek', label: 'DeepSeek' }, { value: 'gemini', label: 'Gemini' }]} />
       </div>

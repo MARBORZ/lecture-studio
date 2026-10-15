@@ -156,13 +156,31 @@ class BuildCleanVideoStep(PipelineStep):
 
 
 class TranscribeStep(PipelineStep):
+    """strict=False (inside processing): a failure (cloud unavailable, no key) becomes a warning and the lesson is saved
+    with its clean audio and video; "Transcribe" in the lesson runs this step again (strict) without redoing the media."""
+
     stage = "transcribe"
     weight = 5
+
+    def __init__(self, strict: bool = False):
+        self.strict = strict
 
     def enabled(self, ctx):
         return ctx.options.mode != "audio_only"
 
     def execute(self, ctx, progress):
+        try:
+            self._transcribe(ctx, progress)
+        except JobCancelled:
+            raise
+        except Exception as e:
+            if self.strict:
+                raise
+            ctx.segments = []
+            ctx.warning = f"Стенограмма не создана: {e} Аудио и видео сохранены — «Распознать речь» в уроке повторит только этот шаг."
+            logger.warning("transcription failed, lesson saved without it: %s", e, exc_info=True)
+
+    def _transcribe(self, ctx, progress):
         o, ai = ctx.options, SettingsService.get().ai
         audio = str(ctx.lesson_dir / Artifacts.AUDIO)
         def on_progress(f):
@@ -275,3 +293,4 @@ PROCESS_STEPS: list[PipelineStep] = [
 ]
 
 AUDIT_STEPS: list[PipelineStep] = [GenerateAuditStep(strict=True), SaveLessonStep()]
+TRANSCRIBE_STEPS: list[PipelineStep] = [TranscribeStep(strict=True), GenerateAuditStep(), SaveLessonStep()]

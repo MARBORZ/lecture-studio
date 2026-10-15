@@ -19,11 +19,12 @@ export function SessionBar({ chat }: { chat: ThreadApi }) {
   return (
     <div className="flex min-w-0 items-center gap-1">
       <Popover
+        rootClassName="min-w-0"
         trigger={({ toggle, open }) => (
           <button
             type="button"
             onClick={toggle}
-            className={cn('flex h-7 max-w-64 items-center gap-1.5 rounded-lg px-2 text-[13px] transition-colors hover:bg-hover', open ? 'bg-hover text-fg' : 'text-soft')}
+            className={cn('flex h-7 w-full max-w-64 items-center gap-1.5 rounded-lg px-2 text-[13px] transition-colors hover:bg-hover', open ? 'bg-hover text-fg' : 'text-soft')}
           >
             <Icon as={MessagesSquare} size={14} className="shrink-0" />
             <span className="truncate">{title}</span>

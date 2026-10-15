@@ -50,7 +50,7 @@ export function LibraryPage() {
               <Link to={`/notebooks/${project.id}/chat`}>
                 <Button icon={MessagesSquare} variant="primary" disabled={!inScope}>{t('library.chat')}</Button>
               </Link>
-              <IconButton icon={Pencil} label={t('library.rename')} onClick={() => openModal((close) => <ProjectFormModal project={project} close={close} />)} />
+              <IconButton icon={Pencil} label={t('library.edit')} onClick={() => openModal((close) => <ProjectFormModal project={project} close={close} />)} />
               {project.id !== INBOX && (
                 <IconButton
                   icon={Trash2}
