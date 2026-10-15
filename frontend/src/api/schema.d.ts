@@ -82,6 +82,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/uninstall": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Uninstall Preview
+         * @description What "Delete Lecture Studio" would remove, and whether it can run.
+         */
+        get: operations["uninstall_preview_api_system_uninstall_get"];
+        put?: never;
+        /**
+         * Uninstall Start
+         * @description Start the OS uninstaller detached, then stop everything: it waits for this server to exit and deletes the app.
+         */
+        post: operations["uninstall_start_api_system_uninstall_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings": {
         parameters: {
             query?: never;
@@ -1853,12 +1877,62 @@ export interface components {
              */
             mode: "whisper" | "gemini" | "deepseek";
         };
+        /**
+         * UninstallPlan
+         * @description What "Delete Lecture Studio" removes. Lessons stay unless asked for; blocked = it cannot run as is.
+         */
+        UninstallPlan: {
+            /** App Dir */
+            app_dir: string;
+            /** Settings Dir */
+            settings_dir: string;
+            /** Data Dir */
+            data_dir: string;
+            /**
+             * Lessons Inside
+             * @default false
+             */
+            lessons_inside: boolean;
+            /** Blocked */
+            blocked?: "git_work" | null;
+            /**
+             * Git Files
+             * @default []
+             */
+            git_files: string[];
+            /**
+             * Reinstall
+             * @enum {string}
+             */
+            reinstall: "git" | "setup";
+            /** Repo Url */
+            repo_url: string;
+        };
+        /** UninstallRequest */
+        UninstallRequest: {
+            /**
+             * Delete Lessons
+             * @default false
+             */
+            delete_lessons: boolean;
+        };
+        /** UninstallResult */
+        UninstallResult: {
+            /** Ok */
+            ok: boolean;
+            /** Kept */
+            kept?: string | null;
+        };
         /** UpdateInfo */
         UpdateInfo: {
             /** Current */
             current: string;
             /** Latest */
             latest?: string | null;
+            /** Released At */
+            released_at?: string | null;
+            /** Current Released At */
+            current_released_at?: string | null;
             /**
              * Available
              * @default false
@@ -2046,6 +2120,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UpdateInfo"];
+                };
+            };
+        };
+    };
+    uninstall_preview_api_system_uninstall_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UninstallPlan"];
+                };
+            };
+        };
+    };
+    uninstall_start_api_system_uninstall_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UninstallRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UninstallResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

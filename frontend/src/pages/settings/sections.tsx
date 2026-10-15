@@ -11,6 +11,7 @@ import { KeyField } from '@/features/system/KeyField'
 import { cn } from '@/lib/cn'
 import type { TKey } from '@/i18n'
 import { useResource } from '@/lib/useResource'
+import { UninstallCard } from '@/features/system/Uninstall'
 import { UpdateCard } from '@/features/system/Update'
 import { previewTextScale, type ThemeSetting } from '@/lib/appearance'
 
@@ -307,6 +308,7 @@ export function InterfaceSettings() {
         <Button icon={GraduationCap} onClick={() => setTutorialOpen(true)}>{t('onboarding.replay')}</Button>
       </Card>
       <UpdateCard />
+      <UninstallCard />
     </div>
   )
 }

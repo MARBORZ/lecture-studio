@@ -275,3 +275,22 @@ def test_release_notes_stay_utf8_under_a_windows_locale(release_repos, monkeypat
     with client() as c:
         info = c.get("/api/system/update?force=true").json()
     assert info["latest"] == "1.2.0" and info["changes"] == ["Reading text size (80–150%)", "Тёмная тема"]
+
+
+def test_release_dates_are_reported_but_the_number_decides(release_repos):
+    _, work, _ = release_repos
+    with client() as c:
+        info = c.get("/api/system/update?force=true").json()
+    assert info["released_at"] and info["current_released_at"]  # annotated v1.1.0, lightweight v1.0.0
+    assert info["released_at"] >= info["current_released_at"]
+
+    # a higher number with an older date (backdated tag) is still the newer release
+    import os
+
+    commit(work, "f.txt", "Hotfix")
+    env = {**os.environ, "GIT_COMMITTER_DATE": "2020-01-01T12:00:00+00:00"}
+    subprocess.run(["git", "tag", "-a", "v1.1.1", "-m", "Lecture Studio 1.1.1\n\n- Hotfix"], cwd=work, env=env, check=True, capture_output=True)
+    git(work, "push", "-q", "origin", "main", "v1.1.1")
+    with client() as c:
+        info = c.get("/api/system/update?force=true").json()
+    assert info["latest"] == "1.1.1" and info["released_at"].startswith("2020-01-01")

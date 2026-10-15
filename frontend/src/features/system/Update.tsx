@@ -7,7 +7,7 @@ import { Icon } from '@/components/Icon'
 import { Button, Card, Modal } from '@/components/ui'
 import { useSidebarCollapsed } from '@/layouts/Sidebar'
 import { cn } from '@/lib/cn'
-import { storage } from '@/lib/format'
+import { formatDate, storage } from '@/lib/format'
 import { BusyList, useBusyReasons } from './busy'
 import { updates, useUpdates } from './updateStore'
 
@@ -63,7 +63,7 @@ export function UpdateButton() {
 
 /** Settings → Interface: running version and a manual check. */
 export function UpdateCard() {
-  const { t, toast, openModal } = useUI()
+  const { t, lang, toast, openModal } = useUI()
   const info = useUpdates((s) => s.info)
   const checking = useUpdates((s) => s.checking)
 
@@ -79,10 +79,16 @@ export function UpdateCard() {
   }
 
   return (
-    <Card title={t('update.title')} description={t('update.current', { v: info?.current ?? '…' })}>
+    <Card title={t('update.title')} description={currentText(info, t, lang)}>
       <Button icon={RefreshCw} loading={checking} onClick={check}>{t('update.check')}</Button>
     </Card>
   )
+}
+
+/** "Installed version 1.3.0 of 15 Oct 2026": the date only when the running release has a tag. */
+function currentText(info: UpdateInfo | null, t: ReturnType<typeof useUI>['t'], lang: string): string {
+  const date = info?.current_released_at ? formatDate(info.current_released_at, lang) : ''
+  return date ? t('update.currentDated', { v: info!.current, date }) : t('update.current', { v: info?.current ?? '…' })
 }
 
 function blockText(info: UpdateInfo, t: ReturnType<typeof useUI>['t']): string | null {
@@ -90,7 +96,7 @@ function blockText(info: UpdateInfo, t: ReturnType<typeof useUI>['t']): string |
 }
 
 function UpdateDialog({ close }: { close: () => void }) {
-  const { t, toast } = useUI()
+  const { t, lang, toast } = useUI()
   const info = useUpdates((s) => s.info)
   const [reasons, setReasons] = useBusyReasons()
   const [applying, setApplying] = useState(false)
@@ -115,7 +121,9 @@ function UpdateDialog({ close }: { close: () => void }) {
   return (
     <Modal
       title={t('update.dialogTitle', { v: info.latest ?? '' })}
-      description={t('update.current', { v: info.current })}
+      description={[info.released_at && t('update.released', { date: formatDate(info.released_at, lang) }), currentText(info, t, lang)]
+        .filter(Boolean)
+        .join(' · ')}
       width="md"
       onClose={close}
       footer={

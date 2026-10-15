@@ -1,7 +1,7 @@
 import type {
   AIProvider, AskRequest, Attachment, DiaryCategory, DiaryEntry, ExportResult, Job, JobOptions, Lesson, LessonFull, LessonPatch, LessonStatus,
   PathCheckResult, Project, PromptView, ProjectCreate, ProjectPatch, ProviderInfo, SessionInfo, SessionPatch, SettingsPatch, SettingsView, SystemStatus,
-  Thread, ThreadKind, ComputeStatus, UpdateInfo,
+  Thread, ThreadKind, ComputeStatus, UninstallPlan, UpdateInfo,
 } from './types'
 
 export class ApiError extends Error {
@@ -87,6 +87,8 @@ export const api = {
   shutdown: () => request<{ ok: boolean }>('POST', '/api/system/shutdown'),
   update: (force = false) => get<UpdateInfo>(`/api/system/update${force ? '?force=true' : ''}`),
   applyUpdate: () => request<UpdateInfo>('POST', '/api/system/update'),
+  uninstallPlan: () => get<UninstallPlan>('/api/system/uninstall'),
+  uninstall: (deleteLessons: boolean) => request<{ ok: boolean; kept?: string | null }>('POST', '/api/system/uninstall', { delete_lessons: deleteLessons }),
 
   // settings
   settings: () => get<SettingsView>('/api/settings'),

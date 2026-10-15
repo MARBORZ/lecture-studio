@@ -91,9 +91,11 @@ def _check_git() -> UpdateInfo:
     _git("fetch", "--tags", "--force", "--quiet", "origin", timeout=60)
     tag = _newest_tag()
     info = UpdateInfo(current=config.APP_VERSION, mode="git", url=f"{config.REPO_URL}/releases")
+    info.current_released_at = _tag_date(f"v{config.APP_VERSION}")
     if not tag or parse_version(tag) <= current:
         return info
     info.latest = tag.lstrip("v")
+    info.released_at = _tag_date(tag)
     info.available = True
     info.url = f"{config.REPO_URL}/releases/tag/{tag}"
     info.changes = _release_notes(tag)
@@ -101,6 +103,12 @@ def _check_git() -> UpdateInfo:
     if info.blocked == "dirty":
         info.dirty_files = _dirty_files()[:MAX_CHANGES]
     return info
+
+
+def _tag_date(tag: str) -> str | None:
+    """When the release was made (ISO): the tag date for an annotated tag, the commit date for a lightweight one.
+    Shown next to the version only: which release is newer is always decided by the number."""
+    return _git("for-each-ref", "--format=%(creatordate:iso-strict)", f"refs/tags/{tag}").strip() or None
 
 
 def _release_notes(tag: str) -> list[str]:
@@ -141,6 +149,7 @@ def _check_zip() -> UpdateInfo:
     version = parse_version(tag)
     if version and version > parse_version(config.APP_VERSION):
         info.latest = tag.lstrip("v")
+        info.released_at = release.get("published_at") or None
         info.available = True
         info.blocked = "zip"
         body = str(release.get("body") or "")

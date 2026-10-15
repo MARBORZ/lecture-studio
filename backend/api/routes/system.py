@@ -1,5 +1,5 @@
 """
-Health, status, graceful shutdown and self-update.
+Health, status, graceful shutdown, self-update and uninstall.
 """
 
 import os
@@ -9,15 +9,15 @@ from fastapi import APIRouter, HTTPException
 
 from backend.config import APP_VERSION, CHROME_PROFILE_DIR, FRONTEND_PID_FILE, FRONTEND_PORT
 from backend.core.media import ffmpeg_available
-from backend.models.system import ShutdownResult, SystemStatus, UpdateInfo
-from backend.services import updates
+from backend.models.system import ShutdownResult, SystemStatus, UninstallPlan, UninstallRequest, UninstallResult, UpdateInfo
+from backend.services import uninstall, updates
 from backend.services.jobs import JobRegistry
 from backend.utils import proc
 from backend.utils.fs import read_text, remove_file
 
 router = APIRouter(prefix="/api", tags=["system"])
 
-# Shutdown and update both take the server down: one lock, one busy check.
+# Shutdown, update and uninstall all take the server down: one lock, one busy check.
 _shutdown_lock = threading.Lock()
 
 
@@ -60,6 +60,27 @@ def update_apply() -> UpdateInfo:
             return updates.apply()
         except updates.UpdateError as e:
             raise HTTPException(409, detail={"message": str(e), "code": e.code}) from e
+
+
+@router.get("/system/uninstall", response_model=UninstallPlan)
+def uninstall_preview() -> UninstallPlan:
+    """What "Delete Lecture Studio" would remove, and whether it can run."""
+    return uninstall.preview()
+
+
+@router.post("/system/uninstall", response_model=UninstallResult)
+def uninstall_start(req: UninstallRequest) -> UninstallResult:
+    """Start the OS uninstaller detached, then stop everything: it waits for this server to exit and deletes the app."""
+    with _shutdown_lock:
+        reasons = JobRegistry.busy_reasons()
+        if reasons:
+            raise HTTPException(409, detail={"message": "Система занята", "reasons": [r.model_dump() for r in reasons]})
+        try:
+            plan = uninstall.start(req.delete_lessons)
+        except uninstall.UninstallError as e:
+            raise HTTPException(409, detail={"message": str(e), "code": e.code}) from e
+        threading.Timer(1.2, _stop_everything).start()
+    return UninstallResult(ok=True, kept=None if req.delete_lessons else plan.data_dir)
 
 
 def _stop_everything() -> None:
