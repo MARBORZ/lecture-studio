@@ -71,7 +71,11 @@ $steps = @(
         Update-Path
     } },
     @{ Label = 'Python и модели (torch, Whisper) — самый долгий шаг'; Run = {
-        if ((Invoke-Logged -Exe (Get-Command uv).Source -Arguments @('sync', '--frozen') -LogFile $SetupLog -Tick $tick) -ne 0) { Fail 'Установка Python-зависимостей не удалась.' }
+        $probe = Get-ComputeProbe
+        Write-Log $SetupLog "torch: $($probe.torch_build) ($($probe.reason)) gpu='$($probe.gpu)' cap=$($probe.compute_cap) driver=$($probe.driver)"
+        $title.Text = Get-TorchLabel $probe
+        $script:stepInfo += ' · Python и модели, самый долгий шаг'
+        if ((Invoke-Logged -Exe (Get-Command uv).Source -Arguments @('sync', '--frozen', '--extra', $probe.torch_build) -LogFile $SetupLog -Tick $tick) -ne 0) { Fail 'Установка Python-зависимостей не удалась.' }
     } },
     @{ Label = 'Интерфейс'; Run = {
         # cmd /c npm can return a non-zero code after a successful install: judge by the result, not the exit code.

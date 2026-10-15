@@ -79,11 +79,13 @@ foreach ($tool in 'uv', 'node', 'ffmpeg') {
     if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { Fail "Не найден $tool. Запустите installer\windows\Setup.cmd." }
 }
 
-# ---- 3. Dependencies, only when lockfiles changed.
-$pyFp = Get-Fingerprint @('pyproject.toml', 'uv.lock')
+# ---- 3. Dependencies, only when lockfiles or the torch build (GPU, driver) changed.
+$probe = Get-ComputeProbe
+Write-Log $Log "torch: $($probe.torch_build) ($($probe.reason)) gpu='$($probe.gpu)' cap=$($probe.compute_cap) driver=$($probe.driver)"
+$pyFp = (Get-Fingerprint @('pyproject.toml', 'uv.lock')) + "-$($probe.torch_build)"
 if (-not (Test-Path (Join-Path $Repo '.venv\Scripts\python.exe')) -or (Test-Changed 'python' $pyFp)) {
-    Write-Log $Log 'uv sync'
-    if ((Invoke-Logged -Exe (Get-Command uv).Source -Arguments @('sync', '--frozen') -LogFile $Log) -ne 0) { Fail "uv sync не удался. Лог: $Log" }
+    Write-Log $Log "uv sync --extra $($probe.torch_build)"
+    if ((Invoke-Logged -Exe (Get-Command uv).Source -Arguments @('sync', '--frozen', '--extra', $probe.torch_build) -LogFile $Log) -ne 0) { Fail "uv sync не удался. Лог: $Log" }
     Set-Content -Path (Join-Path $State 'python') -Value $pyFp
 }
 $nodeFp = Get-Fingerprint @('frontend\package-lock.json')
