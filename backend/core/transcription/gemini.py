@@ -11,6 +11,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from backend.core.ai.prompts import gemini_transcription_instruction
+from backend.core.ai.retry import with_retry
 from backend.core.media.base import probe_duration, run_ffmpeg
 from backend.core.timeline import parse_tc
 from backend.models.transcript import GeminiTranscript
@@ -54,12 +55,14 @@ def transcribe(
     client = genai.Client(api_key=api_key)
     instruction = gemini_transcription_instruction(language, vocabulary)
     chunks = _chunks(Path(audio_path), duration, work_dir)
+    config = types.GenerateContentConfig(system_instruction=instruction, response_mime_type="application/json", response_schema=GeminiTranscript)
+    prompt = "Transcribe this audio verbatim with timestamps."
     out: list[dict] = []
 
     try:
         for idx, (chunk, offset) in enumerate(chunks):
             check_cancelled()
-            uploaded = client.files.upload(file=str(chunk))
+            uploaded = with_retry(lambda c=chunk: client.files.upload(file=str(c)), "Gemini", check_cancelled)
             try:
                 for _ in range(30):
                     state = getattr(client.files.get(name=uploaded.name).state, "name", "")
@@ -70,14 +73,8 @@ def transcribe(
                     check_cancelled()
                     time.sleep(2)
 
-                response = client.models.generate_content(
-                    model=model,
-                    contents=[uploaded, "Transcribe this audio verbatim with timestamps."],
-                    config=types.GenerateContentConfig(
-                        system_instruction=instruction,
-                        response_mime_type="application/json",
-                        response_schema=GeminiTranscript,
-                    ),
+                response = with_retry(
+                    lambda f=uploaded: client.models.generate_content(model=model, contents=[f, prompt], config=config), "Gemini", check_cancelled
                 )
                 for s in json.loads(response.text or "{}").get("segments", []):
                     start = parse_tc(s.get("start_time_mm_ss", "0")) + offset
