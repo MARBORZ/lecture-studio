@@ -15,12 +15,11 @@ import type { Project } from '@/api/types'
 import { cn } from '@/lib/cn'
 import { storage } from '@/lib/format'
 import { ease } from '@/lib/motion'
-import { isTyping } from '@/lib/keys'
+import { isHotkey, isTyping, shortcutLabel } from '@/lib/keys'
 
 const COLLAPSED = 60
 const EXPANDED = 256
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
-export const SHORTCUT_LABEL = isMac ? '⌘B' : 'Ctrl+B'
+export const SHORTCUT_LABEL = shortcutLabel('B')
 
 /** Collapsed state for everything rendered inside the sidebar. */
 const CollapsedContext = createContext(false)
@@ -74,7 +73,7 @@ export function Sidebar() {
   // ⌘B / Ctrl+B anywhere (ignored only inside rich-text editors).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'b' && !isTyping(e, '[contenteditable]')) {
+      if (isHotkey(e, 'KeyB', { mod: true }) && !isTyping(e, '[contenteditable]')) {
         e.preventDefault()
         toggle()
       }

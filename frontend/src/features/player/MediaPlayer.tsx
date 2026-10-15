@@ -53,9 +53,9 @@ export function PlayerBar({ extra, compact = false, marks = true }: { extra?: Re
   return (
     <div className="flex flex-col gap-3">
       <Timeline />
-      {/* two groups: transport left, the rest right; the right one wraps under when the column is narrow */}
+      {/* two groups: transport left, the rest right. In a narrow column (container < 28rem) they become two full rows. */}
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 @max-md:w-full">
         <button
           type="button"
           onClick={() => player.toggle()}
@@ -68,7 +68,7 @@ export function PlayerBar({ extra, compact = false, marks = true }: { extra?: Re
         <IconButton icon={RotateCw} label="+5 s" onClick={() => player.skip(5)} />
         <TimeReadout />
         </div>
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex items-center gap-1.5 @max-md:ml-0 @max-md:w-full @max-md:justify-between">
         <Button
           title={t('player.speed')}
           onClick={() => {

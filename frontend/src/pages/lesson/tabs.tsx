@@ -31,14 +31,15 @@ export function LessonNotes() {
     )
   }
   return (
-    <div className="scroll-area flex-1">
-      <div className="flex gap-10 px-6 py-8 lg:px-10">
+    // @container: the outline and paddings follow this column's width (the video splitter changes it), not the window's
+    <div className="scroll-area @container flex-1">
+      <div className="flex gap-10 px-5 py-6 @xl:px-8 @xl:py-8 @3xl:px-10">
         <div ref={ref} className="min-w-0 flex-1">
           <SelectionAsk onAsk={(quote) => navigate('../assistant', { relative: 'path', state: { quote } satisfies AskState })}>
             <MarkdownView content={lesson.lesson_audit_md} />
           </SelectionAsk>
         </div>
-        <aside className="sticky top-8 hidden w-56 shrink-0 self-start 2xl:block">
+        <aside className="sticky top-8 hidden w-56 shrink-0 self-start @4xl:block">
           <Outline containerRef={ref} deps={lesson.lesson_audit_md} />
         </aside>
       </div>
@@ -51,7 +52,7 @@ export function LessonTranscript() {
   const { t } = useUI()
   if (!lesson.segments?.length) return <EmptyState icon={ScrollText} title={t('lesson.noTranscript')} hint={t('lesson.noTranscriptHint')} action={lesson.audio_url && <TranscribeAction lessonId={lesson.id} />} />
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-6 pt-5 pb-3 lg:px-8">
+    <div className="@container flex min-h-0 flex-1 flex-col px-5 pt-5 pb-3 @xl:px-8">
       <TranscriptView segments={lesson.segments} />
     </div>
   )
@@ -92,7 +93,7 @@ function TranscribeAction({ lessonId }: { lessonId: string }) {
 export function LessonAssistant() {
   const { lesson } = useLesson()
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-6 pt-5 pb-4 lg:px-8">
+    <div className="flex min-h-0 flex-1 flex-col px-5 pt-5 pb-4 @xl:px-8">
       <AssistantPanel kind="lesson" id={lesson.id} lessonId={lesson.id} />
     </div>
   )
@@ -118,8 +119,8 @@ export function LessonFiles() {
   }
 
   return (
-    <div className="scroll-area flex-1">
-      <div className="flex max-w-2xl flex-col gap-8 px-6 py-8 lg:px-10">
+    <div className="scroll-area @container flex-1">
+      <div className="flex max-w-2xl flex-col gap-8 px-5 py-6 @xl:px-8 @xl:py-8 @3xl:px-10">
         <section>
           <div className="label-caps mb-3">{t('files.downloads')}</div>
           <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line">

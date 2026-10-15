@@ -8,6 +8,16 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 
+@pytest.fixture(autouse=True)
+def no_real_api_keys(monkeypatch):
+    """Tests never see the developer's keys (.env is loaded by backend.config): no test may reach a real AI API."""
+    import os
+
+    for name in list(os.environ):
+        if name.endswith("_API_KEY"):
+            monkeypatch.delenv(name, raising=False)
+
+
 @pytest.fixture()
 def data_dir(tmp_path, monkeypatch):
     """Isolated APP_HOME + data_dir for every test."""

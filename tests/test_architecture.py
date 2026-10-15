@@ -55,6 +55,11 @@ def test_icons_render_through_icon_component():
     assert bad == []
 
 
+def test_hotkeys_match_physical_keys():
+    # e.key is the typed character: with a Cyrillic layout Ctrl+B types "и" (Windows) and the hotkey never fires
+    assert offenders(FRONT, ["*.ts", "*.tsx"], r"\.key(\.toLowerCase\(\))?\s*===\s*'[A-Za-zА-Яа-я]'") == []
+
+
 def test_monochrome_palette_only_tokens():
     assert offenders(FRONT, ["*.tsx", "*.ts"], r"#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(") == []
 

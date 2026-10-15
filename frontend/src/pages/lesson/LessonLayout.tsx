@@ -56,7 +56,7 @@ export function LessonLayout() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (isTyping(e) || e.metaKey || e.ctrlKey || e.altKey) return
-      if (e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А') setFocusMode((v) => !v)
+      if (e.code === 'KeyF' && !e.shiftKey) setFocusMode((v) => !v) // physical F: works in any layout
       else if (e.key === 'Escape' && !modals.length) setFocusMode(false)
     }
     window.addEventListener('keydown', onKey)
@@ -168,8 +168,11 @@ export function LessonLayout() {
       <div ref={splitRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
         <aside
           style={{ ['--player-w' as string]: `${playerWidth}%` }}
-          className="flex shrink-0 flex-col gap-5 p-6 lg:w-[var(--player-w)] lg:overflow-y-auto lg:p-8"
+          // @container: paddings and the player bar follow this column's width (the splitter changes it), not the window's.
+          // Container queries reach descendants only, so the paddings live on the inner wrapper.
+          className="@container shrink-0 lg:w-[var(--player-w)] lg:overflow-y-auto"
         >
+          <div className="flex flex-col gap-5 p-4 @md:p-6 @2xl:p-8">
           {lesson ? <MediaPlayer /> : <SkeletonPlayer />}
           <AnimatePresence initial={false}>
           {!focusMode && (
@@ -199,6 +202,7 @@ export function LessonLayout() {
           </m.div>
           )}
           </AnimatePresence>
+          </div>
         </aside>
 
         <Splitter
@@ -216,8 +220,8 @@ export function LessonLayout() {
           className="hidden lg:block"
         />
 
-        <section className="flex min-h-[70vh] min-w-0 flex-1 flex-col lg:min-h-0">
-          <nav className="flex gap-1 border-b border-line px-6 lg:px-8">
+        <section className="@container flex min-h-[70vh] min-w-0 flex-1 flex-col lg:min-h-0">
+          <nav className="scroll-area flex gap-1 overflow-x-auto border-b border-line px-4 @xl:px-8">
             {TABS.map((tab) => (
               <NavLink
                 key={tab.to}
