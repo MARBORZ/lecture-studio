@@ -6,7 +6,8 @@ VAD silence cutting, jump-cut video, transcripts, blunt audits with timecodes, a
 ## Running
 
 - Desktop shortcut → `launcher/macos/start.zsh` (macOS) or `launcher/windows/start.vbs` → `start.ps1` (Windows).
-- Install: `installer/macos/Setup.app`, `installer/windows/Setup.cmd`. Shared icons live in `assets/`.
+- Install / remove: `Setup.app`, `Uninstall.app` (macOS), `Setup.cmd`, `Uninstall.cmd` (Windows) in the project root; their
+  scripts live in `installer/<os>/`. Shared icons live in `assets/`.
 - API: FastAPI `127.0.0.1:3000`. UI: Vite `127.0.0.1:5173` (proxies `/api`).
 - Stop: the sidebar button or `launcher/<os>/stop.*` (refused while the system is busy).
 - Logs: `<settings home>/logs/{launcher,server,frontend,setup}.log`; settings home is `backend/config.py:APP_HOME`

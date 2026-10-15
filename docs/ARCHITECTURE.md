@@ -120,11 +120,15 @@ locale default Windows read git and ffprobe output as cp1252.
 `services/uninstall.py`. `preview()` lists the app folder, the settings home and the data folder, and refuses when the
 library lies inside a folder that goes (unless it is deleted too) or the app folder holds git work not on GitHub.
 `start()` writes a tab-separated plan (`pid`, `ui_port`, `profile`, `message`, `remove`, `remove_if_empty`) to a temp
-folder, copies `launcher/macos/uninstall.zsh` or `launcher/windows/uninstall.{vbs,ps1}` there and starts it detached;
+folder, copies `launcher/macos/remove.zsh` or `launcher/windows/remove.{vbs,ps1}` there and starts it detached;
 the route then stops everything. The script waits for the API to exit, closes the UI and the app window, deletes the
 plan's paths and our Desktop shortcut (checked by bundle id / `start.vbs` target), never the root or anything containing
 the home folder, and shows the final message. With "delete lessons" only the library items are listed; the data folder
 itself goes only if nothing else is left in it.
+
+`Uninstall.app` / `Uninstall.cmd` (project root) only ask the questions; `python -m backend.tools.uninstall describe | run`
+applies the same rules. `run` goes through the API when the server on the port is this install (it stops everything and
+refuses while busy), starts the remover directly when nothing runs, and refuses when another copy's server answers.
 
 ## Platforms
 

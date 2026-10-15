@@ -54,7 +54,7 @@ git clone https://github.com/MARBORZ/lecture-studio.git
 
 | | macOS | Windows 10/11 (untested) |
 |---|---|---|
-| Run | Finder → `installer/macos/Setup` (double-click) | Explorer → `installer\windows\Setup.cmd` (double-click) |
+| Run | Finder → `Setup` in the project folder (double-click) | Explorer → `Setup.cmd` in the project folder (double-click) |
 | Installs | Homebrew (asks for the admin password in a system dialog), uv, Node.js, FFmpeg | uv (official installer), Node.js and FFmpeg via winget (UAC may ask) |
 | Result | **Lecture Studio** icon on the Desktop | **Lecture Studio** shortcut on the Desktop |
 | Settings, keys, logs | `~/Library/Application Support/Lecture Studio/` | `%APPDATA%\Lecture Studio\` |
@@ -80,7 +80,9 @@ The app is not notarized, so open it the first time with right-click → Open.
 
 The Desktop shortcut starts everything from a clean slate: old processes are stopped, dependencies are synced when
 lock files changed, the API (`127.0.0.1:3000`) and the UI (`127.0.0.1:5173`) start, and an app window opens
-(Chrome/Edge app mode with its own profile, otherwise the default browser).
+(app mode of the first Chromium browser found: Chrome, Edge, Brave, Chromium, Vivaldi — on Windows Edge last; with its
+own profile. Without one, a tab in the default browser: it works, but the shortcut opens a new tab each time and
+Shut down cannot close it).
 
 **Shut down** at the bottom of the sidebar stops the API, the UI and the window. It refuses while something is
 processing, uploading or exporting, and tells you what. From a terminal: `zsh launcher/macos/stop.zsh` or
@@ -92,8 +94,12 @@ processing, uploading or exporting, and tells you what. From a terminal: `zsh la
 folder (settings, API keys, logs, app-window profile) and the Desktop shortcut. Lessons stay unless you tick
 "Delete lessons too"; then only the library itself goes (database, media, diary, chats), never other files in that
 folder. The app window closes, and a message says what was kept and how to install again: `git clone` into the same
-folder and Setup (Windows), or Lecture Studio Setup (macOS). A folder with git work that is not on GitHub (a developer
-checkout) is never deleted from the app.
+folder and Setup, or Lecture Studio Setup for a zip install. A folder with git work that is not on GitHub (a developer
+checkout) is never deleted.
+
+Without opening the app: `Uninstall` (macOS) or `Uninstall.cmd` (Windows) in the project folder, next to Setup. Same
+rules and questions; if the app is running it is stopped first (refused while it is processing). On macOS, an
+`Uninstall` outside a clone deletes the Setup install in `~/Library/Application Support/Lecture Studio/app`.
 
 ## Where things live
 
