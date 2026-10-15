@@ -1,26 +1,33 @@
-import { ChevronDown, FileVideo, HardDrive, Play, Upload, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, ChevronDown, FileVideo, HardDrive, Play, Upload, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { api } from '@/api/client'
 import type { PipelineDefaults } from '@/api/types'
 import { useJobs, useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
-import { AnimatePresence, ListItem, m } from '@/components/motion'
-import { collapse } from '@/lib/motion'
+import { AnimatePresence, Appear, ListItem, m } from '@/components/motion'
 import { Button, Card, EmptyState, Field, Input, Page, PageHeader, Progress, Segmented, Select, Switch } from '@/components/ui'
 import { FALLBACK_DEFAULTS, PipelineOptionsFields } from '@/features/jobs/PipelineOptionsFields'
 import { JobCard } from '@/features/jobs/JobCard'
 import { KeyNotice } from '@/features/system/KeyNotice'
 import { cn } from '@/lib/cn'
 import { formatBytes } from '@/lib/format'
+import { collapse } from '@/lib/motion'
 
 type Source = 'upload' | 'path'
 type Opts = Required<PipelineDefaults>
+type Mode = Opts['mode']
 
+const STEPS = ['file', 'lesson', 'processing', 'start'] as const
+type Step = (typeof STEPS)[number]
+const MODES: Mode[] = ['deepseek', 'gemini', 'whisper', 'audio_only']
+
+/** Studio as a wizard: file -> lesson -> processing -> start. The queue stays on the right. */
 export function StudioPage() {
-  const { t, settings, toast, lang } = useUI()
+  const { t, settings, toast } = useUI()
   const { projects } = useLibrary()
   const { jobs, trackUpload } = useJobs()
 
+  const [step, setStep] = useState<Step>('file')
   const [source, setSource] = useState<Source>('upload')
   const [file, setFile] = useState<File | null>(null)
   const [localPath, setLocalPath] = useState('')
@@ -28,11 +35,8 @@ export function StudioPage() {
   const [projectId, setProjectId] = useState('proj_inbox')
   const [exportAfter, setExportAfter] = useState(false)
   const [opts, setOpts] = useState<Opts>(FALLBACK_DEFAULTS)
-  const [showAdvanced, setShowAdvanced] = useState(false)
   const [upload, setUpload] = useState<{ progress: number; abort: () => void } | null>(null)
   const [starting, setStarting] = useState(false)
-  const [dragging, setDragging] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
 
   const [defaultsFrom, setDefaultsFrom] = useState<PipelineDefaults>()
   if (settings && settings.pipeline !== defaultsFrom) {
@@ -40,13 +44,19 @@ export function StudioPage() {
     setOpts({ ...FALLBACK_DEFAULTS, ...settings.pipeline } as Opts)
   }
 
-  const pick = (f: File | undefined) => {
-    if (!f) return
-    setFile(f)
-    if (!title) setTitle(f.name.replace(/\.[^.]+$/, ''))
+  const fileName = source === 'upload' ? file?.name ?? '' : localPath.trim().split(/[\\/]/).pop() ?? ''
+  const valid: Record<Step, boolean> = {
+    file: source === 'upload' ? Boolean(file) : Boolean(localPath.trim()),
+    lesson: true,
+    processing: true,
+    start: true,
   }
+  const index = STEPS.indexOf(step)
+  const reachable = (s: Step) => STEPS.slice(0, STEPS.indexOf(s)).every((x) => valid[x])
 
-  const ready = source === 'upload' ? Boolean(file) : Boolean(localPath.trim())
+  const chooseFile = (name: string) => {
+    if (!title) setTitle(name.replace(/\.[^.]+$/, ''))
+  }
 
   async function start() {
     setStarting(true)
@@ -68,9 +78,11 @@ export function StudioPage() {
         }
       }
       await api.startJob(options, uploadId)
+      toast(t('studio.started'))
       setFile(null)
       setLocalPath('')
       setTitle('')
+      setStep('file')
     } catch (e) {
       toast((e as Error).message, 'error')
     } finally {
@@ -81,115 +93,105 @@ export function StudioPage() {
   return (
     <Page width="lg">
       <PageHeader title={t('studio.title')} subtitle={t('studio.subtitle')} />
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="flex flex-col gap-6">
-          <Card title={t('studio.source')} actions={<Segmented size="sm" value={source} onChange={setSource} options={[{ value: 'upload', label: t('studio.upload') }, { value: 'path', label: t('studio.path') }]} />}>
-            {source === 'upload' ? (
-              <div
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  setDragging(true)
-                }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={(e) => {
-                  e.preventDefault()
-                  setDragging(false)
-                  pick(e.dataTransfer.files[0])
-                }}
-                onClick={() => inputRef.current?.click()}
-                className={cn(
-                  'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-6 py-10 text-center transition-colors',
-                  dragging ? 'border-fg bg-raised' : 'border-line-strong hover:border-muted',
-                )}
-              >
-                <input ref={inputRef} type="file" accept="video/*,audio/*,.mov,.mkv" hidden onChange={(e) => pick(e.target.files?.[0])} />
-                {file ? (
-                  <>
-                    <Icon as={FileVideo} size={22} />
-                    <span className="text-[14px] text-fg">{file.name}</span>
-                    <span className="font-mono text-[12px] text-muted">{formatBytes(file.size, lang)}</span>
-                    <button type="button" onClick={(e) => (e.stopPropagation(), setFile(null))} className="mt-1 flex items-center gap-1 text-[12px] text-muted hover:text-fg">
-                      <Icon as={X} size={12} /> {t('common.cancel')}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <Icon as={Upload} size={22} className="text-muted" />
-                    <span className="text-[14px] text-fg">{t('studio.drop')}</span>
-                    <span className="text-[12px] text-muted">{t('studio.dropHint')}</span>
-                  </>
-                )}
-              </div>
-            ) : (
-              <Field hint={t('studio.pathHint')}>
-                <div className="relative">
-                  <Icon as={HardDrive} size={14} className="absolute top-1/2 left-3 -translate-y-1/2 text-dim" />
-                  <Input
-                    value={localPath}
-                    onChange={(e) => {
-                      setLocalPath(e.target.value)
-                      if (!title) setTitle(e.target.value.split('/').pop()?.replace(/\.[^.]+$/, '') ?? '')
-                    }}
-                    placeholder={t('studio.pathPlaceholder')}
-                    className="pl-8 font-mono text-[12.5px]"
-                  />
-                </div>
-              </Field>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="flex min-w-0 flex-col gap-5">
+          <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {STEPS.map((s, i) => {
+              const done = i < index && valid[s]
+              return (
+                <li key={s}>
+                  <button
+                    type="button"
+                    disabled={!reachable(s)}
+                    onClick={() => setStep(s)}
+                    className={cn(
+                      'flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-colors disabled:opacity-40',
+                      s === step ? 'border-fg text-fg' : 'border-line text-muted hover:border-line-strong hover:text-soft',
+                    )}
+                  >
+                    <span className={cn('flex size-6 shrink-0 items-center justify-center rounded-full border font-mono text-[11px]', done ? 'border-fg bg-fg text-bg' : s === step ? 'border-fg' : 'border-line-strong')}>
+                      {done ? <Icon as={Check} size={12} /> : i + 1}
+                    </span>
+                    <span className="min-w-0 truncate text-[13px]">{t(`studio.step.${s}`)}</span>
+                  </button>
+                </li>
+              )
+            })}
+          </ol>
+
+          <Appear key={step}>
+            {step === 'file' && (
+              <FileStep source={source} setSource={setSource} file={file} setFile={(f) => (setFile(f), f && chooseFile(f.name))} localPath={localPath} setLocalPath={(p) => (setLocalPath(p), chooseFile(p.split(/[\\/]/).pop() ?? ''))} />
             )}
-
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <Field label={t('studio.lessonTitle')}>
-                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('studio.titlePlaceholder')} />
-              </Field>
-              <Field label={t('common.notebook')}>
-                <Select value={projectId} onChange={setProjectId} options={projects.map((p) => ({ value: p.id, label: p.name }))} />
-              </Field>
-            </div>
-            <div className="mt-5">
-              <Switch checked={exportAfter} onChange={setExportAfter} disabled={!settings?.paths.export_dir} label={t('studio.exportAfter')} hint={settings?.paths.export_dir || t('settings.exportDirHint')} />
-            </div>
-          </Card>
-
-          <Card padded={false}>
-            <button type="button" onClick={() => setShowAdvanced((v) => !v)} className="flex w-full items-center justify-between px-5 py-3.5 text-left">
-              <span>
-                <span className="block text-[13.5px] font-semibold">{t('studio.advanced')}</span>
-                <span className="block text-[12.5px] text-muted">{t('studio.defaultsHint')}</span>
-              </span>
-              <Icon as={ChevronDown} size={16} className={cn('text-muted transition-transform', showAdvanced && 'rotate-180')} />
-            </button>
-            <AnimatePresence initial={false}>
-              {showAdvanced && (
-                <m.div key="advanced" variants={collapse} initial="hidden" animate="show" exit="exit" className="overflow-hidden">
-                  <div className="border-t border-line p-5">
-                    <PipelineOptionsFields value={opts} onChange={setOpts} />
-                  </div>
-                </m.div>
-              )}
-            </AnimatePresence>
-          </Card>
-
-          {opts.mode === 'gemini' ? <KeyNotice provider="gemini" /> : opts.mode === 'deepseek' && opts.generate_audit ? <KeyNotice provider="deepseek" /> : null}
-
-          {upload ? (
-            <div className="flex items-center gap-4 rounded-xl border border-line-strong p-4">
-              <div className="flex-1">
-                <div className="mb-2 flex justify-between text-[13px]">
-                  <span>{t('studio.uploading')}</span>
-                  <span className="font-mono">{Math.round(upload.progress * 100)}%</span>
+            {step === 'lesson' && (
+              <Card title={t('studio.step.lesson')} description={t('studio.lessonHint')}>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label={t('studio.lessonTitle')}>
+                    <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('studio.titlePlaceholder')} autoFocus />
+                  </Field>
+                  <Field label={t('common.notebook')}>
+                    <Select value={projectId} onChange={setProjectId} options={projects.map((p) => ({ value: p.id, label: p.name }))} />
+                  </Field>
                 </div>
-                <Progress value={upload.progress * 100} />
-              </div>
-              <Button size="sm" variant="ghost" icon={X} onClick={upload.abort}>{t('common.cancel')}</Button>
-            </div>
-          ) : (
-            <Button variant="primary" size="lg" icon={Play} className="self-start" disabled={!ready} loading={starting} onClick={start}>
-              {t('studio.start')}
-            </Button>
-          )}
+                <div className="mt-5">
+                  <Switch checked={exportAfter} onChange={setExportAfter} disabled={!settings?.paths.export_dir} label={t('studio.exportAfter')} hint={settings?.paths.export_dir || t('settings.exportDirHint')} />
+                </div>
+              </Card>
+            )}
+            {step === 'processing' && <ProcessingStep opts={opts} setOpts={setOpts} />}
+            {step === 'start' && (
+              <Card title={t('studio.step.start')}>
+                <dl className="grid gap-x-6 gap-y-3 text-[13px] sm:grid-cols-[10rem_minmax(0,1fr)]">
+                  <dt className="text-muted">{t('studio.step.file')}</dt>
+                  <dd className="truncate font-mono text-[12.5px] text-fg">{fileName}</dd>
+                  <dt className="text-muted">{t('studio.lessonTitle')}</dt>
+                  <dd className="truncate text-fg">{title.trim() || t('studio.untitled')}</dd>
+                  <dt className="text-muted">{t('common.notebook')}</dt>
+                  <dd className="truncate text-fg">{projects.find((p) => p.id === projectId)?.name}</dd>
+                  <dt className="text-muted">{t('opt.mode')}</dt>
+                  <dd className="text-fg">{t(`opt.mode.${opts.mode}`)}</dd>
+                  <dt className="text-muted">{t('studio.result')}</dt>
+                  <dd className="text-fg">{resultLine(opts, t)}</dd>
+                </dl>
+                <div className="mt-5 flex flex-col gap-3">
+                  {opts.mode === 'gemini' ? <KeyNotice provider="gemini" /> : opts.mode === 'deepseek' && opts.generate_audit ? <KeyNotice provider="deepseek" /> : null}
+                  {upload && (
+                    <div className="flex items-center gap-4 rounded-xl border border-line-strong p-4">
+                      <div className="flex-1">
+                        <div className="mb-2 flex justify-between text-[13px]">
+                          <span>{t('studio.uploading')}</span>
+                          <span className="font-mono">{Math.round(upload.progress * 100)}%</span>
+                        </div>
+                        <Progress value={upload.progress * 100} />
+                      </div>
+                      <Button size="sm" variant="ghost" icon={X} onClick={upload.abort}>{t('common.cancel')}</Button>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
+          </Appear>
+
+          <div className="flex items-center gap-2">
+            {index > 0 && (
+              <Button variant="ghost" icon={ArrowLeft} disabled={Boolean(upload)} onClick={() => setStep(STEPS[index - 1])}>
+                {t('common.back')}
+              </Button>
+            )}
+            <div className="flex-1" />
+            {step === 'start' ? (
+              <Button variant="primary" size="lg" icon={Play} disabled={!valid.file || Boolean(upload)} loading={starting} onClick={start}>
+                {t('studio.start')}
+              </Button>
+            ) : (
+              <Button variant="primary" iconRight={ArrowRight} disabled={!valid[step]} onClick={() => setStep(STEPS[index + 1])}>
+                {t('common.next')}
+              </Button>
+            )}
+          </div>
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex min-w-0 flex-col gap-3">
           <div className="label-caps">{t('studio.queue')}</div>
           {jobs.length ? (
             <AnimatePresence initial={false}>
@@ -205,5 +207,131 @@ export function StudioPage() {
         </div>
       </div>
     </Page>
+  )
+}
+
+function resultLine(o: Opts, t: ReturnType<typeof useUI>['t']): string {
+  const parts = [t('studio.res.audio')]
+  if (o.clean_video) parts.push(t('studio.res.video'))
+  if (o.mode !== 'audio_only') parts.push(t('studio.res.transcript'))
+  if (o.mode !== 'audio_only' && o.generate_audit) parts.push(t('studio.res.audit'))
+  return parts.join(' · ')
+}
+
+function FileStep({ source, setSource, file, setFile, localPath, setLocalPath }: {
+  source: Source
+  setSource: (s: Source) => void
+  file: File | null
+  setFile: (f: File | null) => void
+  localPath: string
+  setLocalPath: (p: string) => void
+}) {
+  const { t, lang } = useUI()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [dragging, setDragging] = useState(false)
+  return (
+    <Card
+      title={t('studio.step.file')}
+      description={t('studio.fileHint')}
+      actions={<Segmented size="sm" value={source} onChange={setSource} options={[{ value: 'upload', label: t('studio.upload') }, { value: 'path', label: t('studio.path') }]} />}
+    >
+      {source === 'upload' ? (
+        <div
+          onDragOver={(e) => {
+            e.preventDefault()
+            setDragging(true)
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault()
+            setDragging(false)
+            if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0])
+          }}
+          onClick={() => inputRef.current?.click()}
+          className={cn(
+            'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-6 py-12 text-center transition-colors',
+            dragging ? 'border-fg bg-raised' : 'border-line-strong hover:border-muted',
+          )}
+        >
+          <input ref={inputRef} type="file" accept="video/*,audio/*,.mov,.mkv" hidden onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])} />
+          {file ? (
+            <>
+              <Icon as={FileVideo} size={22} />
+              <span className="max-w-full truncate text-[14px] text-fg">{file.name}</span>
+              <span className="font-mono text-[12px] text-muted">{formatBytes(file.size, lang)}</span>
+              <button type="button" onClick={(e) => (e.stopPropagation(), setFile(null))} className="mt-1 flex items-center gap-1 text-[12px] text-muted hover:text-fg">
+                <Icon as={X} size={12} /> {t('common.cancel')}
+              </button>
+            </>
+          ) : (
+            <>
+              <Icon as={Upload} size={22} className="text-muted" />
+              <span className="text-[14px] text-fg">{t('studio.drop')}</span>
+              <span className="text-[12px] text-muted">{t('studio.dropHint')}</span>
+            </>
+          )}
+        </div>
+      ) : (
+        <Field hint={t('studio.pathHint')}>
+          <div className="relative">
+            <Icon as={HardDrive} size={14} className="absolute top-1/2 left-3 -translate-y-1/2 text-dim" />
+            <Input value={localPath} onChange={(e) => setLocalPath(e.target.value)} placeholder={t('studio.pathPlaceholder')} className="pl-8 font-mono text-[12.5px]" autoFocus />
+          </div>
+        </Field>
+      )}
+    </Card>
+  )
+}
+
+/** The engine as choice cards (what runs locally, what goes to the cloud), the main switches, and fine-tuning folded. */
+function ProcessingStep({ opts, setOpts }: { opts: Opts; setOpts: (o: Opts) => void }) {
+  const { t } = useUI()
+  const [advanced, setAdvanced] = useState(false)
+  const set = <K extends keyof Opts>(k: K, v: Opts[K]) => setOpts({ ...opts, [k]: v })
+  return (
+    <div className="flex flex-col gap-5">
+      <Card title={t('opt.mode')} description={t('studio.modeHint')}>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {MODES.map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => set('mode', mode)}
+              aria-pressed={opts.mode === mode}
+              className={cn('flex flex-col gap-1 rounded-xl border p-3.5 text-left transition-colors', opts.mode === mode ? 'border-fg bg-raised' : 'border-line hover:border-line-strong')}
+            >
+              <span className="flex items-center justify-between gap-2 text-[13.5px] font-medium text-fg">
+                {t(`opt.mode.${mode}`)}
+                {opts.mode === mode && <Icon as={Check} size={14} />}
+              </span>
+              <span className="text-[12px] leading-snug text-muted">{t(`studio.mode.${mode}`)}</span>
+            </button>
+          ))}
+        </div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <Switch checked={opts.clean_video} onChange={(v) => set('clean_video', v)} label={t('opt.video')} hint={t('opt.videoHint')} />
+          <Switch disabled={opts.mode === 'audio_only'} checked={opts.generate_audit && opts.mode !== 'audio_only'} onChange={(v) => set('generate_audit', v)} label={t('opt.audit')} hint={t('studio.auditHint')} />
+        </div>
+      </Card>
+
+      <Card padded={false}>
+        <button type="button" onClick={() => setAdvanced((v) => !v)} className="flex w-full items-center justify-between px-5 py-3.5 text-left">
+          <span>
+            <span className="block text-[13.5px] font-semibold">{t('studio.advanced')}</span>
+            <span className="block text-[12.5px] text-muted">{t('studio.defaultsHint')}</span>
+          </span>
+          <Icon as={ChevronDown} size={16} className={cn('text-muted transition-transform', advanced && 'rotate-180')} />
+        </button>
+        <AnimatePresence initial={false}>
+          {advanced && (
+            <m.div key="advanced" variants={collapse} initial="hidden" animate="show" exit="exit" className="overflow-hidden">
+              <div className="border-t border-line p-5">
+                <PipelineOptionsFields value={opts} onChange={setOpts} />
+              </div>
+            </m.div>
+          )}
+        </AnimatePresence>
+      </Card>
+    </div>
   )
 }
