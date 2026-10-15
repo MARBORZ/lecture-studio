@@ -197,11 +197,15 @@ class TranscribeStep(PipelineStep):
                 audio, ctx.clean_duration, key, ai.gemini_model, ctx.work_dir, o.language, o.custom_vocabulary, ctx.check_cancelled, on_progress,
             )
         else:
+            from backend.core import compute
             from backend.core.transcription import whisper
 
-            progress(0, f"Транскрибация (Whisper {ai.whisper_model})")
+            c = SettingsService.get().compute
+            plan = compute.plan(c.device, c.cpu_threads)
+            where = {"cuda": f"GPU {plan.gpu_name}", "apple": "GPU Apple"}.get(plan.backend, f"CPU, {plan.threads} потоков")
+            progress(0, f"Транскрибация (Whisper {ai.whisper_model}, {where})")
             raw = whisper.transcribe(
-                audio, ctx.clean_duration, ai.whisper_model, o.language, o.custom_vocabulary, ctx.check_cancelled, on_progress,
+                audio, ctx.clean_duration, ai.whisper_model, o.language, o.custom_vocabulary, ctx.check_cancelled, on_progress, plan=plan,
             )
 
         ctx.segments = segments_from_clean(raw, ctx.time_map or TimeMap([]))

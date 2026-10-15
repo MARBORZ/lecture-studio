@@ -206,7 +206,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/settings/transcription-device": {
+    "/api/settings/compute": {
         parameters: {
             query?: never;
             header?: never;
@@ -214,10 +214,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Transcription Device
-         * @description GPU or CPU for local Whisper, and why (the first call imports torch: about a second).
+         * Compute Status
+         * @description What local transcription runs on now and why (the first call imports torch: about a second).
          */
-        get: operations["transcription_device_api_settings_transcription_device_get"];
+        get: operations["compute_status_api_settings_compute_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -907,6 +907,62 @@ export interface components {
             provider?: ("deepseek" | "gemini") | null;
             /** Sources */
             sources?: string[] | null;
+        };
+        /**
+         * ComputeSettings
+         * @description Where local models (Whisper) run. auto = the GPU when there is a usable one (NVIDIA CUDA, Apple GPU).
+         */
+        ComputeSettings: {
+            /**
+             * Device
+             * @default auto
+             * @enum {string}
+             */
+            device: "auto" | "gpu" | "cpu";
+            /**
+             * Cpu Threads
+             * @default 0
+             */
+            cpu_threads: number;
+        };
+        /**
+         * ComputeStatus
+         * @description What the next local transcription will run on, and why (Settings → AI).
+         */
+        ComputeStatus: {
+            /**
+             * Preference
+             * @enum {string}
+             */
+            preference: "auto" | "gpu" | "cpu";
+            /**
+             * Backend
+             * @enum {string}
+             */
+            backend: "cuda" | "apple" | "cpu";
+            /**
+             * Gpu Name
+             * @default
+             */
+            gpu_name: string;
+            /** Gpu Available */
+            gpu_available: boolean;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * Failure
+             * @default
+             */
+            failure: string;
+            /** Threads */
+            threads: number;
+            /** Cores */
+            cores: number;
+            /** Logical Cores */
+            logical_cores: number;
         };
         /**
          * ContextUsage
@@ -1707,6 +1763,7 @@ export interface components {
             theme?: ("system" | "dark" | "light") | null;
             /** Text Scale */
             text_scale?: number | null;
+            compute?: components["schemas"]["ComputeSettings"] | null;
             ai?: components["schemas"]["AISettingsPatch"] | null;
             pipeline?: components["schemas"]["PipelineDefaults"] | null;
         };
@@ -1726,6 +1783,7 @@ export interface components {
             theme: "system" | "dark" | "light";
             /** Text Scale */
             text_scale: number;
+            compute: components["schemas"]["ComputeSettings"];
             paths: components["schemas"]["PathsView"];
             ai: components["schemas"]["AISettingsView"];
             pipeline: components["schemas"]["PipelineDefaults"];
@@ -1794,27 +1852,6 @@ export interface components {
              * @enum {string}
              */
             mode: "whisper" | "gemini" | "deepseek";
-        };
-        /**
-         * TranscriptionDevice
-         * @description Where local Whisper runs. reason (cpu only): apple | torch_cpu | no_gpu | cuda_failed: <error>.
-         */
-        TranscriptionDevice: {
-            /**
-             * Device
-             * @enum {string}
-             */
-            device: "cuda" | "cpu";
-            /**
-             * Name
-             * @default
-             */
-            name: string;
-            /**
-             * Reason
-             * @default
-             */
-            reason: string;
         };
         /** UpdateInfo */
         UpdateInfo: {
@@ -2273,7 +2310,7 @@ export interface operations {
             };
         };
     };
-    transcription_device_api_settings_transcription_device_get: {
+    compute_status_api_settings_compute_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -2288,7 +2325,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TranscriptionDevice"];
+                    "application/json": components["schemas"]["ComputeStatus"];
                 };
             };
         };

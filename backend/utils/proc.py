@@ -10,6 +10,12 @@ from collections.abc import Iterable
 import psutil
 
 
+def cpu_cores() -> tuple[int, int]:
+    """(physical, logical) CPU cores."""
+    logical = psutil.cpu_count() or 1
+    return psutil.cpu_count(logical=False) or logical, logical
+
+
 def pid_alive(pid: int) -> bool:
     return psutil.pid_exists(pid)
 

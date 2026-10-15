@@ -1,7 +1,7 @@
 import { Check, Cpu, FolderInput, GraduationCap, RotateCcw, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { api } from '@/api/client'
-import type { PathCheckResult, PipelineDefaults, PromptView, UILanguage } from '@/api/types'
+import type { ComputeSettings, PathCheckResult, PipelineDefaults, PromptView, UILanguage } from '@/api/types'
 import { useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { Button, Card, Field, Input, Modal, Segmented, Select, Slider, Textarea } from '@/components/ui'
@@ -177,7 +177,7 @@ export function AISettingsSection() {
           <KeyField provider="gemini" />
         </div>
       </Card>
-      <DeviceCard />
+      <ComputeCard />
       <Card title={t('settings.models')}>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="DeepSeek">
@@ -218,28 +218,65 @@ export function ProcessingSettings() {
   )
 }
 
-/** Where local Whisper runs (GPU or CPU) and, on the CPU, why. */
-function DeviceCard() {
-  const { t } = useUI()
-  const dev = useResource(() => api.transcriptionDevice(), [])
-  const d = dev.data
-  const reason = d?.reason.startsWith('cuda_failed') ? 'cuda_failed' : d?.reason
+/** Where local models (Whisper) run: auto / GPU / CPU, CPU threads, and what the next job will actually use. */
+function ComputeCard() {
+  const { t, settings, patchSettings, toast } = useUI()
+  const c = settings!.compute
+  const status = useResource(() => api.compute(), [c.device, c.cpu_threads])
+  const s = status.data
+  const [threads, setThreads] = useState<number | null>(null)
+  const save = (patch: Partial<ComputeSettings>) => patchSettings({ compute: { ...c, ...patch } }).catch((e: Error) => toast(e.message, 'error'))
+  const shown = threads ?? (c.cpu_threads || s?.cores || 1)
+
   return (
-    <Card title={t('settings.device')} description={t('settings.deviceHint')}>
-      {!d ? (
-        <p className="animate-pulse-soft text-[13px] text-muted">{t('settings.deviceChecking')}</p>
-      ) : (
-        <div className="flex items-start gap-3">
-          <Icon as={d.device === 'cuda' ? Zap : Cpu} size={18} className="mt-0.5 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-[13.5px] text-fg">{d.device === 'cuda' ? `${t('settings.device.gpu')}: ${d.name}` : t('settings.device.cpu')}</p>
-            {reason && <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted">{t(`settings.device.why.${reason as 'apple' | 'torch_cpu' | 'no_gpu' | 'cuda_failed'}`)}</p>}
+    <Card title={t('settings.compute')} description={t('settings.computeHint')}>
+      <div className="flex flex-col gap-5">
+        <Segmented<ComputeSettings['device']>
+          value={c.device}
+          onChange={(device) => save({ device })}
+          options={[
+            { value: 'auto', label: t('settings.compute.auto') },
+            { value: 'gpu', label: t('settings.compute.gpu') },
+            { value: 'cpu', label: t('settings.compute.cpu') },
+          ]}
+        />
+        {!s ? (
+          <p className="animate-pulse-soft text-[13px] text-muted">{t('settings.deviceChecking')}</p>
+        ) : (
+          <div className="flex items-start gap-3 rounded-lg border border-line px-3.5 py-3">
+            <Icon as={s.backend === 'cpu' ? Cpu : Zap} size={18} className="mt-0.5 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[13.5px] text-fg">
+                {s.backend === 'cpu' ? t('settings.compute.onCpu', { n: s.threads }) : t('settings.compute.onGpu', { name: s.gpu_name })}
+              </p>
+              {s.reason && (
+                <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted" title={s.failure || undefined}>
+                  {t(`settings.compute.why.${s.reason as ComputeReason}`, { name: s.gpu_name })}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+        {s && (
+          <Field
+            label={t('settings.compute.threads')}
+            hint={t('settings.compute.threadsHint', { cores: s.cores, logical: s.logical_cores })}
+            aside={c.cpu_threads ? String(shown) : t('settings.compute.threadsAll', { n: s.cores })}
+          >
+            <div onPointerUp={() => threads !== null && (save({ cpu_threads: threads }), setThreads(null))}>
+              <Slider min={1} max={s.logical_cores} step={1} value={shown} onChange={setThreads} />
+            </div>
+          </Field>
+        )}
+        {s && c.cpu_threads > 0 && (
+          <Button size="sm" variant="ghost" className="self-start" onClick={() => save({ cpu_threads: 0 })}>{t('settings.compute.threadsReset')}</Button>
+        )}
+      </div>
     </Card>
   )
 }
+
+type ComputeReason = 'user' | 'no_gpu' | 'old_gpu' | 'old_driver' | 'torch_cpu' | 'apple_unavailable' | 'gpu_failed'
 
 // ---------------------------------------------------------------- interface
 

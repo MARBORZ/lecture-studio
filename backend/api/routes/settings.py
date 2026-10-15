@@ -9,6 +9,7 @@ from backend.core.ai.prompts import BLOCKS
 from backend.services.jobs import JobRegistry
 from backend.settings import SettingsService
 from backend.settings.schema import (
+    ComputeStatus,
     DataDirChange,
     KeyTestRequest,
     KeyTestResult,
@@ -18,7 +19,6 @@ from backend.settings.schema import (
     PromptView,
     SettingsPatch,
     SettingsView,
-    TranscriptionDevice,
 )
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -102,9 +102,16 @@ def change_data_dir(req: DataDirChange) -> SettingsView:
     return SettingsService.view()
 
 
-@router.get("/transcription-device", response_model=TranscriptionDevice)
-def transcription_device() -> TranscriptionDevice:
-    """GPU or CPU for local Whisper, and why (the first call imports torch: about a second)."""
-    from backend.core.transcription.whisper import device
 
-    return TranscriptionDevice(**device())
+@router.get("/compute", response_model=ComputeStatus)
+def compute_status() -> ComputeStatus:
+    """What local transcription runs on now and why (the first call imports torch: about a second)."""
+    from backend.core import compute
+
+    c = SettingsService.get().compute
+    plan, hw = compute.plan(c.device, c.cpu_threads), compute.probe()
+    return ComputeStatus(
+        preference=c.device, backend=plan.backend, gpu_name=hw.gpu_name, gpu_available=bool(hw.gpu_name),
+        reason=plan.reason, failure=compute.failure("cuda") or compute.failure("apple"),
+        threads=plan.threads, cores=hw.cores, logical_cores=hw.threads,
+    )

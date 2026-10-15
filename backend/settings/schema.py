@@ -41,6 +41,30 @@ class AISettings(BaseModel):
     assistant_provider: AIProviderName = "deepseek"
 
 
+ComputePreference = Literal["auto", "gpu", "cpu"]
+
+
+class ComputeSettings(BaseModel):
+    """Where local models (Whisper) run. auto = the GPU when there is a usable one (NVIDIA CUDA, Apple GPU)."""
+
+    device: ComputePreference = "auto"
+    cpu_threads: int = Field(0, ge=0, le=256)  # 0 = every physical core
+
+
+class ComputeStatus(BaseModel):
+    """What the next local transcription will run on, and why (Settings → AI)."""
+
+    preference: ComputePreference
+    backend: Literal["cuda", "apple", "cpu"]
+    gpu_name: str = ""  # the usable GPU, also when the CPU is chosen
+    gpu_available: bool
+    reason: str = ""  # cpu only: user | no_gpu | old_gpu | old_driver | torch_cpu | apple_unavailable | gpu_failed
+    failure: str = ""  # the GPU error behind gpu_failed
+    threads: int
+    cores: int
+    logical_cores: int
+
+
 class AppSettings(BaseModel):
     data_dir: str
     export_dir: str = ""
@@ -48,6 +72,7 @@ class AppSettings(BaseModel):
     onboarding_done: bool = False  # first-run tutorial passed (false -> the UI shows it before anything else)
     theme: Theme = "system"  # follows the OS by default
     text_scale: int = Field(100, ge=TEXT_SCALE_MIN, le=TEXT_SCALE_MAX)  # % of the base size of reading text
+    compute: ComputeSettings = Field(default_factory=ComputeSettings)
     ai: AISettings = Field(default_factory=AISettings)
     pipeline: PipelineDefaults = Field(default_factory=PipelineDefaults)
     prompts: dict[str, str] = Field(default_factory=dict)  # overrides of editable prompt blocks only
@@ -87,6 +112,7 @@ class SettingsView(BaseModel):
     onboarding_done: bool
     theme: Theme
     text_scale: int
+    compute: ComputeSettings
     paths: PathsView
     ai: AISettingsView
     pipeline: PipelineDefaults
@@ -108,6 +134,7 @@ class SettingsPatch(BaseModel):
     onboarding_done: bool | None = None
     theme: Theme | None = None
     text_scale: int | None = Field(default=None, ge=TEXT_SCALE_MIN, le=TEXT_SCALE_MAX)
+    compute: ComputeSettings | None = None
     ai: AISettingsPatch | None = None
     pipeline: PipelineDefaults | None = None
 
@@ -154,10 +181,3 @@ class DataDirChange(BaseModel):
     path: str
     mode: Literal["attach", "move"] = "attach"
 
-
-class TranscriptionDevice(BaseModel):
-    """Where local Whisper runs. reason (cpu only): apple | torch_cpu | no_gpu | cuda_failed: <error>."""
-
-    device: Literal["cuda", "cpu"]
-    name: str = ""
-    reason: str = ""
