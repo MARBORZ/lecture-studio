@@ -15,6 +15,7 @@ class Project(BaseModel):
     description: str = ""
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
     lesson_count: int = 0
+    cover: str = ""  # image file name in <data_dir>/covers ("" = none); changes with every new image
 
 
 class ProjectCreate(BaseModel):

@@ -11,6 +11,8 @@ AuditMode = Literal["srt_timecodes", "clean_summary"]
 VideoResolution = Literal["1080p", "720p", "original"]
 AIProviderName = Literal["deepseek", "gemini"]
 UILanguage = Literal["ru", "en"]
+Theme = Literal["system", "dark", "light"]
+TEXT_SCALE_MIN, TEXT_SCALE_MAX = 80, 150
 
 
 class PipelineDefaults(BaseModel):
@@ -44,6 +46,8 @@ class AppSettings(BaseModel):
     export_dir: str = ""
     ui_language: UILanguage = "ru"
     onboarding_done: bool = False  # first-run tutorial passed (false -> the UI shows it before anything else)
+    theme: Theme = "system"  # follows the OS by default
+    text_scale: int = Field(100, ge=TEXT_SCALE_MIN, le=TEXT_SCALE_MAX)  # % of the base size of reading text
     ai: AISettings = Field(default_factory=AISettings)
     pipeline: PipelineDefaults = Field(default_factory=PipelineDefaults)
     prompts: dict[str, str] = Field(default_factory=dict)  # overrides of editable prompt blocks only
@@ -81,6 +85,8 @@ class PathsView(BaseModel):
 class SettingsView(BaseModel):
     ui_language: UILanguage
     onboarding_done: bool
+    theme: Theme
+    text_scale: int
     paths: PathsView
     ai: AISettingsView
     pipeline: PipelineDefaults
@@ -100,6 +106,8 @@ class SettingsPatch(BaseModel):
     export_dir: str | None = None
     ui_language: UILanguage | None = None
     onboarding_done: bool | None = None
+    theme: Theme | None = None
+    text_scale: int | None = Field(default=None, ge=TEXT_SCALE_MIN, le=TEXT_SCALE_MAX)
     ai: AISettingsPatch | None = None
     pipeline: PipelineDefaults | None = None
 

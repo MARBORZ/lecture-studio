@@ -14,6 +14,7 @@ import type { Job, Lesson, LessonPatch, Project, ProjectCreate, ProjectPatch, Se
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PromptDialog } from '@/components/ui/PromptDialog'
 import { createT, type TFunction } from '@/i18n'
+import { useAppearance } from '@/lib/appearance'
 
 // ---------------------------------------------------------------- UI
 
@@ -69,6 +70,8 @@ interface LibraryContextValue {
   refresh: () => Promise<void>
   createProject: (data: ProjectCreate) => Promise<Project>
   patchProject: (id: string, patch: ProjectPatch) => Promise<void>
+  /** file = new image, null = remove */
+  setProjectCover: (id: string, file: File | null) => Promise<void>
   deleteProject: (id: string) => Promise<void>
   patchLesson: (id: string, patch: LessonPatch) => Promise<Lesson>
   deleteLesson: (id: string) => Promise<void>
@@ -113,6 +116,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
   const lang: UILanguage = settings?.ui_language ?? 'ru'
   const t = useMemo(() => createT(lang), [lang])
+  useAppearance(settings?.theme, settings?.text_scale)
   useEffect(() => {
     document.documentElement.lang = lang
   }, [lang])
@@ -186,6 +190,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await api.patchProject(id, patch)
     await refresh()
   }, [refresh])
+  const setProjectCover = useCallback(async (id: string, file: File | null) => {
+    const updated = file ? await api.setCover(id, file) : await api.removeCover(id)
+    setProjects((ps) => ps.map((p) => (p.id === id ? { ...p, cover: updated.cover } : p)))
+  }, [])
   const deleteProject = useCallback(async (id: string) => {
     await api.deleteProject(id)
     await refresh()
@@ -257,8 +265,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }), [settings, reloadSettings, patchSettings, lang, t, openModal, confirm, promptText, toast, modals, toasts, dismissToast, stopped, tutorialOpen, focusMode])
 
   const library = useMemo<LibraryContextValue>(() => ({
-    projects, lessons, loading, refresh, createProject, patchProject, deleteProject, patchLesson, deleteLesson, projectName,
-  }), [projects, lessons, loading, refresh, createProject, patchProject, deleteProject, patchLesson, deleteLesson, projectName])
+    projects, lessons, loading, refresh, createProject, patchProject, setProjectCover, deleteProject, patchLesson, deleteLesson, projectName,
+  }), [projects, lessons, loading, refresh, createProject, patchProject, setProjectCover, deleteProject, patchLesson, deleteLesson, projectName])
 
   const jobsValue = useMemo<JobsContextValue>(() => ({ jobs, activeJobs, connected, uploads, trackUpload }), [jobs, activeJobs, connected, uploads, trackUpload])
 

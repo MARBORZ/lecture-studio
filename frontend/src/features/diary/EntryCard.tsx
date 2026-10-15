@@ -69,7 +69,7 @@ export const EntryCard = memo(function EntryCard({
           onBlur={finish}
           onKeyDown={(e) => e.key === 'Escape' && finish()}
           rows={Math.max(4, draft.split('\n').length + 1)}
-          className="w-full resize-none rounded-xl bg-transparent px-5 py-4 font-mono text-[13px] leading-relaxed text-fg focus:outline-none"
+          className="w-full resize-none rounded-xl bg-transparent px-5 py-4 font-mono read-13 leading-relaxed text-fg focus:outline-none"
         />
       ) : (
         <div

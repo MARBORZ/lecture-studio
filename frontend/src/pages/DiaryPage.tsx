@@ -124,7 +124,7 @@ export function DiaryPage() {
               }}
               rows={Math.min(12, Math.max(3, draft.split('\n').length + 1))}
               placeholder={t('diary.composer')}
-              className="w-full resize-none bg-transparent px-5 py-4 text-[14px] leading-relaxed text-fg placeholder:text-dim focus:outline-none"
+              className="read-14 w-full resize-none bg-transparent px-5 py-4 leading-relaxed text-fg placeholder:text-dim focus:outline-none"
             />
             <div className="flex items-center justify-between border-t border-line px-3 py-2">
               <span className="pl-2 text-[12px] text-dim">→ {target}</span>

@@ -242,6 +242,28 @@ export interface paths {
         patch: operations["patch_project_api_projects__project_id__patch"];
         trace?: never;
     };
+    "/api/projects/{project_id}/cover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Cover */
+        get: operations["get_cover_api_projects__project_id__cover_get"];
+        /**
+         * Set Cover
+         * @description Body = the image bytes (PNG, JPEG, WebP, GIF; up to 10 MB).
+         */
+        put: operations["set_cover_api_projects__project_id__cover_put"];
+        post?: never;
+        /** Delete Cover */
+        delete: operations["delete_cover_api_projects__project_id__cover_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/lessons": {
         parameters: {
             query?: never;
@@ -1536,6 +1558,11 @@ export interface components {
              * @default 0
              */
             lesson_count: number;
+            /**
+             * Cover
+             * @default
+             */
+            cover: string;
         };
         /** ProjectCreate */
         ProjectCreate: {
@@ -1636,6 +1663,10 @@ export interface components {
             ui_language?: ("ru" | "en") | null;
             /** Onboarding Done */
             onboarding_done?: boolean | null;
+            /** Theme */
+            theme?: ("system" | "dark" | "light") | null;
+            /** Text Scale */
+            text_scale?: number | null;
             ai?: components["schemas"]["AISettingsPatch"] | null;
             pipeline?: components["schemas"]["PipelineDefaults"] | null;
         };
@@ -1648,6 +1679,13 @@ export interface components {
             ui_language: "ru" | "en";
             /** Onboarding Done */
             onboarding_done: boolean;
+            /**
+             * Theme
+             * @enum {string}
+             */
+            theme: "system" | "dark" | "light";
+            /** Text Scale */
+            text_scale: number;
             paths: components["schemas"]["PathsView"];
             ai: components["schemas"]["AISettingsView"];
             pipeline: components["schemas"]["PipelineDefaults"];
@@ -2255,6 +2293,99 @@ export interface operations {
                 "application/json": components["schemas"]["ProjectPatch"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Project"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_cover_api_projects__project_id__cover_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_cover_api_projects__project_id__cover_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Project"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_cover_api_projects__project_id__cover_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

@@ -146,7 +146,19 @@ class Library:
                 if l.get("project_id") == project_id:
                     l["project_id"] = INBOX_ID
             db["threads"].pop(f"project:{project_id}", None)
+        from backend.services import covers
+
+        covers.remove_files(project_id)
         return True
+
+    @classmethod
+    def set_project_cover(cls, project_id: str, cover: str) -> Project | None:
+        with cls.tx() as db:
+            row = next((p for p in db["projects"] if p["id"] == project_id), None)
+            if row is None:
+                return None
+            row["cover"] = cover
+        return cls.get_project(project_id)
 
     # ---------------- lessons ----------------
 

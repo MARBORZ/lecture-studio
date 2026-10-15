@@ -3,9 +3,11 @@ Projects (= notebooks).
 """
 
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import FileResponse
 
 from backend.models.project import INBOX_ID, Project, ProjectCreate, ProjectPatch
+from backend.services import covers
 from backend.services.storage import Library
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
@@ -36,3 +38,37 @@ def delete_project(project_id: str) -> dict:
     if not Library.delete_project(project_id):
         raise HTTPException(404, detail="Блокнот не найден")
     return {"ok": True}
+
+
+@router.put("/{project_id}/cover", response_model=Project)
+async def set_cover(project_id: str, request: Request) -> Project:
+    """Body = the image bytes (PNG, JPEG, WebP, GIF; up to 10 MB)."""
+    data = bytearray()
+    async for chunk in request.stream():
+        data += chunk
+        if len(data) > covers.MAX_BYTES:
+            raise HTTPException(413, detail="Картинка больше 10 МБ")
+    try:
+        return covers.save(project_id, bytes(data))
+    except LookupError as e:
+        raise HTTPException(404, detail=str(e)) from e
+    except covers.CoverError as e:
+        raise HTTPException(400, detail=str(e)) from e
+
+
+@router.delete("/{project_id}/cover", response_model=Project)
+def delete_cover(project_id: str) -> Project:
+    try:
+        return covers.remove(project_id)
+    except LookupError as e:
+        raise HTTPException(404, detail=str(e)) from e
+
+
+@router.get("/{project_id}/cover")
+def get_cover(project_id: str) -> FileResponse:
+    found = covers.file_for(project_id)
+    if not found:
+        raise HTTPException(404, detail="Нет обложки")
+    path, mime = found
+    # the file name changes with the image, so the URL (?v=<name>) can be cached for good
+    return FileResponse(path, media_type=mime, headers={"Cache-Control": "public, max-age=31536000, immutable"})

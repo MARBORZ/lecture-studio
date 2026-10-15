@@ -79,7 +79,7 @@ const Row = memo(function Row({ index, segment, active, query, origLabel }: { in
       data-i={index}
       onClick={() => player.seek(segment.clean_start, true)}
       className={cn(
-        'group flex cursor-pointer gap-3 rounded-lg px-2 py-1.5 text-[14px] leading-relaxed transition-colors',
+        'read-14 group flex cursor-pointer gap-3 rounded-lg px-2 py-1.5 leading-relaxed transition-colors',
         active ? 'bg-raised text-fg' : 'text-muted hover:bg-surface hover:text-soft',
       )}
     >

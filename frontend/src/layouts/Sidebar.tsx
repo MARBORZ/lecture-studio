@@ -8,8 +8,10 @@ import { IconButton } from '@/components/ui'
 import { Skeleton } from '@/components/skeleton'
 import { JobIndicator } from '@/features/jobs/JobIndicator'
 import { ProjectFormModal } from '@/features/library/modals'
+import { NotebookCover } from '@/features/library/NotebookCover'
 import { ShutdownButton } from '@/features/system/ShutdownButton'
 import { UpdateButton } from '@/features/system/Update'
+import type { Project } from '@/api/types'
 import { cn } from '@/lib/cn'
 import { storage } from '@/lib/format'
 import { ease } from '@/lib/motion'
@@ -24,7 +26,7 @@ export const SHORTCUT_LABEL = isMac ? '⌘B' : 'Ctrl+B'
 const CollapsedContext = createContext(false)
 export const useSidebarCollapsed = () => useContext(CollapsedContext)
 
-function NavItem({ to, icon, children, end, count, monogram }: { to: string; icon?: typeof Library; children: string; end?: boolean; count?: number; monogram?: boolean }) {
+function NavItem({ to, icon, children, end, count, notebook }: { to: string; icon?: typeof Library; children: string; end?: boolean; count?: number; notebook?: Project }) {
   const collapsed = useSidebarCollapsed()
   return (
     <NavLink
@@ -44,10 +46,8 @@ function NavItem({ to, icon, children, end, count, monogram }: { to: string; ico
           <span className="flex size-[18px] shrink-0 items-center justify-center">
             {icon ? (
               <Icon as={icon} size={15} />
-            ) : monogram ? (
-              <span className={cn('flex size-[18px] items-center justify-center rounded-[5px] border text-[10px] font-semibold uppercase', isActive ? 'border-fg' : 'border-line-strong')}>
-                {children.trim().charAt(0)}
-              </span>
+            ) : notebook ? (
+              <NotebookCover project={notebook} active={isActive} className="size-[18px] text-[10px]" />
             ) : null}
           </span>
           <span className={cn('min-w-0 flex-1 truncate whitespace-nowrap transition-opacity duration-200', collapsed && 'opacity-0')}>{children}</span>
@@ -119,7 +119,7 @@ export function Sidebar() {
           {loading
             ? Array.from({ length: 3 }, (_, i) => <Skeleton key={i} className="mx-2 my-2 h-3.5" />)
             : projects.map((p) => (
-                <NavItem key={p.id} to={`/library/${p.id}`} count={p.lesson_count ?? 0} monogram>
+                <NavItem key={p.id} to={`/library/${p.id}`} count={p.lesson_count ?? 0} notebook={p}>
                   {p.name}
                 </NavItem>
               ))}

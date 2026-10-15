@@ -157,3 +157,20 @@ def test_bookmarks(data_dir):
         assert [b["id"] for b in r.json()["bookmarks"]] == ["b1", "b2"]  # kept in time order
         assert c.patch("/api/lessons/less_b", json={"bookmarks": [{"id": "x", "t": 1, "label": "x" * 21}]}).status_code == 422
         assert c.patch("/api/lessons/less_b", json={"title": "Новое"}).json()["bookmarks"][0]["label"] == "первая"  # other patches keep them
+
+
+def test_notebook_cover(data_dir):
+    from test_attachments import PNG as png
+
+    from backend.main import app
+    with TestClient(app) as c:
+        pid = c.post("/api/projects", json={"name": "Курс"}).json()["id"]
+        assert c.put(f"/api/projects/{pid}/cover", content=b"not an image").status_code == 400
+        p = c.put(f"/api/projects/{pid}/cover", content=png).json()
+        assert p["cover"].startswith(pid) and p["cover"].endswith(".png")
+        r = c.get(f"/api/projects/{pid}/cover")
+        assert r.status_code == 200 and r.content == png and r.headers["content-type"] == "image/png"
+        assert (data_dir / "covers" / p["cover"]).is_file()
+        c.delete(f"/api/projects/{pid}")
+        assert not list((data_dir / "covers").glob(f"{pid}-*"))
+        assert c.get(f"/api/projects/{pid}/cover").status_code == 404

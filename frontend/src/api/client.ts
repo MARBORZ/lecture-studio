@@ -103,6 +103,10 @@ export const api = {
   projects: () => get<Project[]>('/api/projects'),
   createProject: (data: ProjectCreate) => request<Project>('POST', '/api/projects', data),
   patchProject: (id: string, patch: ProjectPatch) => request<Project>('PATCH', `/api/projects/${id}`, patch),
+  setCover: (id: string, file: File) => putFile<Project>(`/api/projects/${id}/cover`, file, () => undefined).promise,
+  removeCover: (id: string) => request<Project>('DELETE', `/api/projects/${id}/cover`),
+  /** null without a cover; the file name in ?v= changes with the image, so the browser may cache it for good */
+  coverUrl: (p: Pick<Project, 'id' | 'cover'>) => (p.cover ? `/api/projects/${p.id}/cover?v=${encodeURIComponent(p.cover)}` : null),
   deleteProject: (id: string) => request<{ ok: boolean }>('DELETE', `/api/projects/${id}`),
 
   // lessons

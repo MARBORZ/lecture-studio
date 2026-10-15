@@ -54,9 +54,13 @@ class Paths:
     def attachments(self) -> Path:
         return self.data_dir / "attachments"
 
+    @property
+    def covers(self) -> Path:
+        return self.data_dir / "covers"
+
     def movable(self) -> list[Path]:
         """What "move the library" carries to a new data folder (temp is dropped)."""
-        return [self.db, self.output, self.diary, self.attachments]
+        return [self.db, self.output, self.diary, self.attachments, self.covers]
 
     def lesson_dir(self, job_id: str) -> Path:
         return self.output / job_id
@@ -122,6 +126,10 @@ class SettingsService:
                 current.ui_language = patch.ui_language
             if patch.onboarding_done is not None:
                 current.onboarding_done = patch.onboarding_done
+            if patch.theme is not None:
+                current.theme = patch.theme
+            if patch.text_scale is not None:
+                current.text_scale = patch.text_scale
             if patch.pipeline is not None:
                 current.pipeline = patch.pipeline
             if patch.ai is not None:
@@ -216,6 +224,8 @@ class SettingsService:
         return SettingsView(
             ui_language=s.ui_language,
             onboarding_done=s.onboarding_done,
+            theme=s.theme,
+            text_scale=s.text_scale,
             paths=PathsView(
                 data_dir=str(p.data_dir),
                 export_dir=s.export_dir,

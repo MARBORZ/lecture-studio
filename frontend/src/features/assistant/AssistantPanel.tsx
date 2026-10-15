@@ -211,7 +211,7 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
             rows={Math.min(6, Math.max(1, question.split('\n').length))}
             placeholder={t('assistant.placeholder')}
             disabled={noSources}
-            className="max-h-40 flex-1 resize-none bg-transparent px-2 py-1.5 text-[14px] text-fg placeholder:text-dim focus:outline-none"
+            className="read-14 max-h-40 flex-1 resize-none bg-transparent px-2 py-1.5 text-fg placeholder:text-dim focus:outline-none"
           />
           <button
             type="submit"
@@ -245,7 +245,7 @@ function UserBubble({ text, attachments = [] }: { text: string; attachments?: At
           {attachments.map((a) => <AttachmentChip key={a.id} attachment={a} />)}
         </div>
       )}
-      <div className="rounded-xl rounded-br-sm bg-raised px-3.5 py-2 text-[14px] whitespace-pre-wrap text-fg">
+      <div className="read-14 rounded-xl rounded-br-sm bg-raised px-3.5 py-2 whitespace-pre-wrap text-fg">
         {quote && <p className="mb-1.5 line-clamp-4 border-l-2 border-muted pl-2.5 text-[12.5px] text-muted">{quote}</p>}
         {rest}
       </div>
