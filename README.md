@@ -86,6 +86,15 @@ lock files changed, the API (`127.0.0.1:3000`) and the UI (`127.0.0.1:5173`) sta
 processing, uploading or exporting, and tells you what. From a terminal: `zsh launcher/macos/stop.zsh` or
 `powershell -ExecutionPolicy Bypass -File launcher\windows\stop.ps1`.
 
+## Delete
+
+**Settings → Interface → Delete Lecture Studio** removes the app folder (code, `.venv`, `node_modules`), the settings
+folder (settings, API keys, logs, app-window profile) and the Desktop shortcut. Lessons stay unless you tick
+"Delete lessons too"; then only the library itself goes (database, media, diary, chats), never other files in that
+folder. The app window closes, and a message says what was kept and how to install again: `git clone` into the same
+folder and Setup (Windows), or Lecture Studio Setup (macOS). A folder with git work that is not on GitHub (a developer
+checkout) is never deleted from the app.
+
 ## Where things live
 
 | What | Where |

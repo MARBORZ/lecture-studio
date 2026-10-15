@@ -11,6 +11,8 @@ API: `http://127.0.0.1:3000` (the UI reaches it through the Vite proxy at `:5173
 | POST | `/api/system/shutdown` | shut down; `409` with reasons when busy. Stops the API, Vite and the app window |
 | GET | `/api/system/update?force` | newest release tag vs the running version, changes, `blocked` reason, last update outcome (cached 1 h) |
 | POST | `/api/system/update` | fast-forward to the release and restart through the launcher; `409` when busy or blocked |
+| GET | `/api/system/uninstall` | what "Delete Lecture Studio" removes (app folder, settings folder, data folder kept by default), `lessons_inside`, `blocked: git_work` with the files/commits, how to reinstall |
+| POST | `/api/system/uninstall` | `{delete_lessons}`: start the OS uninstaller detached and stop everything; `409` when busy, when the library would go with the app folder, or on git work |
 | GET / PATCH | `/api/settings` | settings (keys are masked, with their source: settings / env / none) |
 | POST | `/api/settings/test-key` | test a key with one tiny model request |
 | GET | `/api/settings/prompts` | AI instruction blocks: default, current, modified |
