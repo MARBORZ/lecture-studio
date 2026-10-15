@@ -15,13 +15,19 @@ dependencies = [
     "mcp>=2.3",
     "numpy>=1.26,<3",
     "soundfile>=0.12",
-    "torch>=2.2",
+    "torch>=2.2; sys_platform != 'win32'",
     "silero-vad>=5.1",
     "onnxruntime>=1.19",
     "faster-whisper>=1.1",
     "google-genai>=1.0",
     "pypdf>=5.0",
+    "mlx-whisper>=0.4 ; platform_machine == 'arm64' and sys_platform == 'darwin'",
 ]
+
+[project.optional-dependencies]
+# Windows picks one torch build per machine (the launcher passes --extra): CUDA only when an NVIDIA GPU can use it.
+cpu = ["torch>=2.2; sys_platform == 'win32'"]
+cu126 = ["torch>=2.2; sys_platform == 'win32'"]
 
 [dependency-groups]
 dev = [
@@ -31,6 +37,8 @@ dev = [
 
 [tool.uv]
 package = false
+# one torch build per Windows machine: CPU or CUDA, never both
+conflicts = [[{ extra = "cpu" }, { extra = "cu126" }]]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -45,11 +53,19 @@ extend-exclude = ["frontend", "workspace"]
 select = ["E", "F", "W", "I", "B", "UP"]
 ignore = ["E741", "B008"]  # short names like l in comprehensions; FastAPI's Query() defaults
 
-# Windows: torch with CUDA 12.6 from the PyTorch index (PyPI ships Windows torch without CUDA, so Whisper fell back to the
-# CPU, ~5x slower). cu126, not newer: CTranslate2 (faster-whisper) is built for CUDA 12 and looks for cublas64_12.dll.
-# macOS and Linux keep torch from PyPI. Being in uv.lock, the GPU build survives every update.
+# Windows: the installer/launcher probe the GPU (nvidia-smi) and sync with --extra cu126 (CUDA 12.6 build, ~2.5 GB) or
+# --extra cpu (~200 MB). cu126, not newer: CTranslate2 (faster-whisper) is built for CUDA 12 (cublas64_12.dll).
+# Both builds are pinned in uv.lock, so updates never swap one for the other. macOS/Linux keep torch from PyPI.
 [tool.uv.sources]
-torch = [{ index = "pytorch-cu126", marker = "sys_platform == 'win32'" }]
+torch = [
+  { index = "pytorch-cpu", extra = "cpu", marker = "sys_platform == 'win32'" },
+  { index = "pytorch-cu126", extra = "cu126", marker = "sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [[tool.uv.index]]
 name = "pytorch-cu126"
