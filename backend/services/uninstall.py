@@ -5,7 +5,7 @@ Uninstall from the app: Settings → Interface → "Delete Lecture Studio".
                      keys, logs, launcher state, the app window profile) and, only when asked, the library. And whether
                      it can run: a library inside a folder that goes cannot be kept; git work that is not on GitHub
                      (a developer checkout) is never deleted from the app.
-  start(delete_lessons) — writes the plan, copies the OS uninstaller out of the app folder and starts it detached.
+  start(delete_lessons) — writes the plan, copies the OS remover (launcher/*/remove.*) out of the app folder and starts it detached.
                      The caller then stops this server; the script waits for it to exit, closes what is left, deletes
                      the paths and the Desktop shortcut, and tells the user what was kept and how to install again.
 
@@ -96,13 +96,13 @@ def _targets(plan: UninstallPlan, delete_lessons: bool) -> tuple[list[Path], lis
     return remove, [r.resolve() for r in remove_if_empty]
 
 
-def _en() -> bool:
+def ui_english() -> bool:
     return SettingsService.get().ui_language == "en"
 
 
 def _message(plan: UninstallPlan, delete_lessons: bool) -> str:
     """The script's last word: the app window is gone by then."""
-    en = _en()
+    en = ui_english()
     if plan.reinstall == "git":
         again = (
             f"To install again: git clone {config.REPO_URL} \"{plan.app_dir}\", then run Setup in it."
@@ -134,7 +134,7 @@ def start(delete_lessons: bool) -> UninstallPlan:
         f"ui_port\t{config.FRONTEND_PORT}",
         f"profile\t{config.CHROME_PROFILE_DIR}",
         f"message\t{_message(plan, delete_lessons)}",
-        f"failed\t{'Could not delete:' if _en() else 'Не удалось удалить:'}",
+        f"failed\t{'Could not delete:' if ui_english() else 'Не удалось удалить:'}",
     ]
     lines += [f"remove\t{p}" for p in remove] + [f"remove_if_empty\t{p}" for p in remove_if_empty]
     plan_file = work / "plan.tsv"
@@ -148,12 +148,12 @@ def _spawn(work: Path, plan_file: Path) -> None:
     common = {"cwd": work, "stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
     if sys.platform == "win32":
         src = config.REPO_DIR / "launcher" / "windows"
-        for name in ("uninstall.ps1", "uninstall.vbs"):
+        for name in ("remove.ps1", "remove.vbs"):
             shutil.copy2(src / name, work / name)
         wscript = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "System32", "wscript.exe")
         flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP  # type: ignore[attr-defined]
-        subprocess.Popen([wscript, str(work / "uninstall.vbs"), str(plan_file)], creationflags=flags, **common)
+        subprocess.Popen([wscript, str(work / "remove.vbs"), str(plan_file)], creationflags=flags, **common)
     else:
-        shutil.copy2(config.REPO_DIR / "launcher" / "macos" / "uninstall.zsh", work / "uninstall.zsh")
-        subprocess.Popen(["/bin/zsh", str(work / "uninstall.zsh"), str(plan_file)], start_new_session=True, **common)
+        shutil.copy2(config.REPO_DIR / "launcher" / "macos" / "remove.zsh", work / "remove.zsh")
+        subprocess.Popen(["/bin/zsh", str(work / "remove.zsh"), str(plan_file)], start_new_session=True, **common)
     time.sleep(0.2)  # let the child start before the server goes down

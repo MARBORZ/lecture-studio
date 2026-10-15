@@ -1,4 +1,4 @@
-﻿# Lecture Studio (Windows): shared helpers for launcher\windows\start.ps1, stop.ps1 and installer\windows\install.ps1.
+﻿# Lecture Studio (Windows): shared helpers for launcher\windows\start.ps1, stop.ps1, installer\windows\install.ps1 and uninstall.ps1.
 # Dot-source:  . (Join-Path $PSScriptRoot 'common.ps1')
 
 $Repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
@@ -75,10 +75,18 @@ function Stop-Pids([int[]]$Pids) {
 }
 
 function Find-Browser {
+    # Chromium browsers (all take --app and --user-data-dir). Edge last: it ships with Windows, the others were chosen.
     $candidates = @(
         (Join-Path $env:ProgramFiles 'Google\Chrome\Application\chrome.exe'),
         (Join-Path ${env:ProgramFiles(x86)} 'Google\Chrome\Application\chrome.exe'),
         (Join-Path $env:LOCALAPPDATA 'Google\Chrome\Application\chrome.exe'),
+        (Join-Path $env:ProgramFiles 'BraveSoftware\Brave-Browser\Application\brave.exe'),
+        (Join-Path ${env:ProgramFiles(x86)} 'BraveSoftware\Brave-Browser\Application\brave.exe'),
+        (Join-Path $env:LOCALAPPDATA 'BraveSoftware\Brave-Browser\Application\brave.exe'),
+        (Join-Path $env:LOCALAPPDATA 'Chromium\Application\chrome.exe'),
+        (Join-Path $env:ProgramFiles 'Chromium\Application\chrome.exe'),
+        (Join-Path $env:LOCALAPPDATA 'Vivaldi\Application\vivaldi.exe'),
+        (Join-Path $env:ProgramFiles 'Vivaldi\Application\vivaldi.exe'),
         (Join-Path ${env:ProgramFiles(x86)} 'Microsoft\Edge\Application\msedge.exe'),
         (Join-Path $env:ProgramFiles 'Microsoft\Edge\Application\msedge.exe')
     )
@@ -86,7 +94,7 @@ function Find-Browser {
 }
 
 function Open-AppWindow {
-    # Chrome or Edge in app mode with a dedicated profile (no tabs, no address bar); else the default browser.
+    # A Chromium browser in app mode with a dedicated profile (no tabs, no address bar); else the default browser.
     $browser = Find-Browser
     if ($browser) {
         Start-Process -FilePath $browser -ArgumentList (Join-Args @("--app=$UiUrl", "--user-data-dir=$BrowserProfile", '--no-first-run', '--no-default-browser-check', '--window-size=1480,940'))

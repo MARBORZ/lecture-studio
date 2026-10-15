@@ -1,12 +1,12 @@
 -- Lecture Studio Setup: native installer/updater with a progress window.
 -- Two modes, same steps (installer/macos/install.zsh):
---   in a git clone (installer/macos/Setup.app) -> installs in place, from this folder
+--   in a git clone (Setup.app in the project root) -> installs in place, from this folder
 --   standalone (release zip)              -> copies the code embedded in Resources/source.tar.gz
 -- Result: the "Lecture Studio" app on the Desktop.
 
 on run
 	set appPath to POSIX path of (path to me)
-	set repoDir to do shell script "cd " & quoted form of appPath & "/../../.. && pwd"
+	set repoDir to do shell script "cd " & quoted form of appPath & "/.. && pwd"
 	set inPlace to (do shell script "test -f " & quoted form of (repoDir & "/pyproject.toml") & " && test -f " & quoted form of (repoDir & "/installer/macos/install.zsh") & " && echo yes || echo no") is "yes"
 
 	if inPlace then

@@ -58,10 +58,21 @@ wait_http() {
   return 1
 }
 
+# A Chromium browser in app mode with a dedicated profile (no tabs, no address bar); else the default browser (Safari).
+# Arc is left out: it ignores --app and --user-data-dir, so the window could not be found or closed again.
+find_browser() {
+  local name
+  for name in "Google Chrome" "Microsoft Edge" "Brave Browser" "Chromium" "Vivaldi"; do
+    [[ -d "/Applications/$name.app" || -d "$HOME/Applications/$name.app" ]] && { print -r -- "$name"; return 0 }
+  done
+  return 1
+}
+
 open_window() {
   [[ "${LS_NO_WINDOW:-}" == 1 ]] && return 0
-  if [[ -d "/Applications/Google Chrome.app" ]]; then
-    open -na "Google Chrome" --args --app="$UI" --user-data-dir="$PROFILE" --no-first-run --no-default-browser-check --window-size=1480,940
+  local browser
+  if browser=$(find_browser); then
+    open -na "$browser" --args --app="$UI" --user-data-dir="$PROFILE" --no-first-run --no-default-browser-check --window-size=1480,940
   else
     open "$UI"
   fi

@@ -132,7 +132,7 @@ def test_busy_refuses_uninstall(installed, monkeypatch):
 
 @pytest.mark.skipif(sys.platform != "darwin" or not shutil.which("zsh"), reason="macOS uninstaller")
 def test_macos_uninstaller_deletes_the_plan_and_nothing_else(tmp_path):
-    script = Path(__file__).resolve().parent.parent / "launcher" / "macos" / "uninstall.zsh"
+    script = Path(__file__).resolve().parent.parent / "launcher" / "macos" / "remove.zsh"
     home = tmp_path / "home"
     app, settings, data = home / "dev" / "app", home / "Library" / "Lecture Studio", home / "Lessons"
     for d in (app / ".venv", settings / "logs", data / "output", home / "Desktop"):
@@ -160,3 +160,79 @@ def test_macos_uninstaller_deletes_the_plan_and_nothing_else(tmp_path):
     assert (data / "notes.txt").exists()  # data_dir is not empty: kept
     assert not (home / "Desktop" / "Lecture Studio.app").exists() and other.exists()
     assert home.exists() and not work.exists()  # the home folder in the plan is refused; the plan cleans itself up
+
+
+# ---------------------------------------------------------------- Uninstall.app / Uninstall.cmd (backend.tools.uninstall)
+
+
+@pytest.fixture()
+def tool(installed, monkeypatch):
+    """The CLI with no real network: _api answers as the test says (never the app running on this machine)."""
+    from backend.tools import uninstall as cli
+
+    calls = []
+    state = {"running": None, "post": (200, {"ok": True})}
+
+    def fake_api(method, path, body=None, timeout=5):
+        calls.append((method, path, body))
+        if method == "GET":
+            if state["running"] is None:
+                raise OSError("connection refused")
+            return 200, {"app_dir": state["running"]}
+        return state["post"]
+
+    monkeypatch.setattr(cli, "_api", fake_api)
+    return cli, state, calls
+
+
+def test_tool_describe_says_what_goes_and_where_lessons_stay(installed, tool, data_dir, capsys):
+    app, home, _ = installed
+    cli, _, _ = tool
+    assert cli.main(["describe"]) == 0
+    out = capsys.readouterr().out.splitlines()
+    assert out[0] == "ok"
+    text = "\n".join(out[1:])
+    assert str(app.resolve()) in text and str(home.resolve()) in text and str(data_dir.resolve()) in text
+
+
+def test_tool_describe_blocked_on_git_work(installed, tool, capsys):
+    app, _, _ = installed
+    cli, _, _ = tool
+    (app / "new.py").write_text("x = 1")
+    cli.main(["describe"])
+    out = capsys.readouterr().out.splitlines()
+    assert out[0] == "blocked" and "new.py" in out
+
+
+def test_tool_runs_directly_when_nothing_is_running(installed, tool):
+    _, _, spawned = installed
+    cli, _, calls = tool
+    assert cli.main(["run", "--delete-lessons"]) == 0
+    assert len(spawned) == 1 and "remove_if_empty" in spawned[0]
+    assert [c[0] for c in calls] == ["GET"]  # asked who is running, posted nothing
+
+
+def test_tool_goes_through_the_api_of_this_install(installed, tool):
+    app, _, spawned = installed
+    cli, state, calls = tool
+    state["running"] = str(app.resolve())
+    assert cli.main(["run"]) == 0
+    assert calls[-1] == ("POST", "/api/system/uninstall", {"delete_lessons": False}) and spawned == []
+
+
+def test_tool_reports_busy_from_the_api(installed, tool, capsys):
+    app, _, _ = installed
+    cli, state, _ = tool
+    state["running"] = str(app.resolve())
+    state["post"] = (409, {"detail": {"message": "Система занята", "reasons": [{"kind": "job", "label": "Урок 1"}]}})
+    assert cli.main(["run"]) == 2
+    assert "Урок 1" in capsys.readouterr().err
+
+
+def test_tool_never_touches_another_running_copy(installed, tool, capsys):
+    _, _, spawned = installed
+    cli, state, calls = tool
+    state["running"] = "/Users/someone/Downloads/lecture-studio"
+    assert cli.main(["run", "--delete-lessons"]) == 2
+    assert "/Users/someone/Downloads/lecture-studio" in capsys.readouterr().err
+    assert spawned == [] and all(c[0] == "GET" for c in calls)

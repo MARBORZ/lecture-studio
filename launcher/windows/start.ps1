@@ -76,7 +76,7 @@ Remove-Item -Path (Join-Path $AppHome 'server.pid'), (Join-Path $AppHome 'fronte
 
 # ---- 2. Toolchain.
 foreach ($tool in 'uv', 'node', 'ffmpeg') {
-    if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { Fail "Не найден $tool. Запустите installer\windows\Setup.cmd." }
+    if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { Fail "Не найден $tool. Запустите Setup.cmd в папке программы." }
 }
 
 # ---- 3. Dependencies, only when lockfiles or the torch build (GPU, driver) changed.

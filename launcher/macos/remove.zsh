@@ -3,7 +3,7 @@
 # the app folder it deletes holds the original. The plan is a file of tab-separated lines:
 #   pid <api pid> | ui_port <port> | profile <app window profile> | message <final text> | failed <label>
 #   remove <path> | remove_if_empty <path>
-#   zsh uninstall.zsh <plan.tsv>      (LS_UNINSTALL_QUIET=1: no final dialog)
+#   zsh remove.zsh <plan.tsv>      (LS_UNINSTALL_QUIET=1: no final dialog)
 set -u
 PLAN="$1"
 api_pid="" ui_port="" profile="" message="" failed=""

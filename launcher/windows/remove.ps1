@@ -1,4 +1,4 @@
-﻿# Lecture Studio uninstaller (Windows). Started by the API (POST /api/system/uninstall) through uninstall.vbs, from a copy
+﻿# Lecture Studio uninstaller (Windows). Started by the API (POST /api/system/uninstall) through remove.vbs, from a copy
 # in %TEMP%: the app folder it deletes holds the original. The plan is a UTF-8 file of tab-separated lines:
 #   pid <api pid> | ui_port <port> | profile <app window profile> | message <final text> | failed <label>
 #   remove <path> | remove_if_empty <path>
