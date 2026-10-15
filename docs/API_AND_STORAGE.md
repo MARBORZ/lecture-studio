@@ -21,17 +21,24 @@ API: `http://127.0.0.1:3000` (the UI reaches it through the Vite proxy at `:5173
 | GET / POST | `/api/projects` | notebooks |
 | PATCH / DELETE | `/api/projects/{id}` | rename / delete (lessons move to the inbox) |
 | GET | `/api/lessons?project_id&status&search` | lesson list |
-| GET / PATCH / DELETE | `/api/lessons/{id}` | full lesson / partial update / delete with files |
+| GET / PATCH / DELETE | `/api/lessons/{id}` | full lesson / partial update (`bookmarks` replaces the list of marks) / delete with files |
 | GET | `/api/lessons/{id}/media/{audio,video}` | streaming with HTTP Range (instant seeking) |
 | GET | `/api/lessons/{id}/files/{kind}` | download: audio, video, audit, srt, orig_srt, txt, clean_ts, orig_ts, segments, time_map |
 | POST | `/api/lessons/{id}/export` | export to a folder (default: from settings) |
 | POST | `/api/lessons/{id}/audit` | regenerate the audit (background job) |
 | PUT | `/api/uploads/{filename}` | streamed upload into `temp/` (body = file bytes) |
-| POST | `/api/jobs` | start: `{options, upload_id?}` or `options.local_path` |
+| POST | `/api/jobs` | start: `{options, upload_id?}` or `options.local_path`; `400` at once for unreadable media or no sound track |
 | GET | `/api/jobs`, `/api/jobs/{id}` | jobs |
 | GET | `/api/jobs/stream` | SSE: the full job list on every change |
 | POST | `/api/jobs/{id}/cancel` | cancel |
-| GET / POST / DELETE | `/api/assistant/{project\|lesson}/{id}` | chat: history / ask (`attachments: [id]`) / clear (deletes its attachments) |
+| GET | `/api/assistant/{project\|lesson}/{id}?session&provider&sources` | the session (active by default), the session list, session files, context usage for the next question |
+| POST | `/api/assistant/{project\|lesson}/{id}` | ask `{question, role, attachments, session_id, provider, sources}` → the updated thread |
+| DELETE | `/api/assistant/{project\|lesson}/{id}` | every session of the thread, with their files |
+| POST | `/api/assistant/{kind}/{id}/sessions` | new session (an untouched empty one is reused) |
+| PUT | `/api/assistant/{kind}/{id}/sessions/{sid}/active` | switch to a session |
+| PATCH / DELETE | `/api/assistant/{kind}/{id}/sessions/{sid}` | rename, switch files off `{title?, excluded_files?}` / delete with its files |
+| POST | `/api/assistant/{kind}/{id}/sessions/{sid}/clear` | empty the session: history, summary, files |
+| POST | `/api/assistant/{kind}/{id}/sessions/{sid}/compact` | fold the history into a summary now |
 | PUT | `/api/assistant/attachments/{filename}` | upload a chat attachment, any type, up to 500 MB (body = file bytes) |
 | GET | `/api/assistant/attachments/{id}/file` | download an attachment |
 | GET / POST | `/api/diary/categories` | diary categories (folders) / create |

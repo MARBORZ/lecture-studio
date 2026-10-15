@@ -6,10 +6,11 @@ import type { LessonFull, LessonStatus } from '@/api/types'
 import { useJobs, useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { ActiveMark, AnimatePresence, m, RouteOutlet } from '@/components/motion'
-import { EmptyState, IconButton, Segmented, Splitter, Stat } from '@/components/ui'
+import { Collapsible, EmptyState, IconButton, Segmented, Splitter, Stat } from '@/components/ui'
 import { SkeletonMarkdown, SkeletonPlayer, SkeletonText } from '@/components/skeleton'
 import { ExportModal, LessonEditModal } from '@/features/library/modals'
 import { MarkdownView } from '@/features/markdown/MarkdownView'
+import { BookmarkList } from '@/features/player/bookmarks'
 import { MediaPlayer, type Chapter } from '@/features/player/MediaPlayer'
 import { player, usePlayer } from '@/features/player/store'
 import { cn } from '@/lib/cn'
@@ -27,7 +28,11 @@ export interface LessonContext {
 
 export const useLesson = () => useOutletContext<LessonContext>()
 
-const DEFAULT_PLAYER_WIDTH = 44
+/** Video column width, % of the lesson area. Focus mode has its own (larger) width: the point of it is a big video. */
+const WIDTH = {
+  normal: { key: 'lesson.playerWidth', initial: 44, min: 28, max: 72 },
+  focus: { key: 'lesson.playerWidth.focus', initial: 66, min: 40, max: 82 },
+} as const
 
 const TABS = [
   { to: 'notes', icon: FileText, key: 'lesson.notes' },
@@ -42,7 +47,10 @@ export function LessonLayout() {
   const navigate = useNavigate()
   const { t, openModal, confirm, toast, settings, lang, focusMode, setFocusMode, modals } = useUI()
   const splitRef = useRef<HTMLDivElement>(null)
-  const [playerWidth, setPlayerWidth] = useState(() => storage.get('lesson.playerWidth', DEFAULT_PLAYER_WIDTH))
+  const [widths, setWidths] = useState(() => ({
+    normal: storage.get<number>(WIDTH.normal.key, WIDTH.normal.initial),
+    focus: storage.get<number>(WIDTH.focus.key, WIDTH.focus.initial),
+  }))
 
   // Focus mode: F toggles, Esc leaves (unless a dialog is open); leaving the lesson always ends it.
   useEffect(() => {
@@ -55,6 +63,9 @@ export function LessonLayout() {
     return () => window.removeEventListener('keydown', onKey)
   }, [setFocusMode, modals.length])
   useEffect(() => () => setFocusMode(false), [setFocusMode])
+  const width = WIDTH[focusMode ? 'focus' : 'normal']
+  const playerWidth = widths[focusMode ? 'focus' : 'normal']
+  const setPlayerWidth = (v: number) => setWidths((w) => ({ ...w, [focusMode ? 'focus' : 'normal']: v }))
   const { lessons, patchLesson, deleteLesson, projectName } = useLibrary()
   const { jobs } = useJobs()
   const res = useResource(() => api.lesson(lessonId), [lessonId])
@@ -75,6 +86,10 @@ export function LessonLayout() {
   useEffect(() => {
     if (lesson && player.getState().lessonId === lesson.id) player.setChapters(chapters)
   }, [lesson, chapters])
+  const bookmarks = meta?.bookmarks
+  useEffect(() => {
+    if (lesson && player.getState().lessonId === lesson.id) player.setBookmarks(bookmarks ?? [])
+  }, [lesson, bookmarks])
   // Leaving the page stops playback unless the video is out in a window (then it keeps playing).
   useEffect(() => () => player.leave(), [lessonId])
 
@@ -158,7 +173,7 @@ export function LessonLayout() {
           {lesson ? <MediaPlayer /> : <SkeletonPlayer />}
           <AnimatePresence initial={false}>
           {!focusMode && (
-          <m.div key="player-extras" variants={collapse} initial="hidden" animate="show" exit="exit" className="flex flex-col gap-5 overflow-hidden">
+          <m.div key="player-extras" variants={collapse} initial="hidden" animate="show" exit="exit" className="flex shrink-0 flex-col gap-5 overflow-hidden">
           {lesson && (
             <div className="grid grid-cols-3 gap-3 rounded-xl border border-line px-4 py-3">
               <Stat label={t('lesson.clean')} value={formatDuration(lesson.clean_duration_sec ?? 0, lang)} />
@@ -166,12 +181,20 @@ export function LessonLayout() {
               <Stat label={t('lesson.saved')} value={`${Math.round(lesson.saved_percent ?? 0)}%`} />
             </div>
           )}
-          {chapters.length > 0 && <Chapters chapters={chapters} />}
+          {chapters.length > 0 && (
+            <Collapsible id="lesson.outline" title={t('lesson.outline')}>
+              <Chapters chapters={chapters} />
+            </Collapsible>
+          )}
+          {lesson && (
+            <Collapsible id="lesson.bookmarks" title={`${t('bookmark.title')}${meta?.bookmarks?.length ? ` · ${meta.bookmarks.length}` : ''}`}>
+              <BookmarkList />
+            </Collapsible>
+          )}
           {meta?.notes && (
-            <section>
-              <div className="label-caps mb-2">{t('common.notes')}</div>
+            <Collapsible id="lesson.notes" title={t('common.notes')}>
               <MarkdownView content={meta.notes} compact className="rounded-xl border border-line p-4" />
-            </section>
+            </Collapsible>
           )}
           </m.div>
           )}
@@ -181,14 +204,14 @@ export function LessonLayout() {
         <Splitter
           containerRef={splitRef}
           value={playerWidth}
-          min={28}
-          max={72}
+          min={width.min}
+          max={width.max}
           label={t('lesson.resize')}
           onChange={setPlayerWidth}
-          onCommit={(v) => storage.set('lesson.playerWidth', v)}
+          onCommit={(v) => storage.set(width.key, v)}
           onReset={() => {
-            setPlayerWidth(DEFAULT_PLAYER_WIDTH)
-            storage.set('lesson.playerWidth', DEFAULT_PLAYER_WIDTH)
+            setPlayerWidth(width.initial)
+            storage.set(width.key, width.initial)
           }}
           className="hidden lg:block"
         />
@@ -227,13 +250,10 @@ export function LessonLayout() {
 }
 
 function Chapters({ chapters }: { chapters: Chapter[] }) {
-  const { t } = useUI()
   const starts = useMemo(() => chapters.map((c) => c.t), [chapters])
   const active = usePlayer((s) => findActiveIndex(starts, s.currentTime + 0.5))
   return (
-    <section>
-      <div className="label-caps mb-2">{t('lesson.outline')}</div>
-      <ol className="flex flex-col">
+    <ol className="flex flex-col">
         {chapters.map((c, i) => (
           <li key={`${c.t}-${i}`}>
             <button
@@ -246,7 +266,6 @@ function Chapters({ chapters }: { chapters: Chapter[] }) {
             </button>
           </li>
         ))}
-      </ol>
-    </section>
+    </ol>
   )
 }

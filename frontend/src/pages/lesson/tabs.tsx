@@ -1,10 +1,12 @@
 import { Download, FileText, FolderOutput, RefreshCw, ScrollText } from 'lucide-react'
 import { useRef } from 'react'
+import { useNavigate } from 'react-router'
 import { api } from '@/api/client'
 import { useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { Button, EmptyState } from '@/components/ui'
-import { AssistantPanel } from '@/features/assistant/AssistantPanel'
+import { AssistantPanel, type AskState } from '@/features/assistant/AssistantPanel'
+import { SelectionAsk } from '@/features/assistant/SelectionAsk'
 import { ExportModal } from '@/features/library/modals'
 import { MarkdownView } from '@/features/markdown/MarkdownView'
 import { Outline } from '@/features/markdown/Outline'
@@ -14,6 +16,7 @@ import { useLesson } from './LessonLayout'
 export function LessonNotes() {
   const { lesson, regenerate } = useLesson()
   const { t } = useUI()
+  const navigate = useNavigate()
   const ref = useRef<HTMLDivElement>(null)
 
   if (!lesson.lesson_audit_md) {
@@ -30,7 +33,9 @@ export function LessonNotes() {
     <div className="scroll-area flex-1">
       <div className="flex gap-10 px-6 py-8 lg:px-10">
         <div ref={ref} className="min-w-0 flex-1">
-          <MarkdownView content={lesson.lesson_audit_md} />
+          <SelectionAsk onAsk={(quote) => navigate('../assistant', { relative: 'path', state: { quote } satisfies AskState })}>
+            <MarkdownView content={lesson.lesson_audit_md} />
+          </SelectionAsk>
         </div>
         <aside className="sticky top-8 hidden w-56 shrink-0 self-start 2xl:block">
           <Outline containerRef={ref} deps={lesson.lesson_audit_md} />

@@ -4,18 +4,22 @@
  *            S/M/L presets, fullscreen. Keeps playing while you move around the app.
  *   pip    — an always-on-top OS window (Document Picture-in-Picture, Chromium) with the same controls;
  *            browsers without it fall back to the native video Picture-in-Picture.
+ *   mini   — the window shrunk to a pill (Minus): paused, waiting; Play continues. Leaving a lesson page while paused
+ *            lands here; leaving while playing opens the window.
  * Geometry is remembered; the panel never ends up off-screen.
  */
-import { ArrowUpRight, Expand, PictureInPicture2, Shrink, Undo2, X } from 'lucide-react'
+import { ArrowUpRight, Expand, Maximize2, Minus, PictureInPicture2, Play, Shrink, Undo2, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router'
 import { useUI } from '@/app/AppProvider'
 import { AnimatePresence, m } from '@/components/motion'
 import { IconButton, Segmented } from '@/components/ui'
+import { Icon } from '@/components/Icon'
 import { cn } from '@/lib/cn'
 import { storage } from '@/lib/format'
 import { pop } from '@/lib/motion'
+import { formatTc } from '@/lib/time'
 import { PlayerBar, PlayerSurface, usePlayerHotkeys } from './MediaPlayer'
 import { player, usePlayer } from './store'
 
@@ -57,6 +61,7 @@ function copyStyles(target: Document) {
 export function FloatingPlayer() {
   const display = usePlayer((s) => s.display)
   const lessonId = usePlayer((s) => s.lessonId)
+  const minimized = usePlayer((s) => s.minimized)
   const [pipWindow, setPipWindow] = useState<Window | null>(null)
 
   // Leaving "pip" (from any button) closes the OS window; its pagehide handler clears the state.
@@ -89,7 +94,10 @@ export function FloatingPlayer() {
   if (!lessonId) return null
   return (
     <>
-      <AnimatePresence>{display === 'window' && <FloatingWindow key="floating" onPip={openPip} />}</AnimatePresence>
+      <AnimatePresence mode="wait">
+        {display === 'window' && !minimized && <FloatingWindow key="floating" onPip={openPip} />}
+        {display === 'window' && minimized && <MiniPill key="mini" />}
+      </AnimatePresence>
       {display === 'pip' && pipWindow && createPortal(<PipContent />, pipWindow.document.body)}
     </>
   )
@@ -112,6 +120,7 @@ function FloatingWindow({ onPip }: { onPip: () => void }) {
   const navigate = useNavigate()
   const title = usePlayer((s) => s.title)
   const lessonId = usePlayer((s) => s.lessonId)
+  const hasVideo = usePlayer((s) => Boolean(s.videoUrl))
   const { onLessonPage, close } = useWindowActions()
   const [geom, setGeom] = useState<Geometry>(() => clampGeometry(storage.get<Geometry>('player.window', defaultGeometry())))
   const [fullscreen, setFullscreen] = useState(false)
@@ -187,7 +196,8 @@ function FloatingWindow({ onPip }: { onPip: () => void }) {
           />
         )}
         {!onLessonPage && lessonId && <IconButton icon={ArrowUpRight} size="sm" label={t('player.openLesson')} onClick={() => navigate(`/lessons/${lessonId}/notes`)} />}
-        {pipSupported && <IconButton icon={PictureInPicture2} size="sm" label={t('player.pip')} onClick={onPip} />}
+        {!fullscreen && <IconButton icon={Minus} size="sm" label={t('player.minimize')} onClick={() => player.minimize()} />}
+        {pipSupported && hasVideo && <IconButton icon={PictureInPicture2} size="sm" label={t('player.pip')} onClick={onPip} />}
         <IconButton
           icon={fullscreen ? Shrink : Expand}
           size="sm"
@@ -198,12 +208,12 @@ function FloatingWindow({ onPip }: { onPip: () => void }) {
         <IconButton icon={X} size="sm" label={t('player.close')} onClick={close} />
       </header>
 
-      <PlayerSurface className={fullscreen ? 'min-h-0 flex-1' : 'aspect-video'} />
+      {hasVideo ? <PlayerSurface className={fullscreen ? 'min-h-0 flex-1' : 'aspect-video'} /> : <PlayerSurface />}
       <div className="shrink-0 px-3 pt-2 pb-3">
         <PlayerBar compact />
       </div>
 
-      {!fullscreen && (
+      {!fullscreen && hasVideo && (
         <span
           onPointerDown={drag('resize')}
           aria-hidden
@@ -224,6 +234,7 @@ function PipContent() {
       <div className="shrink-0 px-3 pt-2 pb-3">
         <PlayerBar
           compact
+          marks={false}
           extra={
             <>
               <IconButton icon={PictureInPicture2} label={t('player.backToApp')} onClick={() => player.setDisplay('window')} />
@@ -234,5 +245,43 @@ function PipContent() {
         />
       </div>
     </div>
+  )
+}
+
+/** The window shrunk to a pill in the corner: paused, the moment kept. Play continues in the window. */
+function MiniPill() {
+  const { t } = useUI()
+  const navigate = useNavigate()
+  const title = usePlayer((s) => s.title)
+  const lessonId = usePlayer((s) => s.lessonId)
+  const current = usePlayer((s) => Math.floor(s.currentTime))
+  const { onLessonPage, close } = useWindowActions()
+  return (
+    <m.div
+      role="dialog"
+      aria-label={title}
+      variants={pop}
+      initial="hidden"
+      animate="show"
+      exit="exit"
+      className="fixed right-6 bottom-6 z-40 flex h-12 max-w-[min(26rem,calc(100vw-3rem))] items-center gap-1 rounded-full border border-line-strong bg-surface py-1.5 pr-1.5 pl-1.5 shadow-float"
+    >
+      <button
+        type="button"
+        onClick={() => player.restore(true)}
+        aria-label={t('player.continue')}
+        title={t('player.continue')}
+        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-fg text-bg transition-transform hover:scale-105"
+      >
+        <Icon as={Play} size={15} fill="currentColor" strokeWidth={0} className="translate-x-[1px]" />
+      </button>
+      <button type="button" onClick={() => player.restore(false)} title={t('player.expand')} className="min-w-0 flex-1 px-2 text-left">
+        <span className="block truncate text-[12.5px] font-medium text-fg">{title}</span>
+        <span className="block font-mono text-[11px] text-muted tabular-nums">{formatTc(current)}</span>
+      </button>
+      <IconButton icon={Maximize2} size="sm" label={t('player.expand')} onClick={() => player.restore(false)} />
+      {!onLessonPage && lessonId && <IconButton icon={ArrowUpRight} size="sm" label={t('player.openLesson')} onClick={() => navigate(`/lessons/${lessonId}/notes`)} />}
+      <IconButton icon={X} size="sm" label={t('player.close')} onClick={close} />
+    </m.div>
   )
 }

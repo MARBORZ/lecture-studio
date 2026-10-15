@@ -103,3 +103,37 @@ export function AttachmentChip({ draft, attachment, onRemove }: { draft?: DraftA
     </span>
   )
 }
+
+/**
+ * Files of the session: attached once, read by the server from disk for every next question (never re-uploaded).
+ * Click a file to switch it off for the model (and back on); off files stay in the session.
+ */
+export function SessionFiles({ files, excluded, onToggle }: { files: Attachment[]; excluded: string[]; onToggle: (id: string) => void }) {
+  const { t, lang } = useUI()
+  if (!files.length) return null
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+      <span title={t('assistant.files.hint')} className="label-caps mr-1">{t('assistant.files')}</span>
+      {files.map((f) => {
+        const off = excluded.includes(f.id)
+        return (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => onToggle(f.id)}
+            title={off ? t('assistant.files.turnOn') : t('assistant.files.turnOff')}
+            aria-pressed={!off}
+            className={cn(
+              'flex max-w-52 items-center gap-1.5 rounded-lg border px-2 py-1 text-[12px] transition-colors',
+              off ? 'border-line text-dim line-through' : 'border-line-strong text-soft hover:border-fg hover:text-fg',
+            )}
+          >
+            <Icon as={KIND_ICON[f.kind]} size={13} className="shrink-0" />
+            <span className="min-w-0 truncate">{f.name}</span>
+            <span className="shrink-0 font-mono text-[10.5px] text-dim no-underline">{formatBytes(f.size, lang)}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}

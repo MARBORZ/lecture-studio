@@ -8,7 +8,7 @@ import { Modal } from './Modal'
 export function PromptDialog({ opts, onResult }: { opts: PromptOptions; onResult: (value: string | null) => void }) {
   const { t } = useUI()
   const [value, setValue] = useState(opts.initial ?? '')
-  const submit = () => value.trim() && onResult(value.trim())
+  const submit = () => value.trim() && onResult(value.trim().slice(0, opts.maxLength ?? 120))
   return (
     <Modal
       title={opts.title}
@@ -23,7 +23,7 @@ export function PromptDialog({ opts, onResult }: { opts: PromptOptions; onResult
     >
       <form onSubmit={(e) => (e.preventDefault(), submit())}>
         <Field label={opts.label}>
-          <Input value={value} onChange={(e) => setValue(e.target.value)} maxLength={opts.maxLength ?? 120} />
+          <Input autoFocus onFocus={(e) => e.currentTarget.select()} value={value} onChange={(e) => setValue(e.target.value)} maxLength={opts.maxLength ?? 120} />
         </Field>
       </form>
     </Modal>

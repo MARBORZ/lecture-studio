@@ -21,6 +21,11 @@ export function formatBytes(bytes: number, lang: string): string {
   return `${(bytes / 1024 ** 3).toFixed(2)} ${u.gb}`
 }
 
+/** 31 400 -> "31K" / "31 тыс." */
+export function formatCount(n: number, lang: string): string {
+  return new Intl.NumberFormat(lang, { notation: 'compact', maximumFractionDigits: 1 }).format(n)
+}
+
 export function formatDateTime(iso: string, lang: string): string {
   const d = new Date(iso)
   return Number.isNaN(d.getTime())

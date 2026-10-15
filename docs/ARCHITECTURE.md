@@ -62,7 +62,14 @@ audit timecodes to the clean timeline; the original audit is kept as `lesson_aud
   Settings → Instructions; overrides live in `settings.json: prompts`, untouched blocks use the defaults.
   The contract is always appended by the system, so a custom style cannot break clickable timecodes.
 - Audit provider: DeepSeek mode → DeepSeek, Gemini → Gemini, "Whisper only" → the provider chosen in Settings → AI.
-- The assistant's context budget depends on the provider (`context_chars`: DeepSeek ~90k characters, Gemini ~600k).
+- **Our own context window** (`services/context_window.py`). Chat APIs are stateless: every question re-sends everything.
+  One request = system prompt + session summary and recent messages (≤ 25% of the window) + session files read by id
+  from disk (≤ 20%) + sources (audit + transcript, the rest, split between lessons) + the question. Window per provider:
+  `context_chars` (DeepSeek ~90k characters, Gemini ~600k). When the verbatim history outgrows its share, everything but
+  the last 4 messages is folded by the model into a "medium" summary (~6% of the window, prompt block `assistant.compact`,
+  editable); folded messages stay visible, only the summary is sent. The UI reads the same numbers (`Thread.context`).
+- **Sessions** (`services/chats.py`): a thread (lesson or notebook) holds sessions — branches with their own history,
+  summary and files. Stored in `notebook_db.json` under `threads`; the old flat list of messages is read as one session.
 - `BaseAIProvider.generate_audit` exists once: a long transcript is split into ~30k-character parts, each part becomes
   notes, then a final merge. Nothing is truncated.
 - Providers (`DeepSeekProvider`, `GeminiProvider`) implement transport only. Registration via the `AIMeta` metaclass.

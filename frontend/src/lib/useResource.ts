@@ -10,8 +10,11 @@ export interface Resource<T> {
 
 interface State<T> { key: string; data?: T; error?: Error; loading: boolean }
 
-/** Fetch whenever deps change, with reload/setData. Responses from stale deps are dropped. */
-export function useResource<T>(fetcher: () => Promise<T>, deps: unknown[]): Resource<T> {
+/**
+ * Fetch whenever deps change, with reload/setData. Responses from stale deps are dropped.
+ * keep: show the previous data while the new deps load (a view parameter changed, not the subject).
+ */
+export function useResource<T>(fetcher: () => Promise<T>, deps: unknown[], { keep = false }: { keep?: boolean } = {}): Resource<T> {
   const key = JSON.stringify(deps)
   const fetcherRef = useRef(fetcher)
   useEffect(() => {
@@ -19,7 +22,7 @@ export function useResource<T>(fetcher: () => Promise<T>, deps: unknown[]): Reso
   })
 
   const [state, setState] = useState<State<T>>({ key, loading: true })
-  if (state.key !== key) setState({ key, loading: true }) // deps changed: reset during render
+  if (state.key !== key) setState((s) => ({ key, loading: true, data: keep ? s.data : undefined })) // deps changed: reset during render
 
   const seq = useRef(0)
   const run = useCallback(async (k: string) => {

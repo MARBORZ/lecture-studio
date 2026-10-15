@@ -1,6 +1,7 @@
 import type {
-  AIProvider, AskRequest, Attachment, ChatMessage, DiaryCategory, DiaryEntry, ExportResult, Job, JobOptions, Lesson, LessonFull, LessonPatch, LessonStatus,
-  PathCheckResult, Project, PromptView, ProjectCreate, ProjectPatch, ProviderInfo, SettingsPatch, SettingsView, SystemStatus, Thread, UpdateInfo,
+  AIProvider, AskRequest, Attachment, DiaryCategory, DiaryEntry, ExportResult, Job, JobOptions, Lesson, LessonFull, LessonPatch, LessonStatus,
+  PathCheckResult, Project, PromptView, ProjectCreate, ProjectPatch, ProviderInfo, SessionInfo, SessionPatch, SettingsPatch, SettingsView, SystemStatus,
+  Thread, ThreadKind, UpdateInfo,
 } from './types'
 
 export class ApiError extends Error {
@@ -35,6 +36,22 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 }
 
 const get = <T>(path: string) => request<T>('GET', path)
+
+/** ?a=1&b=x&b=y — arrays repeat the key, empty values are skipped. */
+function query(params: Record<string, string | string[] | null | undefined>): string {
+  const q = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (Array.isArray(v)) v.forEach((x) => q.append(k, x))
+    else if (v) q.set(k, v)
+  }
+  const s = q.toString()
+  return s ? `?${s}` : ''
+}
+
+/** What a thread read is computed for: the context meter must match the next question. */
+export interface ThreadView { session?: string; provider?: AIProvider; sources?: string[] | null }
+
+const threadUrl = (kind: ThreadKind, id: string) => `/api/assistant/${kind}/${id}`
 const diaryPath = (id: string) => id.split('/').map(encodeURIComponent).join('/')
 const qs = (params: Record<string, string | undefined>) => {
   const p = new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => Boolean(e[1])))
@@ -126,10 +143,17 @@ export const api = {
   deleteDiaryEntry: (id: string) => request<{ ok: boolean }>('DELETE', `/api/diary/entries/${diaryPath(id)}`),
 
   // assistant
-  thread: (kind: 'project' | 'lesson', id: string) => get<Thread>(`/api/assistant/${kind}/${id}`),
-  ask: (kind: 'project' | 'lesson', id: string, req: AskRequest) => request<ChatMessage[]>('POST', `/api/assistant/${kind}/${id}`, req),
+  thread: (kind: ThreadKind, id: string, view: ThreadView) =>
+    get<Thread>(threadUrl(kind, id) + query({ session: view.session, provider: view.provider, sources: view.sources ?? undefined })),
+  ask: (kind: ThreadKind, id: string, req: AskRequest) => request<Thread>('POST', threadUrl(kind, id), req),
+  newSession: (kind: ThreadKind, id: string) => request<SessionInfo>('POST', `${threadUrl(kind, id)}/sessions`),
+  activateSession: (kind: ThreadKind, id: string, sid: string) => request<{ ok: boolean }>('PUT', `${threadUrl(kind, id)}/sessions/${sid}/active`),
+  patchSession: (kind: ThreadKind, id: string, sid: string, patch: SessionPatch) => request<{ ok: boolean }>('PATCH', `${threadUrl(kind, id)}/sessions/${sid}`, patch),
+  clearSession: (kind: ThreadKind, id: string, sid: string) => request<{ ok: boolean }>('POST', `${threadUrl(kind, id)}/sessions/${sid}/clear`),
+  compactSession: (kind: ThreadKind, id: string, sid: string, view: ThreadView) =>
+    request<Thread>('POST', `${threadUrl(kind, id)}/sessions/${sid}/compact`, { provider: view.provider, sources: view.sources ?? null }),
+  deleteSession: (kind: ThreadKind, id: string, sid: string) => request<{ ok: boolean }>('DELETE', `${threadUrl(kind, id)}/sessions/${sid}`),
   uploadAttachment: (file: File, onProgress: (fraction: number) => void) =>
     putFile<Attachment>(`/api/assistant/attachments/${encodeURIComponent(file.name)}`, file, onProgress),
   attachmentUrl: (id: string) => `/api/assistant/attachments/${id}/file`,
-  clearThread: (kind: 'project' | 'lesson', id: string) => request<{ ok: boolean }>('DELETE', `/api/assistant/${kind}/${id}`),
 }

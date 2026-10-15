@@ -25,13 +25,25 @@ Motion for animation. Geist / Geist Mono fonts are bundled; no external CDNs.
   the state is remembered per browser.
 - **Lesson**: a splitter between the video and the content sets the video width (drag, ←/→, double-click to reset;
   remembered). **Focus mode** (player button or **F**, Esc to leave) hides the sidebar, the lesson header and everything
-  under the player — only the video and the content remain. Not fullscreen; the window stays a normal window.
-- **Player**: Space play/pause, ←/→ 5 seconds, speed up to 2×, audio/video switch keeps the position.
+  under the player — only the video and the content remain — and has its own, larger video width (66% by default, up to
+  82%, remembered separately). Under the video: outline, marks and notes, each a `Collapsible` section (state remembered).
+- **Player**: Space play/pause, ←/→ 5 seconds, **M** adds a mark, speed up to 2×, audio/video switch keeps the position,
+  fullscreen of the player itself. The moment each lesson was left is remembered (`player.positions`, last 60 lessons) and
+  restored on the next visit. **Marks**: the user's own named points (up to 20 characters) — diamonds on the timeline,
+  a list under the video; stored with the lesson (`Lesson.bookmarks`). Leaving the lesson page while playing turns the
+  player into the floating window; leaving while paused (or Minimize in the window) leaves a pill in the corner that
+  waits — Play continues. Coming back to the lesson docks it again.
   The video can leave the page: a **floating window** inside the app (drag, corner resize at 16:9, S/M/L, fullscreen;
   keeps playing across routes, geometry remembered) or an **always-on-top OS window** (Document Picture-in-Picture,
   native video PiP as a fallback). Only one `PlayerSurface` exists at a time; `player.setDisplay` carries time and state over.
-- **Assistant**: files of any type are attached with the paperclip, drag and drop or paste. Text is extracted on the server
-  (PDF, DOCX, PPTX, XLSX, text/code); images go to Gemini as images, other providers get a note that they cannot see them.
+- **Assistant** (`features/assistant`, server calls only in `useThread`): **sessions** like Claude Code — a menu to switch,
+  rename, delete, a new session starts with an empty history; **Clear** empties the current session (history, summary,
+  files). The **context meter** shows how much of the provider's window the next question takes and of what (sources,
+  session files, history, summary, instruction), with "compress now". Files of any type are attached with the paperclip,
+  drag and drop or paste; once attached they are **session files**, sent with every next question (switch one off by
+  clicking it). Text is extracted on the server (PDF, DOCX, PPTX, XLSX, text/code); images go to Gemini as images with the
+  message they were attached to. **Select text** in an answer or in the audit → "Ask about this" puts it into the input
+  as a quote. Without a key for the chosen model the notice offers to switch to the model that has one.
 
 ## First run
 
@@ -83,8 +95,8 @@ new pid and reloads. The outcome toast (updated / rolled back) is shown once per
 
 Motion (`motion/react`) with one config, `lib/motion.ts`: curves (`ease` for entering, `easeIn` for leaving, `easeInOut`
 for scene changes), durations, springs, presets (`fadeUp`, `fadeIn`, `pop`, `fade`, `slide`, `collapse`, `sceneOut`,
-`sidebarIn`, `contentIn`) and a capped list stagger (`itemDelay`). Set up once in `main.tsx` with `LazyMotion` and
-`MotionConfig reducedMotion="user"` (the OS "reduce motion" setting is respected). Screens use only the wrappers from
+`sidebarIn`, `contentIn`) and a capped list stagger (`itemDelay`). Set up once by `MotionRoot` (`components/motion`: `LazyMotion` +
+`MotionConfig reducedMotion="user"`) (the OS "reduce motion" setting is respected). Screens use only the wrappers from
 `components/motion`: `Appear`, `ListItem` (in `AnimatePresence`: enter/exit and siblings reflow), `RouteOutlet depth`
 (screen change without re-animating the parent), `ActiveMark` (the sliding "you are here" marker in the sidebar, settings,
 tutorial, segmented controls and lesson tabs). Modals and toasts animate out too (`AnimatePresence` in `AppShell`).
@@ -96,6 +108,8 @@ tutorial, segmented controls and lesson tabs). Modals and toasts animate out too
 - Performance: presets animate only `opacity` and a full `transform` string, which Motion hands to the Web Animations API,
   so they run on the compositor at the display rate even while React mounts the next screen. Elements with `layout`
   (reflowing lists) use the y-based `fadeUpFlow`. The progress bar uses `scaleX`, not `width`.
+- Resting state: `show` presets animate to the identity transform and then drop it (`transitionEnd: none`). Animating
+  *to* `none` is not interpolated by Motion — screens used to freeze 12 px low, cutting off their bottom edge.
 - Simple hover/press feedback is plain CSS transitions.
 
 ## Style

@@ -1,4 +1,5 @@
 import { useCallback, useRef, useSyncExternalStore } from 'react'
+import type { Bookmark } from '@/api/types'
 import { storage } from '@/lib/format'
 
 export type PlayerMode = 'video' | 'audio'
@@ -6,6 +7,7 @@ export type PlayerMode = 'video' | 'audio'
 export type PlayerDisplay = 'inline' | 'window' | 'pip'
 
 export interface Chapter { t: number; title: string }
+export type { Bookmark }
 
 export interface PlayerState {
   lessonId: string | null
@@ -19,6 +21,28 @@ export interface PlayerState {
   display: PlayerDisplay
   title: string
   chapters: Chapter[]
+  bookmarks: Bookmark[]
+  /** window display shrunk to a pill: paused, waiting to be continued */
+  minimized: boolean
+  /** the window was opened by leaving the lesson page (not by the user): coming back docks it again */
+  autoPopped: boolean
+}
+
+/** Where each lesson was left: lesson id -> seconds on the clean timeline. Kept for the most recent lessons. */
+const POSITIONS_KEY = 'player.positions'
+const POSITIONS_MAX = 60
+const positions = {
+  get(lessonId: string): number {
+    return storage.get<Record<string, number>>(POSITIONS_KEY, {})[lessonId] ?? 0
+  },
+  set(lessonId: string, t: number) {
+    const all = storage.get<Record<string, number>>(POSITIONS_KEY, {})
+    delete all[lessonId] // re-insert last: insertion order = recency
+    all[lessonId] = Math.round(t * 10) / 10
+    const keys = Object.keys(all)
+    for (const k of keys.slice(0, Math.max(0, keys.length - POSITIONS_MAX))) delete all[k]
+    storage.set(POSITIONS_KEY, all)
+  },
 }
 
 const RATES = [1, 1.25, 1.5, 1.75, 2] as const
@@ -40,10 +64,14 @@ class PlayerStore {
     display: 'inline',
     title: '',
     chapters: [],
+    bookmarks: [],
+    minimized: false,
+    autoPopped: false,
   }
   private listeners = new Set<() => void>()
   private el: HTMLMediaElement | null = null
   private pendingSeek: { t: number; play: boolean } | null = null
+  private savedAt = 0
 
   readonly rates = RATES
 
@@ -59,32 +87,84 @@ class PlayerStore {
     this.listeners.forEach((fn) => fn())
   }
 
-  /** A lesson page opened. Another lesson takes the player over (a floating window of the previous one closes). */
+  /**
+   * A lesson page opened. Same lesson: a window it popped into on leaving docks back onto the page.
+   * Another lesson takes the player over and starts where that lesson was left last time.
+   */
   load(lessonId: string, audioUrl: string | null, videoUrl: string | null, title = '') {
     if (this.state.lessonId === lessonId) {
       if (title !== this.state.title) this.set({ title })
+      if (this.state.autoPopped && this.state.display !== 'inline') {
+        this.setDisplay('inline')
+        this.set({ minimized: false, autoPopped: false })
+      }
       return
     }
+    this.remember()
     this.el?.pause()
     this.set({
       lessonId, audioUrl, videoUrl, title,
       mode: videoUrl ? 'video' : 'audio',
-      currentTime: 0, duration: 0, playing: false, display: 'inline', chapters: [],
+      currentTime: positions.get(lessonId), duration: 0, playing: false, display: 'inline', chapters: [], bookmarks: [],
+      minimized: false, autoPopped: false,
     })
+  }
+
+  setBookmarks(bookmarks: Bookmark[]) {
+    this.set({ bookmarks })
+  }
+
+  /** Store the current moment of the current lesson (throttled while playing, at once on pause/leave). */
+  private remember(force = true) {
+    const { lessonId, currentTime, duration } = this.state
+    if (!lessonId) return
+    const now = Date.now()
+    if (!force && now - this.savedAt < 2000) return
+    this.savedAt = now
+    positions.set(lessonId, duration && currentTime > duration - 3 ? 0 : currentTime) // finished = start over next time
   }
 
   setChapters(chapters: Chapter[]) {
     this.set({ chapters })
   }
 
-  /** The lesson page closed: keep playing if the video lives in a window, otherwise stop. */
+  /**
+   * The lesson page closed. A window the user opened keeps going. Otherwise the player follows as a mini window:
+   * still playing if it was playing, or minimized (paused, waiting) if it was paused somewhere in the middle.
+   */
   leave() {
-    if (this.state.display === 'inline') this.unload()
+    this.remember()
+    const { display, playing, currentTime, lessonId } = this.state
+    if (!lessonId || display !== 'inline') return
+    if (!playing && currentTime < 1) {
+      this.unload()
+      return
+    }
+    this.setDisplay('window')
+    this.set({ autoPopped: true, minimized: !playing })
   }
 
   unload() {
+    this.remember()
     this.el?.pause()
-    this.set({ lessonId: null, audioUrl: null, videoUrl: null, playing: false, currentTime: 0, duration: 0, display: 'inline', chapters: [] })
+    this.set({
+      lessonId: null, audioUrl: null, videoUrl: null, playing: false, currentTime: 0, duration: 0, display: 'inline',
+      chapters: [], bookmarks: [], minimized: false, autoPopped: false,
+    })
+  }
+
+  /** Shrink the window to a pill: pause and wait. */
+  minimize() {
+    this.el?.pause()
+    this.pendingSeek = { t: this.el?.currentTime ?? this.state.currentTime, play: false }
+    this.remember()
+    this.set({ minimized: true, playing: false })
+  }
+
+  /** Back from the pill; play = continue right away. */
+  restore(play = true) {
+    this.pendingSeek = { t: this.state.currentTime, play }
+    this.set({ minimized: false })
   }
 
   /** Move the video between page / floating window / OS window without losing the moment or the play state. */
@@ -155,9 +235,17 @@ class PlayerStore {
   }
 
   // element events — ignored unless they come from the current element (an outgoing element still fires pause/timeupdate)
-  onTime = (el: HTMLMediaElement) => el === this.el && this.set({ currentTime: el.currentTime })
+  onTime = (el: HTMLMediaElement) => {
+    if (el !== this.el) return
+    this.set({ currentTime: el.currentTime })
+    this.remember(false)
+  }
   onDuration = (el: HTMLMediaElement) => el === this.el && this.set({ duration: Number.isFinite(el.duration) ? el.duration : 0 })
-  onPlaying = (el: HTMLMediaElement, playing: boolean) => el === this.el && this.set({ playing })
+  onPlaying = (el: HTMLMediaElement, playing: boolean) => {
+    if (el !== this.el) return
+    this.set({ playing })
+    if (!playing) this.remember()
+  }
 }
 
 export const player = new PlayerStore()
