@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 
 from backend.core.ai import AI
-from backend.core.media import AudioProcessor, VideoProcessor, extract_wav, probe_video
+from backend.core.media import AudioProcessor, VideoProcessor, check_input, extract_wav, probe_video
 from backend.core.timeline import TimeMap, frame_snap
 from backend.core.transcription import compact_transcript, segments_from_clean, write_transcripts
 from backend.core.vad import detect_speech
@@ -95,6 +95,7 @@ class ExtractAudioStep(PipelineStep):
 
     def execute(self, ctx, progress):
         progress(0, "Извлечение аудио")
+        check_input(ctx.media_path)  # also guards paths that skip the API check (MCP, tests)
         ctx.fps = probe_video(ctx.media_path) if ctx.options.clean_video else None
         ctx.orig_duration = extract_wav(ctx.media_path, ctx.raw_wav, ctx.options.enhance_audio)
         ctx.stats.orig_duration_sec = round(ctx.orig_duration, 3)

@@ -16,6 +16,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from backend.core.media import MediaError, check_input
 from backend.core.pipeline import start_processing
 from backend.models.job import Job, JobOptions
 from backend.services.jobs import JobRegistry
@@ -64,6 +65,14 @@ async def upload(filename: str, request: Request) -> UploadResult:
     return UploadResult(upload_id=upload_id, size=size)
 
 
+def _check(media) -> None:
+    """Refuse at once (no job, no queue) what the pipeline would fail on: unreadable files, no sound track."""
+    try:
+        check_input(media)
+    except MediaError as e:
+        raise HTTPException(400, detail=str(e)) from e
+
+
 @router.post("/jobs", response_model=Job)
 def start_job(req: StartJobRequest) -> Job:
     opts = req.options
@@ -73,11 +82,13 @@ def start_job(req: StartJobRequest) -> Job:
         media = _upload_path(req.upload_id)
         if not media.is_file():
             raise HTTPException(400, detail="Загруженный файл не найден")
+        _check(media)
         return start_processing(opts, str(media), is_uploaded=True)
     if opts.local_path:
         media = to_path(opts.local_path)
         if not media.is_file():
             raise HTTPException(400, detail=f"Файл не найден: {media}")
+        _check(media)
         return start_processing(opts, str(media), is_uploaded=False)
     raise HTTPException(400, detail="Укажите файл или путь к нему")
 
