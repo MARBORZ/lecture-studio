@@ -35,13 +35,16 @@ export function EmptyState({ icon, title, hint, action }: { icon: LucideIcon; ti
   )
 }
 
-export function PageHeader({ title, subtitle, actions, eyebrow }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode }) {
+export function PageHeader({ title, subtitle, actions, eyebrow, cover }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode; cover?: ReactNode }) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-4 pb-6">
+      <div className="flex min-w-0 items-center gap-4">
+      {cover}
       <div className="min-w-0">
         {eyebrow && <div className="label-caps mb-2">{eyebrow}</div>}
         <h1 className="truncate text-[22px] font-semibold tracking-[-0.02em] text-fg">{title}</h1>
         {subtitle && <p className="mt-1 max-w-2xl text-[13.5px] leading-snug text-muted">{subtitle}</p>}
+      </div>
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </header>

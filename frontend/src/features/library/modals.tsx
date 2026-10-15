@@ -1,10 +1,12 @@
-import { FolderOutput } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { FolderOutput, ImagePlus, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '@/api/client'
 import type { Lesson, LessonStatus, Project } from '@/api/types'
 import { useLibrary, useUI } from '@/app/AppProvider'
-import { Button, Field, Input, Modal, Select, Textarea } from '@/components/ui'
+import { Icon } from '@/components/Icon'
+import { Button, Field, IconButton, Input, Modal, Select, Textarea } from '@/components/ui'
+import { NotebookCover } from './NotebookCover'
 
 /** Shared submit wrapper: busy flag + error toast. */
 function useSubmit(fn: () => Promise<void>) {
@@ -26,13 +28,17 @@ function useSubmit(fn: () => Promise<void>) {
 
 export function ProjectFormModal({ project, close }: { project?: Project; close: () => void }) {
   const { t } = useUI()
-  const { createProject, patchProject } = useLibrary()
+  const { createProject, patchProject, setProjectCover } = useLibrary()
   const navigate = useNavigate()
   const [name, setName] = useState(project?.name ?? '')
   const [description, setDescription] = useState(project?.description ?? '')
+  // undefined = keep the current cover, File = new image, null = remove
+  const [cover, setCover] = useState<File | null | undefined>(undefined)
   const { busy, onSubmit } = useSubmit(async () => {
+    const id = project ? project.id : (await createProject({ name, description })).id
     if (project) await patchProject(project.id, { name, description })
-    else navigate(`/library/${(await createProject({ name, description })).id}`)
+    if (cover !== undefined) await setProjectCover(id, cover)
+    if (!project) navigate(`/library/${id}`)
     close()
   })
 
@@ -50,6 +56,7 @@ export function ProjectFormModal({ project, close }: { project?: Project; close:
       }
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
+        <CoverPicker project={project} name={name} value={cover} onChange={setCover} />
         <Field label={t('common.name')}>
           <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} />
         </Field>
@@ -59,6 +66,45 @@ export function ProjectFormModal({ project, close }: { project?: Project; close:
         <button type="submit" hidden />
       </form>
     </Modal>
+  )
+}
+
+/** Notebook picture: click or drop an image; preview right away, saved with the form. */
+function CoverPicker({ project, name, value, onChange }: { project?: Project; name: string; value: File | null | undefined; onChange: (v: File | null) => void }) {
+  const { t } = useUI()
+  const input = useRef<HTMLInputElement>(null)
+  const preview = useMemo(() => (value ? URL.createObjectURL(value) : null), [value])
+  useEffect(() => () => {
+    if (preview) URL.revokeObjectURL(preview)
+  }, [preview])
+  const shown = value === null ? null : preview ?? (project ? api.coverUrl(project) : null)
+  const pick = (f?: File | null) => f && f.type.startsWith('image/') && onChange(f)
+
+  return (
+    <div
+      className="flex items-center gap-4"
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault()
+        pick(e.dataTransfer.files[0])
+      }}
+    >
+      <button type="button" onClick={() => input.current?.click()} title={t('library.coverPick')} className="group relative">
+        <NotebookCover project={{ id: project?.id ?? 'new', name: name || '?', cover: '' }} src={shown} className="size-20 text-[28px]" />
+        <span className="absolute inset-0 flex items-center justify-center rounded-[5px] bg-bg/70 opacity-0 transition-opacity group-hover:opacity-100">
+          <Icon as={ImagePlus} size={20} />
+        </span>
+      </button>
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <div className="text-[13px] text-fg">{t('library.cover')}</div>
+        <div className="text-[12px] text-muted">{t('library.coverHint')}</div>
+        <div className="flex gap-1.5">
+          <Button size="sm" icon={ImagePlus} onClick={() => input.current?.click()}>{t('library.coverPick')}</Button>
+          {shown && <IconButton icon={X} size="sm" label={t('library.coverRemove')} onClick={() => onChange(null)} />}
+        </div>
+      </div>
+      <input ref={input} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(e) => (pick(e.target.files?.[0]), (e.target.value = ''))} />
+    </div>
   )
 }
 

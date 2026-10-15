@@ -44,8 +44,15 @@ def test_animation_only_through_motion_layer():
 
 
 def test_icons_render_through_icon_component():
-    # lucide icons are passed around as components, but only Icon/ui primitives render them directly
-    assert offenders(FRONT, ["*.tsx"], r"<(ArrowUp|Play|Pause|X|Plus|Trash2|Paperclip)\b[^>]*/>") == []
+    # lucide icons are passed around as values; only Icon renders one as an element
+    bad = []
+    for p in files(FRONT, "*.tsx"):
+        src = p.read_text("utf-8")
+        m = re.search(r"import \{([^}]*)\} from 'lucide-react'", src)
+        names = [n.strip().split(" as ")[-1] for n in (m.group(1).split(",") if m else []) if n.strip() and not n.strip().startswith("type ")]
+        if p.name != "Icon.tsx" and any(re.search(rf"<{n}[\s/>]", src) for n in names):
+            bad.append(str(p.relative_to(ROOT)))
+    assert bad == []
 
 
 def test_monochrome_palette_only_tokens():

@@ -6,6 +6,7 @@ import { useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { AnimatePresence, ListItem } from '@/components/motion'
 import { Button, EmptyState, IconButton, Page, PageHeader, Segmented } from '@/components/ui'
+import { NotebookCover } from '@/features/library/NotebookCover'
 import { SkeletonList } from '@/components/skeleton'
 import { LessonRow } from '@/features/library/LessonRow'
 import { ProjectFormModal } from '@/features/library/modals'
@@ -40,6 +41,7 @@ export function LibraryPage() {
     <Page>
       <PageHeader
         eyebrow={project ? t('common.notebook') : undefined}
+        cover={project && <NotebookCover project={project} className="size-14 text-[22px]" />}
         title={project?.name ?? t('library.title')}
         subtitle={project?.description}
         actions={
