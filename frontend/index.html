@@ -16,14 +16,14 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <style>
       /* Boot splash before any script: the same mark BootScreen (features/system/BootScreen.tsx) then holds and fades. */
-      #boot { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; background: #000; }
-      [data-theme='light'] #boot { background: #fff; }
-      #boot img { width: 96px; height: 96px; }
+      #boot { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; background: #000; color: #fafafa; }
+      [data-theme='light'] #boot { background: #fff; color: #0a0a0a; }
+      #boot svg { width: 160px; height: 160px; overflow: visible; }
     </style>
     <title>Lecture Studio</title>
   </head>
   <body>
-    <div id="boot"><img src="/logo.svg" alt="" /></div>
+    <div id="boot"><svg viewBox="224 224 576 576" aria-hidden="true"><g transform="translate(512 512) scale(1.0000) translate(-512 -512)"><path d="M367.26 499.00L367.26 295.80L407.68 295.80L407.68 499.00z" fill="currentColor"/><path d="M425.68 499.00L425.68 366.30L466.09 366.30L466.09 499.00z" fill="currentColor"/><path d="M484.09 499.00L484.09 324.00L524.50 324.00L524.50 499.00z" fill="currentColor"/><path d="M542.50 499.00L542.50 394.50L582.92 394.50L582.92 499.00z" fill="currentColor"/><path d="M600.92 499.00L600.92 356.90L641.33 356.90L641.33 499.00z" fill="currentColor"/><path d="M659.33 499.00L659.33 422.70L699.75 422.70L699.75 499.00z" fill="currentColor"/><path d="M717.75 499.00L717.75 460.30L758.16 460.30L758.16 499.00z" fill="currentColor"/><path d="M322.26 525.00L322.26 747.00L708.54 525.00z" fill="currentColor"/></g></svg></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

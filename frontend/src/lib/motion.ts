@@ -7,6 +7,7 @@
  * mounting the next screen. Independent x/y/scale would be driven from JS every frame on the main thread.
  * Exception: elements with `layout` (layout projection owns `transform`) use `fadeUpFlow` (y-based).
  */
+import { useEffect } from 'react'
 import type { Transition, Variants } from 'motion/react'
 
 export const ease = [0.22, 1, 0.36, 1] as const // entering: fast start, soft landing (ease-out-quint)
@@ -102,4 +103,23 @@ export const collapse: Variants = {
   hidden: { height: 0, opacity: 0 },
   show: { height: 'auto', opacity: 1, transition: { duration: duration.base, ease } },
   exit: { height: 0, opacity: 0, transition: leave },
+}
+
+/**
+ * Frame-by-frame drawing (the boot mark redraws its SVG every frame): `draw(seconds since start)` on every animation
+ * frame while mounted. Not a transition, so not a Motion preset; it lives here so all motion stays in one layer.
+ * Off when the system asks for reduced motion (the caller keeps showing its first frame).
+ */
+export function useFrameLoop(draw: (seconds: number) => void, enabled = true): void {
+  useEffect(() => {
+    if (!enabled || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    let raf = 0
+    const start = performance.now()
+    const frame = (now: number) => {
+      draw((now - start) / 1000)
+      raf = requestAnimationFrame(frame)
+    }
+    raf = requestAnimationFrame(frame)
+    return () => cancelAnimationFrame(raf)
+  }, [draw, enabled])
 }

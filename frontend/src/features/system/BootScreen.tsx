@@ -3,17 +3,16 @@ import { useUI } from '@/app/AppProvider'
 import { AnimatePresence, m } from '@/components/motion'
 import { ease } from '@/lib/motion'
 import type { TKey } from '@/i18n'
+import { BootMark } from './BootMark'
 
-/** The mark in the middle; index.html shows the same file before any script runs, so the hand-over has no seam. */
-export const BOOT_MEDIA = '/logo.svg'
 const MIN_MS = 1200 // counted from the page start: a fast load still shows the mark, not a flash
-const PUNCH_AFTER_MS = 2500 // lines appear only when loading takes a while
-const PUNCH_EVERY_MS = 3200
+const PUNCH_AFTER_MS = 5000 // lines appear only when loading takes a while
+const PUNCH_EVERY_MS = 2500
 const PUNCHLINES: TKey[] = ['boot.punch1', 'boot.punch2', 'boot.punch3', 'boot.punch4', 'boot.punch5', 'boot.punch6', 'boot.punch7', 'boot.punch8']
 
 /**
- * Every app start and page reload: the mark until the server answered and the library is loaded, then a fade.
- * Takes over the static splash of index.html (#boot).
+ * Every app start and page reload: the animated mark until the server answered and the library is loaded, then a fade.
+ * Takes over the static splash of index.html (#boot), whose first frame is identical.
  */
 export function BootScreen({ ready }: { ready: boolean }) {
   const { t } = useUI()
@@ -42,10 +41,10 @@ export function BootScreen({ ready }: { ready: boolean }) {
           key="boot"
           exit={{ opacity: 0 }}
           transition={{ duration: 0.35, ease }}
-          className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-bg"
+          className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-bg text-fg"
           aria-busy
         >
-          <img src={BOOT_MEDIA} alt="Lecture Studio" className="size-24" draggable={false} />
+          <BootMark size={160} />
           <div className="absolute inset-x-6 bottom-[18%] flex h-6 justify-center">
             <AnimatePresence mode="wait">
               {line >= 0 && (

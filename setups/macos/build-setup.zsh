@@ -10,7 +10,8 @@ trap 'rm -rf "$WORK"' EXIT
 build() {  # build <out.app> <with_source:0|1> [script name, default Setup] [bundle id suffix, default setup]
   local app="$1" name="${3:-Setup}" id="${4:-setup}"
   osacompile -o "$app" "$REPO/setups/macos/$name.applescript"
-  zsh "$REPO/launcher/macos/make-icon.zsh" "$REPO/assets/setup-icon.svg" "$app/Contents/Resources/applet.icns"
+  # each applet its own icon: assets/setup-icon.svg, assets/uninstall-icon.svg
+  zsh "$REPO/launcher/macos/make-icon.zsh" "$REPO/assets/${(L)name}-icon.svg" "$app/Contents/Resources/applet.icns"
   # Modern applets take the icon from Assets.car via CFBundleIconName; drop it so applet.icns (ours) is used.
   rm -f "$app/Contents/Resources/Assets.car"
   /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$app/Contents/Info.plist" 2>/dev/null || true

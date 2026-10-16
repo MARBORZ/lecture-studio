@@ -32,7 +32,7 @@ launcher/windows/             common.ps1 (shared helpers), start.ps1, start.vbs 
 setups/macos/                 Setup.app, Uninstall.app (double-click; built by build-setup.zsh from the .applescript files),
                               install.zsh (steps), Setup.applescript, Uninstall.applescript, build-setup.zsh
 setups/windows/               Setup.cmd, Uninstall.cmd (double-click), install.ps1 (progress window, steps), uninstall.ps1 (questions)
-assets/                       icon.svg, setup-icon.svg, icon.ico
+assets/                       icon.svg, setup-icon.svg, uninstall-icon.svg, icon.ico
 mcp_server.py                 MCP server on top of services
 tests/                        pytest
 ```

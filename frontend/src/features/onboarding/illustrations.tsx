@@ -10,6 +10,7 @@ import { Progress, StatusMark } from '@/components/ui'
 import { KeyField } from '@/features/system/KeyField'
 import { SECTIONS } from '@/pages/settings/SettingsLayout'
 import { m } from '@/components/motion'
+import { LogoMark } from '@/features/system/BootMark'
 import { cn } from '@/lib/cn'
 import { ease, fadeUp, pop, springBouncy } from '@/lib/motion'
 
@@ -53,10 +54,9 @@ export function WelcomeArt() {
   ]
   return (
     <Frame className="flex flex-col items-center gap-6 py-10">
-      <svg viewBox="0 0 64 64" className="size-16" aria-hidden>
-        <m.path d="M18 16v32h28" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="square" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.6, ease, delay: 0.1 }} />
-        <m.path d="M30 24l14 8-14 8z" fill="currentColor" variants={pop} initial="hidden" animate="show" style={{ transformBox: 'fill-box', transformOrigin: 'center' }} />
-      </svg>
+      <m.div variants={pop} initial="hidden" animate="show">
+        <LogoMark className="size-16" />
+      </m.div>
       <div className="flex w-full max-w-xs flex-col gap-3">
         {rows.map((r, i) => (
           <In key={i} d={0.35 + i * 0.1} className="flex items-center gap-3">

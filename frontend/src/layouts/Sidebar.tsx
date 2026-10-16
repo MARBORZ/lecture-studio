@@ -12,6 +12,7 @@ import { LESSON_DRAG, useMoveLesson } from '@/features/library/MoveLesson'
 import { NotebookCover } from '@/features/library/NotebookCover'
 import { FeedbackButton } from '@/features/feedback/Feedback'
 import { ShutdownButton } from '@/features/system/ShutdownButton'
+import { LogoMark } from '@/features/system/BootMark'
 import { UpdateButton } from '@/features/system/Update'
 import type { Project } from '@/api/types'
 import { cn } from '@/lib/cn'
@@ -117,10 +118,7 @@ export function Sidebar() {
       >
         <div className="flex h-14 shrink-0 items-center gap-2.5 pr-3 pl-[21px]">
           <button type="button" onClick={collapsed ? toggle : undefined} title={collapsed ? toggleLabel : undefined} className={cn('shrink-0', !collapsed && 'cursor-default')}>
-            <svg viewBox="0 0 64 64" className="size-[18px]" aria-hidden>
-              <path d="M18 16v32h28" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="square" />
-              <path d="M30 24l14 8-14 8z" fill="currentColor" />
-            </svg>
+            <LogoMark className="size-[18px]" />
           </button>
           <span className={cn('flex-1 truncate text-[14px] font-semibold tracking-[-0.01em] whitespace-nowrap transition-opacity duration-200', collapsed && 'opacity-0')}>Lecture Studio</span>
           {!collapsed && <IconButton icon={PanelLeftClose} size="sm" label={toggleLabel} onClick={toggle} />}

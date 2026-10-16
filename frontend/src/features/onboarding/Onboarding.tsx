@@ -10,6 +10,7 @@ import { cn } from '@/lib/cn'
 import { fade, fadeIn, fadeUp, slide } from '@/lib/motion'
 import { AssistantArt, DiaryArt, DoneArt, KeysStep, LessonArt, LibraryArt, PowerArt, SettingsArt, StudioArt, WelcomeArt } from './illustrations'
 import { isTyping } from '@/lib/keys'
+import { LogoMark } from '@/features/system/BootMark'
 import { Bootstrap } from './Bootstrap'
 import { Intro } from './Intro'
 
@@ -140,10 +141,7 @@ function Walkthrough({ onClose }: { onClose?: () => void }) {
     <m.div variants={fade} initial="hidden" animate="show" exit="exit" className="fixed inset-0 z-[90] flex bg-bg">
       <aside className="hidden w-72 shrink-0 flex-col border-r border-line px-5 py-7 md:flex">
         <div className="mb-8 flex items-center gap-2.5 px-2">
-          <svg viewBox="0 0 64 64" className="size-5" aria-hidden>
-            <path d="M18 16v32h28" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="square" />
-            <path d="M30 24l14 8-14 8z" fill="currentColor" />
-          </svg>
+          <LogoMark className="size-5" />
           <span className="text-[14px] font-semibold">{t('onboarding.title')}</span>
         </div>
         <ol className="flex flex-col gap-0.5">
