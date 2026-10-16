@@ -7,7 +7,6 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { Progress, StatusMark } from '@/components/ui'
-import { KeyField } from '@/features/system/KeyField'
 import { SECTIONS } from '@/pages/settings/SettingsLayout'
 import { m } from '@/components/motion'
 import { LogoMark } from '@/features/system/BootMark'
@@ -15,7 +14,7 @@ import { cn } from '@/lib/cn'
 import { ease, fadeUp, pop, springBouncy } from '@/lib/motion'
 
 /** Same box on every step (fixed min height, content centred), so steps do not jump. */
-function Frame({ children, className }: { children: ReactNode; className?: string }) {
+export function Frame({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div className="flex min-h-[340px] w-full max-w-[480px] flex-col justify-center rounded-2xl border border-line-strong bg-surface p-6 shadow-2xl">
       <div className={cn('w-full', className)}>{children}</div>
@@ -190,15 +189,6 @@ export function DiaryArt() {
         </In>
       ))}
       <In d={0.45} className="flex items-center gap-2 text-dim"><Icon as={NotebookPen} size={13} /> diary/{t('onboarding.sample.category1')}/2026-10-15 1402.md</In>
-    </Frame>
-  )
-}
-
-export function KeysStep() {
-  return (
-    <Frame className="flex flex-col gap-6">
-      <KeyField provider="deepseek" />
-      <KeyField provider="gemini" />
     </Frame>
   )
 }

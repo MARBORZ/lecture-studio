@@ -181,6 +181,7 @@ export function AISettingsSection() {
 
   return (
     <div className="flex flex-col gap-6">
+      <McpCard />
       <Card
         title={t('settings.keys')}
         description={t('settings.keysHint')}
@@ -192,7 +193,6 @@ export function AISettingsSection() {
         </div>
       </Card>
       <LocalModelCard />
-      <McpCard />
       <ComputeCard />
       <Card title={t('settings.models')} fold="ai.models" summary={`${CLOUD_PROVIDERS.map((p) => ai[`${p}_model`]).join(' · ')} · Whisper ${ai.whisper_model}`}>
         <div className="grid gap-4 sm:grid-cols-2">

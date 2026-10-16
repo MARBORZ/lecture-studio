@@ -40,8 +40,9 @@ export function KeyField({ provider }: { provider: CloudProvider }) {
           {status.hint && <code className="font-mono text-soft">{status.hint}</code>}
         </span>
       </div>
-      <form className="flex gap-2" onSubmit={(e) => (e.preventDefault(), void save(value.trim()))}>
-        <Input type="password" autoComplete="off" value={value} onChange={(e) => setValue(e.target.value)} placeholder={t('settings.keyPlaceholder')} className="font-mono text-[12.5px]" />
+      {/* in a narrow place (the tutorial) the buttons wrap under the field instead of squeezing it */}
+      <form className="flex flex-wrap gap-2" onSubmit={(e) => (e.preventDefault(), void save(value.trim()))}>
+        <Input type="password" autoComplete="off" value={value} onChange={(e) => setValue(e.target.value)} placeholder={t('settings.keyPlaceholder')} className="min-w-48 flex-1 font-mono text-[12.5px]" />
         <Button type="submit" variant="primary" disabled={!value.trim()}>{t('common.save')}</Button>
         {status.source !== 'none' && <Button icon={PlugZap} loading={testing} onClick={test}>{t('settings.keyTest')}</Button>}
         {status.source === 'settings' && <Button variant="ghost" onClick={() => save('')}>{t('settings.keyClear')}</Button>}

@@ -31,6 +31,8 @@ It was built for one person's programming courses and is shared as is: no roadma
 - **Writes the notes.** DeepSeek, Gemini, ChatGPT, Claude or a local model (Ollama, LM Studio) turns the transcript into short notes with `[MM:SS]` timecodes you can
   click, in the language you choose.
 - **Answers with citations.** Ask one lesson or a whole course; answers link to the exact moment ("Lesson 2 · 04:15").
+- **Works with your Claude.** Connect Claude Desktop or Claude Code in one click (MCP): it reads your lessons and writes
+  audits on your subscription, no API key.
 - **Finds lectures on YouTube.** Search and watch in the **Videos** tab, or paste a link; one click downloads it
   (yt-dlp on your computer, up to 1080p) and opens it in the Studio. Download only what you have the rights to.
 - **A real workspace.** Player with marks, synced transcript, notebooks, a Markdown diary, export to Obsidian.
@@ -49,12 +51,19 @@ its interface is already built, so Node.js is not needed.
 Setup installs what is missing (uv, FFmpeg, Node.js to build the interface; Homebrew on a Mac), takes 5–15 minutes and puts
 **Lecture Studio** on your Desktop. It speaks Russian on a Russian system and English everywhere else.
 
-Then open the app, paste an API key of **DeepSeek**, **Gemini**, **ChatGPT** (OpenAI) or **Claude** (Anthropic) in **Settings → AI**, and drop a recording into the **Studio**.
+Then open the app. The tutorial asks how to connect AI (change it any time in **Settings → AI**):
 
-**Fully local and free:** install [Ollama](https://ollama.com), run `ollama pull qwen3:8b` (or any model you like), then
-pick it in **Settings → AI → Local model**. Whisper transcribes on your machine, the local model writes the notes and
-answers questions: no key, no account, nothing leaves the computer. It is slower than the cloud, and a small model
-reads a long lecture in parts.
+- **Connect Claude, no keys needed.** If you have Claude Desktop or Claude Code, one click gives your Claude the lesson
+  library: it reads transcripts, searches and writes audits on your subscription, and they show up in the app
+  ([how it works](docs/MCP_SETUP.md)).
+- **An API key** of **DeepSeek**, **Gemini**, **ChatGPT** (OpenAI) or **Claude** (Anthropic): the audit is written
+  right after processing, and the assistant answers inside the app.
+- **Fully local and free:** install [Ollama](https://ollama.com), run `ollama pull qwen3:8b` (or any model you like), then
+  pick it in **Settings → AI → Local model**. Whisper transcribes on your machine, the local model writes the notes and
+  answers questions: no key, no account, nothing leaves the computer. It is slower than the cloud, and a small model
+  reads a long lecture in parts.
+
+Or skip it: cutting, the clean video and the Whisper transcript work without AI. Then drop a recording into the **Studio**.
 
 ## Delete
 

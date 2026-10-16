@@ -90,9 +90,11 @@ the rest of the UI keeps its size.
 
 `features/onboarding/Onboarding.tsx`. Until `settings.json` has `onboarding_done: true`, `AppShell` shows only the tutorial:
 language first (both languages on screen; the choice is written to `ui_language` right away), then 10 steps
-(app, library, studio, lesson, assistant, diary, AI keys, settings, start/shut down, done). A step rail on the left,
-text and a mini-mockup built from the app's own components and i18n keys (`illustrations.tsx`) on the right;
-the AI keys step uses the real `KeyField`. Keys ←/→/Enter. "Get started" only closes the tutorial — the user stays where
+(app, library, studio, lesson, assistant, diary, connect AI, settings, start/shut down, done). A step rail on the left,
+text and a mini-mockup built from the app's own components and i18n keys (`illustrations.tsx`) on the right.
+The connect-AI step (`AiStep.tsx`) is real controls: Claude through MCP (`McpClients`, no key), an API key (`KeyField`),
+a local model, or Skip — cutting, the clean video and Whisper work without AI. Keys ←/→/Enter (Enter on a focused
+button presses only that button). "Get started" only closes the tutorial — the user stays where
 they were. Replay: Settings → Interface (`useUI().setTutorialOpen`) — no language question, closable with ×/Esc,
 the `onboarding_done` flag is untouched.
 
@@ -141,6 +143,7 @@ new pid and reloads. The outcome toast (updated / rolled back) is shown once per
 - `components/Icon.tsx` — the single lucide wrapper (SVG only, `currentColor`).
 - `features/jobs/PipelineOptionsFields` — one processing-options form for the Studio and Settings → Processing.
 - `features/system/KeyField` — API key field (Settings → AI and the tutorial).
+- `features/system/McpCard` — `useMcp` + `McpClients`: connect this app to Claude Desktop / Claude Code (Settings → AI and the tutorial).
 
 ## Animation
 
