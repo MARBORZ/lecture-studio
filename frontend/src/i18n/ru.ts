@@ -142,6 +142,8 @@ export const ru = {
   'player.close': 'Закрыть плеер',
   'player.openLesson': 'Открыть урок',
   'player.focus': 'Режим фокуса (F)',
+  'player.askHere': 'Спросить с этого места',
+  'player.askNewSession': 'Новая сессия с этого места',
   'player.unfocus': 'Выйти из фокуса (F или Esc)',
   'lesson.resize': 'Ширина видео: перетащите, ←/→, двойной клик — сброс',
 
@@ -194,6 +196,7 @@ export const ru = {
   'assistant.quote': 'Спросить об этом',
   'assistant.quoteLabel': 'Про фрагмент',
   'assistant.quoteDefault': 'Объясни этот фрагмент подробнее.',
+  'assistant.sessionFrom': 'С {tc}',
   'assistant.summaryDivider': 'выше — в сводке',
   'assistant.empty': 'Задайте вопрос или выберите действие',
   'assistant.sources': 'Источники',

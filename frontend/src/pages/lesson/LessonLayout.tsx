@@ -10,6 +10,7 @@ import { Button, Collapsible, EmptyState, Field, IconButton, Modal, Segmented, S
 import { SkeletonMarkdown, SkeletonPlayer, SkeletonText } from '@/components/skeleton'
 import { ExportModal, LessonEditModal } from '@/features/library/modals'
 import { MoveLessonButton } from '@/features/library/MoveLesson'
+import { AskFromMoment } from '@/features/assistant/AskFromMoment'
 import { MarkdownView } from '@/features/markdown/MarkdownView'
 import { VIDEO_TOKENS_PER_HOUR } from '@/features/jobs/PipelineOptionsFields'
 import { BookmarkList } from '@/features/player/bookmarks'
@@ -174,6 +175,7 @@ export function LessonLayout() {
         >
           <div className="flex flex-col gap-5 p-4 @md:p-6 @2xl:p-8">
           {lesson ? <MediaPlayer /> : <SkeletonPlayer />}
+          {lesson && <AskFromMoment lessonId={lesson.id} segments={lesson.segments ?? []} />}
           <AnimatePresence initial={false}>
           {!focusMode && (
           <m.div key="player-extras" variants={collapse} initial="hidden" animate="show" exit="exit" className="flex shrink-0 flex-col gap-5 overflow-hidden">
