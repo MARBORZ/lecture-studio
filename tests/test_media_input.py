@@ -22,7 +22,7 @@ def test_video_without_sound_is_refused(data_dir, tmp_path):
 
     clip = tmp_path / "videoplayback.mp4"  # what a YouTube stream download looks like
     make(clip, "-f", "lavfi", "-i", "testsrc=size=160x120:rate=10")
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         r = c.post("/api/jobs", json={"options": {"local_path": str(clip)}})
     assert r.status_code == 400
     assert r.json()["detail"] == tr("media.no_audio", hint=tr("media.youtube_hint"))
@@ -33,7 +33,7 @@ def test_broken_file_is_refused(data_dir, tmp_path):
 
     junk = tmp_path / "lecture.mp4"
     junk.write_bytes(b"not a video at all" * 100)
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         r = c.post("/api/jobs", json={"options": {"local_path": str(junk)}})
     assert r.status_code == 400 and r.json()["detail"].startswith(tr("media.unreadable", error="|").split("|")[0])
 

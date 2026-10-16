@@ -49,7 +49,7 @@ def test_transcribe_an_existing_lesson_again(data_dir, monkeypatch):
     (lesson_dir / "clean_speech.mp3").write_bytes(b"ID3")
     monkeypatch.setattr(whisper, "transcribe", lambda *a, **k: [{"clean_start": 0.0, "clean_end": 2.0, "text": "параметр и аргумент"}])
 
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         assert c.post("/api/lessons/less_r/transcribe", json={"transcriber": "gemini"}).status_code == 400  # no Gemini key
         job = wait(c, c.post("/api/lessons/less_r/transcribe", json={"transcriber": "whisper"}).json()["id"])
         assert job["status"] == "completed", job

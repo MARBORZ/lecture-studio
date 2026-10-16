@@ -60,7 +60,7 @@ def test_eco_mode_keeps_the_original_where_it_is(data_dir, tmp_path):
     from backend.services.storage import Artifacts
 
     clip = make_clip(tmp_path / "lecture.mp4")
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         job = run_job(c, {"local_path": str(clip), "video": "original", "transcriber": "none", "audit": "none", "lesson_title": "Eco"})
         assert job["status"] == "completed", job
         lesson = c.get(f"/api/lessons/{job['lesson_id']}").json()
@@ -86,7 +86,7 @@ def test_uploaded_original_moves_into_the_lesson(data_dir, tmp_path):
     from backend.main import app
 
     clip = make_clip(tmp_path / "rec.mp4")
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         up = c.put("/api/uploads/rec.mp4", content=clip.read_bytes()).json()
         r = c.post("/api/jobs", json={"options": {"video": "original", "transcriber": "none", "audit": "none"}, "upload_id": up["upload_id"]})
         job_id = r.json()["id"]
@@ -103,7 +103,7 @@ def test_compressed_without_cutting(data_dir, tmp_path):
     from backend.services.storage import Artifacts
 
     clip = make_clip(tmp_path / "talk.mp4")
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         job = run_job(c, {"local_path": str(clip), "cut_silence": False, "video": "compressed", "transcriber": "none", "audit": "none"})
         assert job["status"] == "completed", job
         assert "vad" not in job["stages"]  # the silence step did not run
@@ -133,7 +133,7 @@ def test_audit_from_video_and_its_fallback(data_dir, tmp_path, monkeypatch):
 
     monkeypatch.setattr(steps.AI, "get", staticmethod(lambda name: Gemini()))
     monkeypatch.setattr(steps.SettingsService, "api_key", classmethod(lambda cls, name: "key"))
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         options = {"local_path": str(clip), "cut_silence": False, "video": "compressed", "transcriber": "none"}
         job = run_job(c, {**options, "audit": "gemini", "audit_source": "video"})
         assert job["status"] == "completed", job
@@ -146,7 +146,7 @@ def test_drop_video_keeps_the_sound(data_dir, tmp_path):
     from backend.services.storage import Artifacts
 
     clip = make_clip(tmp_path / "a.mp4")
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         # a regular lesson: its video copy goes, the sound stays
         job = run_job(c, {"local_path": str(clip), "cut_silence": False, "video": "compressed", "transcriber": "none", "audit": "none"})
         lid = job["lesson_id"]

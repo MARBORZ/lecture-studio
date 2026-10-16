@@ -26,7 +26,7 @@ def _upload(c, name, data):
 def test_kinds_and_download(data_dir):
     from backend.main import app
 
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         code = _upload(c, "main.py", b"def f():\n    return 42\n")
         assert (code["kind"], code["chars"]) == ("text", 23)
         cyr = _upload(c, "notes.txt", "заметка в cp1251".encode("cp1251"))
@@ -71,7 +71,7 @@ def test_attachments_reach_the_model_and_are_cleaned(data_dir, monkeypatch):
             seen["prompt"], seen["images"] = messages[-1]["content"], images or []
             return "ok"
 
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         doc = _upload(c, "task.md", b"# TODO\nfix the parser")
         img = _upload(c, "screen.png", PNG)
 

@@ -23,7 +23,7 @@ def test_patch_is_partial(data_dir):
     from backend.services.storage import Library
 
     Library.save_lesson(Lesson(id="less_b", job_id="b", status="completed", notes="keep"))
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         r = c.patch("/api/lessons/less_b", json={"title": "New"}).json()
     assert (r["title"], r["status"], r["notes"]) == ("New", "completed", "keep")
 
@@ -36,7 +36,7 @@ def test_shutdown_refused_while_busy(data_dir, monkeypatch):
     JobRegistry.update(job.id, status="processing", progress=40)
     killed = []
     monkeypatch.setattr("backend.api.routes.system._stop_everything", lambda: killed.append(1))
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         r = c.post("/api/system/shutdown")
         assert r.status_code == 409
         assert c.get("/api/system/status").json()["busy"] is True
@@ -51,7 +51,7 @@ def test_shutdown_refused_while_busy(data_dir, monkeypatch):
 def test_onboarding_flag(data_dir):
     from backend.main import app
 
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         assert c.get("/api/settings").json()["onboarding_done"] is False  # fresh install -> tutorial
         r = c.patch("/api/settings", json={"ui_language": "en", "onboarding_done": True}).json()
         assert (r["ui_language"], r["onboarding_done"]) == ("en", True)
@@ -62,7 +62,7 @@ def test_onboarding_flag(data_dir):
 def test_boot_animation_setting(data_dir):
     from backend.main import app
 
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         assert c.get("/api/settings").json()["boot_animation"] is True  # on by default
         assert c.patch("/api/settings", json={"boot_animation": False}).json()["boot_animation"] is False
         assert c.patch("/api/settings", json={"theme": "dark"}).json()["boot_animation"] is False  # untouched by other patches

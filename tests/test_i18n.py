@@ -14,7 +14,7 @@ def api(data_dir, monkeypatch):
     from backend.main import app
 
     monkeypatch.setattr(i18n, "lang", i18n.REAL_LANG)  # follow settings.json, not the test default
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         yield c
 
 

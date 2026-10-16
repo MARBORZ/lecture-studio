@@ -57,7 +57,7 @@ def test_audit_follows_the_chosen_language(data_dir, monkeypatch):
         while c.get(f"/api/jobs/{job['id']}").json()["status"] not in ("completed", "error"):
             time.sleep(0.05)
 
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         c.patch("/api/settings", json={"ui_language": "ru"})
         regenerate(c, "interface")
         regenerate(c, "recording")
