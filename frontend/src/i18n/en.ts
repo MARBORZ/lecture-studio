@@ -514,6 +514,8 @@ export const en: Record<TKey, string> = {
   'settings.keyOk': 'Key works',
   'settings.keyFail': 'Key failed',
   'settings.keysHint': 'Stored on this Mac only: ~/Library/Application Support/Lecture Studio/settings.json. Never in the repository.',
+  'settings.summary.noKey': 'no key',
+  'settings.summary.keySet': 'key saved',
   'keys.missingTitle': 'No API key',
   'keys.missingText': 'Audits and the assistant run on DeepSeek, Gemini or a local model (Ollama). Paste a key in settings — once.',
   'keys.localMissing': 'No local model chosen',
