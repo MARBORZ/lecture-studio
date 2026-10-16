@@ -1,5 +1,7 @@
 """
-Self-update. Releases are git tags vX.Y.Z on origin; APP_VERSION is what is running.
+Self-update. Releases are git tags vX.Y.Z on origin, pre-releases vX.Y.Z-beta.N (also -alpha.N, -rc.N; older than
+vX.Y.Z itself). APP_VERSION is what is running. Pre-releases are offered when the setting asks for them or a pre-release
+runs; tags of other shapes (alpha-*, the old releases) are ignored.
 
   check() — fetch tags (cached), compare the newest with APP_VERSION, list the changes, say if it can be applied.
   apply() — fast-forward the current branch to the release tag, write the hand-over file, start the launcher
@@ -21,9 +23,11 @@ import sys
 import threading
 import time
 import urllib.request
+from typing import Literal
 
 from backend import config
 from backend.models.system import UpdateBlock, UpdateInfo, UpdateOutcome
+from backend.settings import SettingsService
 from backend.utils.fs import read_json, remove_file, write_text
 
 logger = logging.getLogger(__name__)
@@ -32,7 +36,9 @@ CACHE_SEC = 3600
 OUTCOME_SEC = 600
 MAX_CHANGES = 40
 LAUNCHER_WAIT_SEC = 15  # the launcher writes to launcher.log at once; silence after this long = it did not start
-_TAG = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
+_TAG = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)(?:-(alpha|beta|rc)\.(\d+))?$")
+_PRE_RANK = {"alpha": 0, "beta": 1, "rc": 2}
+_FINAL = 3  # 1.0.0-rc.9 < 1.0.0
 
 _lock = threading.Lock()
 _cache: UpdateInfo | None = None
@@ -46,9 +52,29 @@ class UpdateError(Exception):
         self.code = code
 
 
-def parse_version(tag: str) -> tuple[int, int, int] | None:
+def parse_version(tag: str) -> tuple[int, int, int, int, int] | None:
+    """Sort key: (major, minor, patch, stage, n); stage ranks alpha < beta < rc < the release."""
     m = _TAG.match(tag.strip())
-    return (int(m[1]), int(m[2]), int(m[3])) if m else None
+    if not m:
+        return None
+    stage = (_PRE_RANK[m[4]], int(m[5])) if m[4] else (_FINAL, 0)
+    return (int(m[1]), int(m[2]), int(m[3]), *stage)
+
+
+def is_prerelease(tag: str) -> bool:
+    key = parse_version(tag)
+    return key is not None and key[3] != _FINAL
+
+
+def _wants_prereleases() -> bool:
+    return is_prerelease(config.APP_VERSION) or SettingsService.get().beta_updates
+
+
+def _newest(tags: list[str]) -> str | None:
+    """The highest version among tags; pre-releases only when wanted."""
+    pre = _wants_prereleases()
+    ok = [t for t in tags if parse_version(t) and (pre or not is_prerelease(t))]
+    return max(ok, key=lambda t: parse_version(t) or ()) if ok else None
 
 
 def handover_file():
@@ -81,18 +107,13 @@ def is_git_install() -> bool:
 # ---------------------------------------------------------------- check
 
 
-def _newest_tag() -> str | None:
-    tags = [t for t in _git("tag", "-l", "v*").split() if parse_version(t)]
-    return max(tags, key=parse_version) if tags else None
-
-
 def _check_git() -> UpdateInfo:
     current = parse_version(config.APP_VERSION)
     _git("fetch", "--tags", "--force", "--quiet", "origin", timeout=60)
-    tag = _newest_tag()
-    info = UpdateInfo(current=config.APP_VERSION, mode="git", url=f"{config.REPO_URL}/releases")
+    tag = _newest(_git("tag", "-l", "v*").split())
+    info = _info("git")
     info.current_released_at = _tag_date(f"v{config.APP_VERSION}")
-    if not tag or parse_version(tag) <= current:
+    if not tag or not current or (parse_version(tag) or ()) <= current:
         return info
     info.latest = tag.lstrip("v")
     info.released_at = _tag_date(tag)
@@ -139,15 +160,22 @@ def _block_reason(tag: str) -> UpdateBlock | None:
     return None
 
 
-def _check_zip() -> UpdateInfo:
-    api = config.REPO_URL.replace("https://github.com/", "https://api.github.com/repos/") + "/releases/latest"
+def _github_releases() -> list[dict]:
+    """Published releases. Not /releases/latest: it skips pre-releases and is a 404 while there are only betas."""
+    api = config.REPO_URL.replace("https://github.com/", "https://api.github.com/repos/") + "/releases?per_page=50"
     req = urllib.request.Request(api, headers={"Accept": "application/vnd.github+json", "User-Agent": "lecture-studio"})
     with urllib.request.urlopen(req, timeout=15) as res:
-        release = json.load(res)
-    tag = str(release.get("tag_name", ""))
-    info = UpdateInfo(current=config.APP_VERSION, mode="zip", url=release.get("html_url") or f"{config.REPO_URL}/releases")
-    version = parse_version(tag)
-    if version and version > parse_version(config.APP_VERSION):
+        return [r for r in json.load(res) if isinstance(r, dict) and not r.get("draft")]
+
+
+def _check_zip() -> UpdateInfo:
+    releases = {str(r.get("tag_name", "")): r for r in _github_releases()}
+    tag = _newest(list(releases))
+    info = _info("zip")
+    current = parse_version(config.APP_VERSION)
+    if tag and current and (parse_version(tag) or ()) > current:
+        release = releases[tag]
+        info.url = release.get("html_url") or info.url
         info.latest = tag.lstrip("v")
         info.released_at = release.get("published_at") or None
         info.available = True
@@ -155,6 +183,10 @@ def _check_zip() -> UpdateInfo:
         body = str(release.get("body") or "")
         info.changes = [line.lstrip("-* ").strip() for line in body.splitlines() if line.strip()][:MAX_CHANGES]
     return info
+
+
+def _info(mode: Literal["git", "zip"]) -> UpdateInfo:
+    return UpdateInfo(current=config.APP_VERSION, current_prerelease=is_prerelease(config.APP_VERSION), mode=mode, url=f"{config.REPO_URL}/releases")
 
 
 def check(force: bool = False) -> UpdateInfo:
@@ -167,7 +199,8 @@ def check(force: bool = False) -> UpdateInfo:
                 info = _check_git() if is_git_install() else _check_zip()
             except Exception as e:  # offline, git missing, GitHub rate limit: report, never raise
                 logger.warning("Update check failed: %s", e)
-                info = UpdateInfo(current=config.APP_VERSION, mode="git" if is_git_install() else "zip", url=f"{config.REPO_URL}/releases", error=str(e)[:500])
+                info = _info("git" if is_git_install() else "zip")
+                info.error = str(e)[:500]
             info.checked_at = time.time()
             _cache = info.model_copy()
     info.last = _last if _last and time.time() - _last.at < OUTCOME_SEC else None

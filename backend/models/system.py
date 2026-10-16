@@ -42,6 +42,7 @@ class UpdateInfo(BaseModel):
     latest: str | None = None
     released_at: str | None = None  # ISO date of the latest release; display only, the version number decides
     current_released_at: str | None = None  # ISO date of the running release (its tag), when known
+    current_prerelease: bool = False  # a beta runs: beta updates come regardless of the setting
     available: bool = False
     mode: Literal["git", "zip"]
     changes: list[str] = []

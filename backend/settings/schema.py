@@ -72,6 +72,7 @@ class AppSettings(BaseModel):
     onboarding_done: bool = False  # first-run tutorial passed (false -> the UI shows it before anything else)
     theme: Theme = "system"  # follows the OS by default
     text_scale: int = Field(100, ge=TEXT_SCALE_MIN, le=TEXT_SCALE_MAX)  # % of the base size of reading text
+    beta_updates: bool = False  # offer pre-releases (vX.Y.Z-beta.N) too, not only releases
     compute: ComputeSettings = Field(default_factory=ComputeSettings)
     ai: AISettings = Field(default_factory=AISettings)
     pipeline: PipelineDefaults = Field(default_factory=PipelineDefaults)
@@ -112,6 +113,7 @@ class SettingsView(BaseModel):
     onboarding_done: bool
     theme: Theme
     text_scale: int
+    beta_updates: bool
     compute: ComputeSettings
     paths: PathsView
     ai: AISettingsView
@@ -134,6 +136,7 @@ class SettingsPatch(BaseModel):
     onboarding_done: bool | None = None
     theme: Theme | None = None
     text_scale: int | None = Field(default=None, ge=TEXT_SCALE_MIN, le=TEXT_SCALE_MAX)
+    beta_updates: bool | None = None
     compute: ComputeSettings | None = None
     ai: AISettingsPatch | None = None
     pipeline: PipelineDefaults | None = None

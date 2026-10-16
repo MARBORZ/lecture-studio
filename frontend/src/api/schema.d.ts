@@ -1787,6 +1787,8 @@ export interface components {
             theme?: ("system" | "dark" | "light") | null;
             /** Text Scale */
             text_scale?: number | null;
+            /** Beta Updates */
+            beta_updates?: boolean | null;
             compute?: components["schemas"]["ComputeSettings"] | null;
             ai?: components["schemas"]["AISettingsPatch"] | null;
             pipeline?: components["schemas"]["PipelineDefaults"] | null;
@@ -1807,6 +1809,8 @@ export interface components {
             theme: "system" | "dark" | "light";
             /** Text Scale */
             text_scale: number;
+            /** Beta Updates */
+            beta_updates: boolean;
             compute: components["schemas"]["ComputeSettings"];
             paths: components["schemas"]["PathsView"];
             ai: components["schemas"]["AISettingsView"];
@@ -1933,6 +1937,11 @@ export interface components {
             released_at?: string | null;
             /** Current Released At */
             current_released_at?: string | null;
+            /**
+             * Current Prerelease
+             * @default false
+             */
+            current_prerelease: boolean;
             /**
              * Available
              * @default false

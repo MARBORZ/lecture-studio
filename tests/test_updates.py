@@ -63,11 +63,81 @@ def client():
 
 
 def test_version_parsing():
-    from backend.services.updates import parse_version
+    from backend.services.updates import is_prerelease, parse_version
 
     assert parse_version("v1.10.0") > parse_version("v1.9.3")
-    assert parse_version("1.0.0") == (1, 0, 0)
-    assert parse_version("v1.0") is None and parse_version("latest") is None
+    assert parse_version("1.0.0")[:3] == (1, 0, 0)
+    assert parse_version("v1.0") is None and parse_version("latest") is None and parse_version("alpha-1.3.2") is None
+    order = ["v0.9.9", "v1.0.0-alpha.1", "v1.0.0-beta.1", "v1.0.0-beta.2", "v1.0.0-beta.10", "v1.0.0-rc.1", "v1.0.0", "v1.0.1-beta.1", "v1.0.1"]
+    assert sorted(reversed(order), key=parse_version) == order
+    assert is_prerelease("v1.0.0-beta.3") and not is_prerelease("v1.0.0") and not is_prerelease("junk")
+
+
+def test_pyproject_prerelease_is_named_like_its_tag():
+    from backend.config import release_name
+
+    assert release_name("1.0.0b1") == "1.0.0-beta.1" and release_name("2.1.0rc3") == "2.1.0-rc.3" and release_name("1.0.0a2") == "1.0.0-alpha.2"
+    assert release_name("1.3.2") == "1.3.2"
+
+
+def push_tags(work, *tags):
+    for tag in tags:
+        commit(work, f"{tag}.txt", tag)
+        git(work, "tag", "-a", tag, "-m", f"Lecture Studio {tag}\n\n- {tag}")
+    git(work, "push", "-q", "origin", "main", *tags)
+
+
+def test_betas_only_for_beta_users_or_on_request(release_repos):
+    _, work, _ = release_repos
+    git(work, "tag", "alpha-9.9.9", "HEAD")  # the old releases, renamed: never offered
+    push_tags(work, "v1.2.0-beta.1", "v1.2.0-beta.2")
+    git(work, "push", "-q", "origin", "alpha-9.9.9")
+    from backend.settings import SettingsService
+    from backend.settings.schema import SettingsPatch
+
+    with client() as c:
+        info = c.get("/api/system/update?force=true").json()
+        assert info["latest"] == "1.1.0" and not info["current_prerelease"]  # a release runs: releases only
+        SettingsService.patch(SettingsPatch(beta_updates=True))
+        info = c.get("/api/system/update?force=true").json()
+        assert info["latest"] == "1.2.0-beta.2" and info["changes"] == ["v1.2.0-beta.2"]
+
+
+def test_a_beta_gets_the_next_beta_then_the_release(release_repos, monkeypatch):
+    clone, work, _ = release_repos
+    import backend.config as config
+
+    push_tags(work, "v1.2.0-beta.1", "v1.2.0-beta.2")
+    git(clone, "fetch", "-q", "--tags", "origin")
+    git(clone, "merge", "-q", "--ff-only", "v1.2.0-beta.1")
+    monkeypatch.setattr(config, "APP_VERSION", "1.2.0-beta.1")
+    with client() as c:
+        info = c.get("/api/system/update?force=true").json()
+        assert info["current_prerelease"] and info["current_released_at"]
+        assert info["latest"] == "1.2.0-beta.2" and info["blocked"] is None
+        assert c.post("/api/system/update").status_code == 200
+    assert (clone / "v1.2.0-beta.2.txt").exists()
+
+    monkeypatch.setattr(config, "APP_VERSION", "1.2.0-beta.2")
+    push_tags(work, "v1.2.0")
+    with client() as c:
+        assert c.get("/api/system/update?force=true").json()["latest"] == "1.2.0"
+
+
+def test_zip_install_sees_prereleases_too(release_repos, monkeypatch):
+    import backend.config as config
+    from backend.services import updates
+
+    releases = [
+        {"tag_name": "v1.0.0-beta.2", "html_url": "https://x/b2", "published_at": "2026-10-20T10:00:00Z", "body": "- Beta two"},
+        {"tag_name": "alpha-1.3.2", "html_url": "https://x/old"},
+    ]
+    monkeypatch.setattr(updates, "_github_releases", lambda: releases)
+    monkeypatch.setattr(config, "APP_VERSION", "1.0.0-beta.1")
+    info = updates._check_zip()
+    assert info.available and info.latest == "1.0.0-beta.2" and info.url == "https://x/b2" and info.changes == ["Beta two"]
+    monkeypatch.setattr(config, "APP_VERSION", "0.9.0")
+    assert not updates._check_zip().available  # a release runs and betas were not asked for
 
 
 def test_check_finds_the_newest_release_not_main(release_repos):

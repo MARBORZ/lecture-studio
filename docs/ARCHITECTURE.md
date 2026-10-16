@@ -90,8 +90,13 @@ to the inbox. The entry id `<category>/<file>.md` is checked so it cannot escape
 
 ## Updates
 
-`services/updates.py`. A release is a git tag `vX.Y.Z`; `config.APP_VERSION` is what runs. The check fetches tags
-(no tag newer than the running version = nothing to offer, unreleased commits on `main` are never offered).
+`services/updates.py`. A release is a git tag `vX.Y.Z`, a pre-release `vX.Y.Z-beta.N` (also `-alpha.N`, `-rc.N`;
+`1.0.0-beta.9 < 1.0.0-rc.1 < 1.0.0`); `config.APP_VERSION` is what runs. `pyproject.toml` writes a pre-release the
+Python way (`1.0.0b1`) and `config.release_name` turns it into the tag name (`1.0.0-beta.1`). The check fetches tags
+(no tag newer than the running version = nothing to offer, unreleased commits on `main` are never offered; tags of other
+shapes, like the old releases renamed `alpha-*`, are ignored). Pre-releases are offered when Settings → Interface →
+"Get beta versions" is on (`beta_updates`) or a pre-release runs; a beta user then gets the release that follows too.
+A release-zip install asks the GitHub releases list (not `/releases/latest`, which skips pre-releases).
 The dialog lists the annotated tag's body as release notes, or the commit subjects up to the tag for a lightweight tag.
 Applying requires an idle system, a clean working tree and a fast-forward (no local commits); then:
 

@@ -162,6 +162,8 @@ To run a second instance next to the installed app:
 Releasing: `uv version X.Y.Z` (the only version source, `pyproject.toml`), commit, then an annotated tag whose body is
 the release notes (`git tag -a vX.Y.Z`, one `- item` per line), push `main` and the tag. Installed apps show those notes
 in the update dialog on their next check.
+A beta: `uv version 1.0.0b1`, tag `v1.0.0-beta.1`, `gh release create --prerelease`. Only beta users and those who
+turned on "Get beta versions" are offered it.
 
 Stack: FastAPI, Silero VAD, Faster-Whisper, FFmpeg, DeepSeek / Gemini, React 19, Vite, TypeScript, Tailwind 4, Motion.
 

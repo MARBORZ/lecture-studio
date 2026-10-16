@@ -4,7 +4,7 @@ import { api, ApiError } from '@/api/client'
 import type { BusyReason, UpdateInfo } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
-import { Button, Card, Modal } from '@/components/ui'
+import { Button, Card, Modal, Switch } from '@/components/ui'
 import { useSidebarCollapsed } from '@/layouts/Sidebar'
 import { cn } from '@/lib/cn'
 import { formatDate, storage } from '@/lib/format'
@@ -61,11 +61,21 @@ export function UpdateButton() {
   )
 }
 
-/** Settings → Interface: running version and a manual check. */
+/** Settings → Interface: running version, a manual check and the beta channel (always on while a beta runs). */
 export function UpdateCard() {
-  const { t, lang, toast, openModal } = useUI()
+  const { t, lang, toast, openModal, settings, patchSettings } = useUI()
   const info = useUpdates((s) => s.info)
   const checking = useUpdates((s) => s.checking)
+  const onBeta = Boolean(info?.current_prerelease)
+
+  async function setBeta(on: boolean) {
+    try {
+      await patchSettings({ beta_updates: on })
+      await updates.check(true) // the sidebar button follows the channel
+    } catch (e) {
+      toast((e as Error).message, 'error')
+    }
+  }
 
   async function check() {
     try {
@@ -80,7 +90,16 @@ export function UpdateCard() {
 
   return (
     <Card title={t('update.title')} description={currentText(info, t, lang)}>
-      <Button icon={RefreshCw} loading={checking} onClick={check}>{t('update.check')}</Button>
+      <div className="flex flex-col gap-4">
+        <Button icon={RefreshCw} loading={checking} onClick={check} className="self-start">{t('update.check')}</Button>
+        <Switch
+          checked={onBeta || settings!.beta_updates}
+          disabled={onBeta}
+          onChange={(on) => void setBeta(on)}
+          label={t('update.beta')}
+          hint={t(onBeta ? 'update.betaRunning' : 'update.betaHint')}
+        />
+      </div>
     </Card>
   )
 }

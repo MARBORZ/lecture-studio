@@ -3,6 +3,7 @@ Static, process-wide constants. Everything user-configurable lives in backend.se
 """
 
 import os
+import re
 import sys
 import tomllib
 from pathlib import Path
@@ -16,8 +17,17 @@ APP_NAME = "Lecture Studio"
 REPO_DIR = Path(__file__).resolve().parent.parent
 
 # The one version source is pyproject.toml (release: `uv version X.Y.Z`, commit, tag vX.Y.Z).
+# A pre-release is written the Python way (1.0.0b1) and named the way it is tagged (1.0.0-beta.1, tag v1.0.0-beta.1).
+_PRE_NAMES = {"a": "alpha", "b": "beta", "rc": "rc"}
+
+
+def release_name(version: str) -> str:
+    m = re.fullmatch(r"(\d+\.\d+\.\d+)(a|b|rc)(\d+)", version)
+    return f"{m[1]}-{_PRE_NAMES[m[2]]}.{m[3]}" if m else version
+
+
 with open(REPO_DIR / "pyproject.toml", "rb") as _f:
-    APP_VERSION: str = tomllib.load(_f)["project"]["version"]
+    APP_VERSION: str = release_name(tomllib.load(_f)["project"]["version"])
 
 # Machine-local home: settings.json, pid file, logs, launcher state, Chrome app profile.
 # Lives outside the repository and outside the data dir so paths can change freely.

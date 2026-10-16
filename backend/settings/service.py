@@ -130,6 +130,8 @@ class SettingsService:
                 current.theme = patch.theme
             if patch.text_scale is not None:
                 current.text_scale = patch.text_scale
+            if patch.beta_updates is not None:
+                current.beta_updates = patch.beta_updates
             if patch.compute is not None:
                 current.compute = patch.compute
             if patch.pipeline is not None:
@@ -228,6 +230,7 @@ class SettingsService:
             onboarding_done=s.onboarding_done,
             theme=s.theme,
             text_scale=s.text_scale,
+            beta_updates=s.beta_updates,
             compute=s.compute,
             paths=PathsView(
                 data_dir=str(p.data_dir),
