@@ -32,3 +32,21 @@ class DownloaderInfo(BaseModel):
     version: str  # "" when yt-dlp does not run
     latest: str = ""  # from PyPI; "" when unknown (offline)
     update_available: bool = False
+
+
+class DownloadedVideo(BaseModel):
+    """A file in downloads/: what the Videos tab fetched, and whether a lesson was made of it."""
+
+    name: str
+    path: str
+    title: str
+    size_mb: float
+    downloaded_at: str
+    used: bool = False  # a Studio job took it
+
+
+class DownloadPage(BaseModel):
+    items: list[DownloadedVideo]
+    total: int
+    page: int
+    size: int

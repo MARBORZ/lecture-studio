@@ -73,3 +73,12 @@ class JobEvent(BaseModel):
 
     job: Job
     extra: dict[str, Any] = Field(default_factory=dict)
+
+
+class JobPage(BaseModel):
+    """One page of the job history, newest first."""
+
+    items: list[Job]
+    total: int
+    page: int
+    size: int

@@ -1,6 +1,10 @@
 """
-In-memory job registry plus activity counters (uploads, exports).
+Job registry plus activity counters (uploads, exports).
 It is the single authority on "is the system busy?" used by shutdown and data-dir changes.
+
+Live jobs are in memory (the Studio's list). Every finished job is also appended to paths().job_history, so the
+history survives restarts and the list can be cleared without losing it: clear_finished() only hides them from the
+list, history() pages through all of them.
 """
 
 import builtins
@@ -11,11 +15,14 @@ from contextlib import contextmanager
 from datetime import datetime
 
 from backend.i18n import tr
-from backend.models.job import ACTIVE_STATUSES, Job, JobKind, Stage
+from backend.models.job import ACTIVE_STATUSES, Job, JobKind, JobPage, Stage
 from backend.models.system import BusyReason
-from backend.settings import SettingsService
+from backend.settings import SettingsService, paths
+from backend.utils.fs import read_json, write_json
 
-MAX_HISTORY = 50
+MAX_HISTORY = 50  # finished jobs kept in the live list
+HISTORY_KEEP = 2000  # finished jobs kept on disk
+_FINAL = ("completed", "error", "cancelled")
 
 
 class JobCancelled(Exception):
@@ -69,9 +76,12 @@ class JobRegistry:
             job = cls._jobs.get(job_id)
             if not job:
                 return
-            if fields.get("status") in ("completed", "error", "cancelled"):
+            final = fields.get("status") in _FINAL and job.status not in _FINAL
+            if final:
                 fields.setdefault("finished_at", datetime.now().isoformat(timespec="seconds"))
             cls._jobs[job_id] = job.model_copy(update=fields)
+            if final:
+                cls._remember(cls._jobs[job_id])
 
     @classmethod
     def request_cancel(cls, job_id: str) -> bool:
@@ -87,6 +97,41 @@ class JobRegistry:
         with cls._lock:
             job = cls._jobs.get(job_id)
             return bool(job and job.cancel_requested)
+
+    # ---------------- history ----------------
+
+    @classmethod
+    def _remember(cls, job: Job) -> None:
+        """Append a finished job to the history file (newest last on disk). Called under the lock."""
+        try:
+            items = read_json(paths().job_history, [])
+            items = [i for i in items if isinstance(i, dict) and i.get("id") != job.id] + [job.model_dump()]
+            write_json(paths().job_history, items[-HISTORY_KEEP:])
+        except OSError:
+            pass  # history is a convenience: a full disk must not fail the job
+
+    @classmethod
+    def clear_finished(cls) -> int:
+        """Take finished jobs off the Studio's list (they stay in the history)."""
+        with cls._lock:
+            done = [k for k, j in cls._jobs.items() if not j.active]
+            for k in done:
+                cls._jobs.pop(k, None)
+            return len(done)
+
+    @classmethod
+    def history(cls, page: int = 1, size: int = 20) -> JobPage:
+        size = max(1, min(size, 100))
+        page = max(1, page)
+        with cls._lock:
+            items = [Job.model_validate(i) for i in reversed(read_json(paths().job_history, [])) if isinstance(i, dict)]
+        start = (page - 1) * size
+        return JobPage(items=items[start : start + size], total=len(items), page=page, size=size)
+
+    @classmethod
+    def clear_history(cls) -> None:
+        with cls._lock:
+            write_json(paths().job_history, [])
 
     # ---------------- activity counters ----------------
 

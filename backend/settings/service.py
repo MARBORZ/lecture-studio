@@ -71,9 +71,14 @@ class Paths:
         """Videos downloaded in the Videos tab (services/videos.py), before the Studio makes lessons of them."""
         return self.data_dir / "downloads"
 
+    @property
+    def job_history(self) -> Path:
+        """Finished jobs (services/jobs.py): the Studio's history survives restarts."""
+        return self.data_dir / "job_history.json"
+
     def movable(self) -> list[Path]:
         """What "move the library" carries to a new data folder (temp is dropped)."""
-        return [self.db, self.output, self.diary, self.attachments, self.covers, self.sessions, self.downloads]
+        return [self.db, self.output, self.diary, self.attachments, self.covers, self.sessions, self.downloads, self.job_history]
 
     def lesson_dir(self, job_id: str) -> Path:
         return self.output / job_id

@@ -18,7 +18,8 @@ from pydantic import BaseModel
 from backend.core.media import MediaError, browser_playback_problem, check_input, probe_video
 from backend.core.pipeline import start_processing
 from backend.i18n import tr
-from backend.models.job import Job, JobOptions
+from backend.models.job import Job, JobOptions, JobPage
+from backend.services import videos
 from backend.services.jobs import JobRegistry
 from backend.services.storage import Library
 from backend.settings import paths
@@ -119,13 +120,32 @@ def start_job(req: StartJobRequest) -> Job:
         if not media.is_file():
             raise HTTPException(400, detail=tr("file.not_found_path", path=media))
         _check(media)
-        return start_processing(opts, str(media), is_uploaded=False)
+        job = start_processing(opts, str(media), is_uploaded=False)
+        videos.mark_used(media)  # a file from the Videos tab is now taken
+        return job
     raise HTTPException(400, detail=tr("job.need_file"))
 
 
 @router.get("/jobs", response_model=list[Job])
 def list_jobs() -> list[Job]:
     return JobRegistry.list()
+
+
+@router.post("/jobs/clear-finished")
+def clear_finished() -> dict:
+    """Finished jobs leave the Studio's list; the history keeps them."""
+    return {"cleared": JobRegistry.clear_finished()}
+
+
+@router.get("/jobs/history", response_model=JobPage)
+def job_history(page: int = 1, size: int = 20) -> JobPage:
+    return JobRegistry.history(page, size)
+
+
+@router.delete("/jobs/history")
+def clear_job_history() -> dict:
+    JobRegistry.clear_history()
+    return {"ok": True}
 
 
 @router.get("/jobs/stream")
