@@ -1,4 +1,4 @@
-﻿# Lecture Studio Uninstall (Windows). Started by Uninstall.cmd (double-click) in the project root.
+﻿# Lecture Studio Uninstall (Windows). Started by setups\windows\Uninstall.cmd (double-click).
 # Deletes the app, its settings (API keys, logs) and the Desktop shortcut; lessons stay unless chosen.
 # Only asks: the rules and the deleting are the app's own (python -m backend.tools.uninstall -> services/uninstall.py),
 # the same as Settings -> Delete Lecture Studio.

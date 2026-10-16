@@ -184,7 +184,7 @@ plan's paths and our Desktop shortcut (checked by bundle id / `start.vbs` target
 the home folder, and shows the final message. With "delete lessons" only the library items are listed; the data folder
 itself goes only if nothing else is left in it.
 
-`Uninstall.app` / `Uninstall.cmd` (project root) only ask the questions; `python -m backend.tools.uninstall describe | run`
+`setups/macos/Uninstall.app` / `setups/windows/Uninstall.cmd` only ask the questions; `python -m backend.tools.uninstall describe | run`
 applies the same rules. `run` goes through the API when the server on the port is this install (it stops everything and
 refuses while busy), starts the remover directly when nothing runs, and refuses when another copy's server answers.
 

@@ -46,14 +46,14 @@ fail() {
   dialog "$1" '"OK"' stop >/dev/null
   exit 1
 }
-# The range Vite 8 accepts, as in frontend/package.json engines: ^20.19.0 || >=22.12.0 (same check in installer/macos/install.zsh).
+# The range Vite 8 accepts, as in frontend/package.json engines: ^20.19.0 || >=22.12.0 (same check in setups/macos/install.zsh).
 node_ok() {
   local -a v=( ${(s:.:)${$(node --version 2>/dev/null)#v}} )
   [[ ${v[1]-} == <-> && ${v[2]-} == <-> ]] || return 1
   (( (v[1] == 20 && v[2] >= 19) || (v[1] == 22 && v[2] >= 12) || v[1] > 22 ))
 }
 # Texts follow the Mac's first preferred language: Russian on a Russian system, English everywhere else
-# (LECTURE_STUDIO_LANG=ru|en overrides). The same lines are in installer/macos/install.zsh and launcher/macos/{start,stop}.zsh.
+# (LECTURE_STUDIO_LANG=ru|en overrides). The same lines are in setups/macos/install.zsh and launcher/macos/{start,stop}.zsh.
 os_lang() {
   [[ ${LECTURE_STUDIO_LANG-} == (ru|en) ]] && { print -r -- $LECTURE_STUDIO_LANG; return }
   local first=${$(defaults read -g AppleLanguages 2>/dev/null | sed -n 2p)//[[:space:]\",]/}

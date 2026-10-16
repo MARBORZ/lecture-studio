@@ -5,7 +5,7 @@
 set -u
 API="http://127.0.0.1:3000"
 # Texts follow the Mac's first preferred language: Russian on a Russian system, English everywhere else
-# (LECTURE_STUDIO_LANG=ru|en overrides). The same lines are in installer/macos/install.zsh and launcher/macos/{start,stop}.zsh.
+# (LECTURE_STUDIO_LANG=ru|en overrides). The same lines are in setups/macos/install.zsh and launcher/macos/{start,stop}.zsh.
 os_lang() {
   [[ ${LECTURE_STUDIO_LANG-} == (ru|en) ]] && { print -r -- $LECTURE_STUDIO_LANG; return }
   local first=${$(defaults read -g AppleLanguages 2>/dev/null | sed -n 2p)//[[:space:]\",]/}

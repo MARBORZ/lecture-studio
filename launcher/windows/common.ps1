@@ -1,4 +1,4 @@
-﻿# Lecture Studio (Windows): shared helpers for launcher\windows\start.ps1, stop.ps1, installer\windows\install.ps1 and uninstall.ps1.
+﻿# Lecture Studio (Windows): shared helpers for launcher\windows\start.ps1, stop.ps1, setups\windows\install.ps1 and uninstall.ps1.
 # Dot-source:  . (Join-Path $PSScriptRoot 'common.ps1')
 
 $Repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path

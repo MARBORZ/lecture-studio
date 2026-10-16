@@ -1,7 +1,7 @@
 -- Lecture Studio Uninstall: double-click. Deletes the app, its settings (API keys, logs) and the Desktop shortcut;
 -- lessons stay unless chosen. Only asks: the rules and the deleting are the app's own
 -- (python -m backend.tools.uninstall -> services/uninstall.py), the same as Settings -> Delete Lecture Studio.
---   next to a clone (Uninstall.app in the project root) -> that clone
+--   inside a clone (setups/macos/Uninstall.app)        -> that clone
 --   anywhere else                                       -> the Setup install in ~/Library/Application Support/Lecture Studio/app
 
 property ru : false
@@ -21,7 +21,7 @@ on run
 	set ru to my osRussian()
 	set T to "Lecture Studio Uninstall"
 	set appPath to POSIX path of (path to me)
-	set repoDir to do shell script "cd " & quoted form of appPath & "/.. && pwd"
+	set repoDir to do shell script "cd " & quoted form of appPath & "/../../.. && pwd"
 	if (do shell script "test -f " & quoted form of (repoDir & "/pyproject.toml") & " && echo yes || echo no") is "no" then
 		set repoDir to POSIX path of (path to home folder) & "Library/Application Support/Lecture Studio/app"
 	end if

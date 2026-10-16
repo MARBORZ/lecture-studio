@@ -1,6 +1,6 @@
 -- Lecture Studio Setup: native installer/updater with a progress window.
--- Two modes, same steps (installer/macos/install.zsh):
---   in a git clone (Setup.app in the project root) -> installs in place, from this folder
+-- Two modes, same steps (setups/macos/install.zsh):
+--   in a git clone (setups/macos/Setup.app)  -> installs in place, from that clone
 --   standalone (release zip)              -> copies the code embedded in Resources/source.tar.gz
 -- Result: the "Lecture Studio" app on the Desktop.
 
@@ -20,11 +20,11 @@ end L
 on run
 	set ru to my osRussian()
 	set appPath to POSIX path of (path to me)
-	set repoDir to do shell script "cd " & quoted form of appPath & "/.. && pwd"
-	set inPlace to (do shell script "test -f " & quoted form of (repoDir & "/pyproject.toml") & " && test -f " & quoted form of (repoDir & "/installer/macos/install.zsh") & " && echo yes || echo no") is "yes"
+	set repoDir to do shell script "cd " & quoted form of appPath & "/../../.. && pwd"
+	set inPlace to (do shell script "test -f " & quoted form of (repoDir & "/pyproject.toml") & " && test -f " & quoted form of (repoDir & "/setups/macos/install.zsh") & " && echo yes || echo no") is "yes"
 
 	if inPlace then
-		set installer to "LS_INSTALL_DIR=" & quoted form of repoDir & " zsh " & quoted form of (repoDir & "/installer/macos/install.zsh")
+		set installer to "LS_INSTALL_DIR=" & quoted form of repoDir & " zsh " & quoted form of (repoDir & "/setups/macos/install.zsh")
 		set source to my L("Из папки: ", "From the folder: ") & repoDir
 	else
 		set installer to "zsh " & quoted form of POSIX path of (path to resource "install.zsh")

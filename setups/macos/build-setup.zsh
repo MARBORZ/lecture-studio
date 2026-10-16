@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Builds the applets:
-#   Setup.app, Uninstall.app         committed in the project root; work on the clone they sit in
+#   setups/macos/{Setup,Uninstall}.app   committed; work on the clone they sit in
 #   dist/Lecture-Studio-Setup.zip    standalone Setup for Releases; carries the code (git HEAD) inside
 set -eu
 REPO="${0:A:h:h:h}"
@@ -9,7 +9,7 @@ trap 'rm -rf "$WORK"' EXIT
 
 build() {  # build <out.app> <with_source:0|1> [script name, default Setup] [bundle id suffix, default setup]
   local app="$1" name="${3:-Setup}" id="${4:-setup}"
-  osacompile -o "$app" "$REPO/installer/macos/$name.applescript"
+  osacompile -o "$app" "$REPO/setups/macos/$name.applescript"
   zsh "$REPO/launcher/macos/make-icon.zsh" "$REPO/assets/setup-icon.svg" "$app/Contents/Resources/applet.icns"
   # Modern applets take the icon from Assets.car via CFBundleIconName; drop it so applet.icns (ours) is used.
   rm -f "$app/Contents/Resources/Assets.car"
@@ -17,19 +17,19 @@ build() {  # build <out.app> <with_source:0|1> [script name, default Setup] [bun
   /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier local.lecture-studio.$id" "$app/Contents/Info.plist" 2>/dev/null \
     || /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string local.lecture-studio.$id" "$app/Contents/Info.plist"
   if (( $2 )); then
-    cp "$REPO/installer/macos/install.zsh" "$app/Contents/Resources/install.zsh"
+    cp "$REPO/setups/macos/install.zsh" "$app/Contents/Resources/install.zsh"
     git -C "$REPO" archive --format=tar.gz -o "$app/Contents/Resources/source.tar.gz" HEAD
   fi
   xattr -cr "$app"
   codesign --force --deep -s - "$app" 2>/dev/null
 }
 
-# 1. In-place (committed, project root)
+# 1. In-place (committed, setups/macos)
 for name in Setup Uninstall; do
   build "$WORK/$name.app" 0 "$name" "${(L)name}"
-  rm -rf "$REPO/$name.app"
-  ditto "$WORK/$name.app" "$REPO/$name.app"
-  print "Built: $name.app"
+  rm -rf "$REPO/setups/macos/$name.app"
+  ditto "$WORK/$name.app" "$REPO/setups/macos/$name.app"
+  print "Built: setups/macos/$name.app"
 done
 
 # 2. Standalone (release)

@@ -532,7 +532,7 @@ export const ru = {
   'uninstall.gitWork': 'В папке программы есть работа, которой нет на GitHub. Из приложения такая папка не удаляется: сохраните работу или удалите папку вручную.',
   'uninstall.confirm': 'Я понимаю, что это нельзя отменить',
   'uninstall.apply': 'Удалить',
-  'uninstall.reinstallGit': 'Установить заново: git clone {url} "{path}", затем запустите Setup в этой папке.',
+  'uninstall.reinstallGit': 'Установить заново: git clone {url} "{path}", затем запустите Setup из папки setups в ней.',
   'uninstall.reinstallSetup': 'Установить заново: запустите Lecture Studio Setup.',
   'uninstall.doneTitle': 'Lecture Studio удаляется',
   'uninstall.doneHint': 'Окно закроется само. Когда всё будет удалено, появится сообщение.',

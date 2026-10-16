@@ -521,7 +521,7 @@ export const en: Record<TKey, string> = {
   'uninstall.gitWork': 'The app folder holds work that is not on GitHub. Such a folder is not deleted from the app: save the work or delete the folder by hand.',
   'uninstall.confirm': 'I understand this cannot be undone',
   'uninstall.apply': 'Delete',
-  'uninstall.reinstallGit': 'To install again: git clone {url} "{path}", then run Setup in that folder.',
+  'uninstall.reinstallGit': 'To install again: git clone {url} "{path}", then run Setup from its setups folder.',
   'uninstall.reinstallSetup': 'To install again, run Lecture Studio Setup.',
   'uninstall.doneTitle': 'Deleting Lecture Studio',
   'uninstall.doneHint': 'This window closes by itself. A message appears when everything is deleted.',

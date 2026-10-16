@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-ZSH = [ROOT / "installer" / "macos" / "install.zsh", ROOT / "launcher" / "macos" / "start.zsh", ROOT / "launcher" / "macos" / "stop.zsh"]
+ZSH = [ROOT / "setups" / "macos" / "install.zsh", ROOT / "launcher" / "macos" / "start.zsh", ROOT / "launcher" / "macos" / "stop.zsh"]
 CYRILLIC = re.compile(r"[А-Яа-яЁё]")
 
 
@@ -51,8 +51,8 @@ def test_macos_language_follows_the_first_preferred_language(tmp_path, languages
 
 def test_every_russian_text_of_the_scripts_has_an_english_twin():
     # L "ru" "en" (zsh, PowerShell), my L("ru", "en") (AppleScript); comments may be Russian
-    scripts = [*ZSH, *(ROOT / "installer" / "macos").glob("*.applescript"), *(ROOT / "installer" / "windows").glob("*.ps1")]
-    scripts += [*(ROOT / "launcher" / "windows").glob("*.ps1"), *(ROOT / "launcher" / "windows").glob("*.vbs"), *ROOT.glob("*.cmd")]
+    scripts = [*ZSH, *(ROOT / "setups" / "macos").glob("*.applescript"), *(ROOT / "setups" / "windows").glob("*.ps1")]
+    scripts += [*(ROOT / "launcher" / "windows").glob("*.ps1"), *(ROOT / "launcher" / "windows").glob("*.vbs"), *(ROOT / "setups" / "windows").glob("*.cmd")]
     bad = []
     for p in scripts:
         for n, line in enumerate(p.read_text("utf-8-sig").splitlines(), 1):

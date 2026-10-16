@@ -76,7 +76,7 @@ Remove-Item -Path (Join-Path $AppHome 'server.pid'), (Join-Path $AppHome 'fronte
 
 # ---- 2. Toolchain.
 foreach ($tool in 'uv', 'node', 'ffmpeg') {
-    if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { Fail (L "Не найден $tool. Запустите Setup.cmd в папке программы." "$tool not found. Run Setup.cmd in the app folder.") }
+    if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { Fail (L "Не найден $tool. Запустите setups\windows\Setup.cmd в папке программы." "$tool not found. Run setups\windows\Setup.cmd in the app folder.") }
 }
 $nodeProblem = Update-Node -LogFile $Log
 if ($nodeProblem) { Fail $nodeProblem }

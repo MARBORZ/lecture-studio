@@ -14,7 +14,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 RANGE = "^20.19.0 || >=22.12.0"
-SCRIPTS = [ROOT / "installer" / "macos" / "install.zsh", ROOT / "launcher" / "macos" / "start.zsh"]
+SCRIPTS = [ROOT / "setups" / "macos" / "install.zsh", ROOT / "launcher" / "macos" / "start.zsh"]
 
 
 def node_ok_source(script: Path) -> str:

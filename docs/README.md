@@ -29,10 +29,9 @@ backend/
 frontend/                     React 19 + Vite + TypeScript + Tailwind 4 + SCSS + Motion
 launcher/macos/               start.zsh, stop.zsh, remove.zsh (uninstall worker), build-app.zsh, make-icon.zsh, stub.c
 launcher/windows/             common.ps1 (shared helpers), start.ps1, start.vbs (no console), stop.ps1, remove.{vbs,ps1} (uninstall worker)
-Setup.app, Uninstall.app      macOS, double-click (built by installer/macos/build-setup.zsh from the .applescript files)
-Setup.cmd, Uninstall.cmd      Windows, double-click
-installer/macos/              install.zsh (steps), Setup.applescript, Uninstall.applescript, build-setup.zsh
-installer/windows/            install.ps1 (progress window, steps), uninstall.ps1 (questions)
+setups/macos/                 Setup.app, Uninstall.app (double-click; built by build-setup.zsh from the .applescript files),
+                              install.zsh (steps), Setup.applescript, Uninstall.applescript, build-setup.zsh
+setups/windows/               Setup.cmd, Uninstall.cmd (double-click), install.ps1 (progress window, steps), uninstall.ps1 (questions)
 assets/                       icon.svg, setup-icon.svg, icon.ico
 mcp_server.py                 MCP server on top of services
 tests/                        pytest

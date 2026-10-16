@@ -1,4 +1,4 @@
-﻿# Lecture Studio Setup (Windows). Started by Setup.cmd (double-click) from a clone of the repository.
+﻿# Lecture Studio Setup (Windows). Started by setups\windows\Setup.cmd (double-click) in a clone of the repository.
 # Progress window -> uv, Node.js, FFmpeg (winget / official uv installer) -> Python + UI dependencies
 # -> first-run settings -> "Lecture Studio" shortcut on the Desktop. The app runs from this clone.
 # Re-running = update dependencies and the shortcut. Lesson data and settings are never touched.

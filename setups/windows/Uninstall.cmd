@@ -3,4 +3,4 @@ rem Lecture Studio Uninstall (Windows): double-click. Deletes the app, its setti
 rem Runs from %TEMP%: a folder that is some process's current directory cannot be deleted on Windows.
 set "HERE=%~dp0"
 cd /d "%TEMP%"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%HERE%installer\windows\uninstall.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%HERE%uninstall.ps1"

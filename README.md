@@ -82,7 +82,7 @@ git clone https://github.com/MARBORZ/lecture-studio.git
 
 | | macOS | Windows 10/11 (untested) |
 |---|---|---|
-| Run | Finder → `Setup` in the project folder (double-click) | Explorer → `Setup.cmd` in the project folder (double-click) |
+| Run | Finder → `setups/macos/Setup` (double-click) | Explorer → `setups\windows\Setup.cmd` (double-click) |
 | Installs | Homebrew (asks for the admin password in a system dialog), uv, Node.js, FFmpeg | uv (official installer), Node.js and FFmpeg via winget (UAC may ask) |
 | Result | **Lecture Studio** icon on the Desktop | **Lecture Studio** shortcut on the Desktop |
 | Settings, keys, logs | `~/Library/Application Support/Lecture Studio/` | `%APPDATA%\Lecture Studio\` |
@@ -127,7 +127,7 @@ folder. The app window closes, and a message says what was kept and how to insta
 folder and Setup, or Lecture Studio Setup for a zip install. A folder with git work that is not on GitHub (a developer
 checkout) is never deleted.
 
-Without opening the app: `Uninstall` (macOS) or `Uninstall.cmd` (Windows) in the project folder, next to Setup. Same
+Without opening the app: `setups/macos/Uninstall` or `setups\windows\Uninstall.cmd`, next to Setup. Same
 rules and questions; if the app is running it is stopped first (refused while it is processing). On macOS, an
 `Uninstall` outside a clone deletes the Setup install in `~/Library/Application Support/Lecture Studio/app`.
 
