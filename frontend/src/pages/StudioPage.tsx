@@ -5,10 +5,10 @@ import { api } from '@/api/client'
 import type { MediaInfo, PipelineDefaults } from '@/api/types'
 import { useJobs, useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
-import { AnimatePresence, Appear, ListItem } from '@/components/motion'
+import { Appear } from '@/components/motion'
 import { Button, Card, EmptyState, Field, Input, Page, PageHeader, Progress, Segmented, Select, Switch } from '@/components/ui'
 import { FALLBACK_DEFAULTS, PipelineOptionsFields } from '@/features/jobs/PipelineOptionsFields'
-import { JobCard } from '@/features/jobs/JobCard'
+import { JobList } from '@/features/jobs/JobList'
 import { KeyNotice } from '@/features/system/KeyNotice'
 import { cn } from '@/lib/cn'
 import { formatBytes, formatDuration } from '@/lib/format'
@@ -205,13 +205,7 @@ export function StudioPage() {
         <div className="flex min-w-0 flex-col gap-3">
           <div className="label-caps">{t('studio.queue')}</div>
           {jobs.length ? (
-            <AnimatePresence initial={false}>
-              {jobs.map((j, i) => (
-                <ListItem key={j.id} index={i}>
-                  <JobCard job={j} />
-                </ListItem>
-              ))}
-            </AnimatePresence>
+            <JobList jobs={jobs} />
           ) : (
             <EmptyState icon={Play} title={t('studio.queueEmpty')} />
           )}

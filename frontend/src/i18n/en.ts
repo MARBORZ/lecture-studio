@@ -212,6 +212,8 @@ export const en: Record<TKey, string> = {
   'studio.started': 'Job started — progress on the right',
   'studio.queue': 'Jobs',
   'studio.queueEmpty': 'No jobs',
+  'studio.showAll': 'Show all finished ({n})',
+  'studio.showRecent': 'Recent only',
   'studio.cancelJob': 'Cancel',
   'studio.openLesson': 'Open lesson',
   'studio.exportAfter': 'Export to folder when done',
@@ -329,6 +331,7 @@ export const en: Record<TKey, string> = {
   'job.cancelled': 'Cancelled',
   'job.pending': 'Queued',
   'job.processing': 'Processing',
+  'job.cancelling': 'Cancelling…',
 
   'settings.title': 'Settings',
   'settings.paths': 'Paths',

@@ -20,11 +20,23 @@
   --shadow-float: 0 24px 80px var(--shadow-color); /* floating windows above the app */
   --shadow-glow: 0 0 60px rgba(255, 255, 255, 0.12); /* tutorial finale mark */
   --animate-pulse-soft: pulse-soft 1.6s ease-in-out infinite;
+  /* placeholders stay invisible for the first 180 ms: fast loads (most of them, local API) show no flash */
+  --animate-skeleton-frame: skeleton-frame 0.2s ease 0.18s both; /* the frame around placeholders */
+  --animate-skeleton: skeleton-in 0.2s ease 0.18s both, pulse-soft 1.6s ease-in-out 0.38s infinite;
 
   /* transform only: a frozen first frame (hidden/background window) must still show the content */
   @keyframes fade-in {
     from { transform: translateY(6px); }
     to { transform: none; }
+  }
+
+  @keyframes skeleton-frame {
+    from { opacity: 0; }
+  }
+
+  @keyframes skeleton-in {
+    from { opacity: 0; }
+    to { opacity: 0.45; }
   }
 
   @keyframes pulse-soft {

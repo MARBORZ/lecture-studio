@@ -219,6 +219,8 @@ export const ru = {
   'studio.started': 'Задача запущена — прогресс справа',
   'studio.queue': 'Задачи',
   'studio.queueEmpty': 'Задач нет',
+  'studio.showAll': 'Показать все завершённые ({n})',
+  'studio.showRecent': 'Только последние',
   'studio.cancelJob': 'Отменить',
   'studio.openLesson': 'Открыть урок',
   'studio.exportAfter': 'Экспортировать в папку после обработки',
@@ -338,6 +340,7 @@ export const ru = {
   'job.cancelled': 'Отменено',
   'job.pending': 'В очереди',
   'job.processing': 'Обработка',
+  'job.cancelling': 'Отмена…',
 
   // settings
   'settings.title': 'Настройки',
