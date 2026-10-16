@@ -288,13 +288,14 @@ function splitQuote(text: string): { quote: string; rest: string } {
 function UserBubble({ text, attachments = [] }: { text: string; attachments?: Attachment[] }) {
   const { quote, rest } = splitQuote(text)
   return (
-    <div className="ml-auto flex max-w-[85%] flex-col items-end gap-1.5">
+    <div className="ml-auto flex max-w-[85%] min-w-0 flex-col items-end gap-1.5">
       {attachments.length > 0 && (
         <div className="flex flex-wrap justify-end gap-1.5">
           {attachments.map((a) => <AttachmentChip key={a.id} attachment={a} />)}
         </div>
       )}
-      <div className="read-14 rounded-xl rounded-br-sm bg-raised px-3.5 py-2 whitespace-pre-wrap text-fg">
+      {/* a word with no spaces (a link, a long token) breaks anywhere instead of leaving the bubble */}
+      <div className="read-14 max-w-full rounded-xl rounded-br-sm bg-raised px-3.5 py-2 whitespace-pre-wrap text-fg [overflow-wrap:anywhere]">
         {quote && <p className="mb-1.5 line-clamp-4 border-l-2 border-muted pl-2.5 text-[12.5px] text-muted">{quote}</p>}
         {rest}
       </div>
