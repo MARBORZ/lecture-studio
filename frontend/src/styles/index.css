@@ -15,6 +15,9 @@
   --color-muted: #8f8f8f;
   --color-soft: #c8c8c8;
   --color-fg: #fafafa;
+  /* the only colours outside black and white: a filling context window (warn) and a full one (danger) */
+  --color-warn: #e5c07b;
+  --color-danger: #e06c6c;
 
   --radius-ui: 8px;
   --shadow-float: 0 24px 80px var(--shadow-color); /* floating windows above the app */
@@ -67,6 +70,8 @@
   --color-muted: #6b6b6b;
   --color-soft: #333333;
   --color-fg: #0a0a0a;
+  --color-warn: #b7791f;
+  --color-danger: #c53030;
   --shadow-color: rgba(0, 0, 0, 0.16);
 }
 

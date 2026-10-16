@@ -1,4 +1,4 @@
-import { ArrowUp, NotebookPen, TriangleAlert, X } from 'lucide-react'
+import { ArrowUp, NotebookPen, Slash, TriangleAlert, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import type { AIProvider, AssistantRole, Attachment, ChatMessage, ContextUsage, ThreadKind } from '@/api/types'
@@ -14,9 +14,9 @@ import { formatTc } from '@/lib/time'
 import { AttachButton, AttachmentChip, useAttachments } from './attachments'
 import { ContextMeter, SessionBar } from './SessionBar'
 import { SelectionAsk, withQuote } from './SelectionAsk'
+import { SlashMenu } from './SlashMenu'
 import { useThread } from './useThread'
 
-const ROLES: Exclude<AssistantRole, 'qa'>[] = ['key_moments', 'pitfalls', 'code_summary', 'quiz', 'chapters']
 
 /**
  * Router state a page passes to open the assistant with a quote: text selected in the audit, or a moment of the paused
@@ -30,7 +30,7 @@ export interface AskState { quote?: string; newSession?: boolean; at?: number }
  *   kind="project" — selected lessons of a notebook, citations [[lesson@MM:SS]] open the lesson
  */
 export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKind; id: string; sources?: string[]; lessonId?: string }) {
-  const { t, settings, toast } = useUI()
+  const { t, settings, toast, confirm } = useUI()
   const { patchLesson, lessons } = useLibrary()
   const keys = useAiKeys()
   const [provider, setProvider] = useState<AIProvider>(() => pickProvider(settings?.ai.assistant_provider ?? 'deepseek', keys))
@@ -43,7 +43,8 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
   const navigate = useNavigate()
   const [question, setQuestion] = useState('')
   const [quote, setQuote] = useState('')
-  const [pending, setPending] = useState<string | null>(null)
+  // the question waiting for its answer: kept outside this page (pending.ts), so leaving and coming back keeps it
+  const pending = chat.waiting
   const [dragging, setDragging] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -80,17 +81,14 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
     if (pending || files.uploading) return
     const base = text || (quote ? t('assistant.quoteDefault') : '') || (files.ids.length ? t('assistant.attachOnly') : '')
     const full = quote && role === 'qa' ? withQuote(quote, base) : base
-    setPending(full || t(`assistant.role.${role as Exclude<AssistantRole, 'qa'>}`))
     setQuestion('')
     try {
-      await chat.ask({ question: full, role, attachments: files.ids })
+      await chat.ask({ question: full, role, attachments: files.ids }, full || t(`assistant.role.${role as Exclude<AssistantRole, 'qa'>}`))
       files.clear()
       setQuote('')
     } catch (e) {
       toast((e as Error).message, 'error')
       setQuestion(text)
-    } finally {
-      setPending(null)
     }
   }
 
@@ -102,6 +100,13 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
   }
 
   const noSources = kind === 'project' && sources?.length === 0
+  // "/" at the start (no space yet) opens the command list; the slash button types it
+  const slashOpen = question.startsWith('/') && !question.includes(' ') && !pending
+  async function clearChat() {
+    setQuestion('')
+    if (await confirm({ title: t('assistant.clear'), text: t('assistant.clearText'), danger: true, confirmLabel: t('assistant.clearConfirm') }))
+      await chat.clear().catch((e: Error) => toast(e.message, 'error'))
+  }
   const canSend = (Boolean(question.trim()) || Boolean(quote) || files.ids.length > 0) && !pending && !files.uploading
 
   return (
@@ -132,13 +137,6 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
         </div>
         <ContextMeter chat={chat} />
         <Segmented size="sm" value={provider} onChange={setProvider} options={providerOptions} />
-      </div>
-      <div className="flex flex-wrap items-center gap-2 pb-3">
-        {ROLES.map((r) => (
-          <Button key={r} size="sm" variant="secondary" disabled={Boolean(pending) || noSources} onClick={() => ask(r, '')}>
-            {t(`assistant.role.${r}`)}
-          </Button>
-        ))}
       </div>
 
       <KeyNotice provider={provider} onSwitch={setProvider} className="mb-3" />
@@ -177,12 +175,25 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
       <TrimNotice usage={chat.thread?.context} provider={provider} canGemini={keys.gemini} onGemini={() => setProvider('gemini')} />
 
       <form
-        className="mt-2 flex flex-col gap-2 rounded-xl border border-line bg-surface p-2 focus-within:border-line-strong"
+        className="relative mt-2 flex flex-col gap-2 rounded-xl border border-line bg-surface p-2 focus-within:border-line-strong"
         onSubmit={(e) => {
           e.preventDefault()
           if (canSend) void ask('qa', question.trim())
         }}
       >
+        <SlashMenu
+          query={question.slice(1)}
+          open={slashOpen}
+          chat={chat}
+          disabled={noSources}
+          inputRef={inputRef}
+          onClose={() => setQuestion('')}
+          onQuick={(role) => {
+            setQuestion('')
+            void ask(role, '')
+          }}
+          onClearConfirmed={() => void clearChat()}
+        />
         {quote && (
           <div className="flex items-start gap-2 rounded-lg border-l-2 border-fg bg-raised py-1.5 pr-1 pl-2.5">
             <div className="min-w-0 flex-1">
@@ -216,6 +227,16 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
             disabled={noSources}
             onUpload={() => fileInput.current?.click()}
             onPick={files.addExisting}
+          />
+          <IconButton
+            icon={Slash}
+            size="sm"
+            label={t('assistant.cmd.title')}
+            className="mb-0.5"
+            onClick={() => {
+              setQuestion('/')
+              inputRef.current?.focus()
+            }}
           />
           <textarea
             ref={inputRef}

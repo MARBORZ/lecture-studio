@@ -103,16 +103,26 @@ const PARTS = [
   { key: 'system', cls: 'bg-line-strong' },
 ] as const
 
+/** How full the conversation's room is: white, then yellow, then red (the server compacts the history near the end). */
+const level = (pct: number) => (pct >= 85 ? 'text-danger' : pct >= 60 ? 'text-warn' : 'text-fg')
+
 /**
  * Our own context window, visible: the API keeps no memory, every question re-sends sources, history and files.
- * The bar shows how much of the provider's window the next question takes and what it is made of.
+ * The base (instructions + the lesson material) is there from the first question: it is drawn as a quiet background
+ * and the percentage counts the conversation in the room left after it — a new chat reads 0 %, not 20 %.
  */
 export function ContextMeter({ chat }: { chat: ThreadApi }) {
   const { t, lang, toast } = useUI()
   const usage: ContextUsage | null | undefined = chat.thread?.context
   if (!usage) return null
   // Tokens, as set in Settings → AI; the parts are counted in characters and shown as tokens (chars_per_token).
-  const pct = Math.min(100, Math.round((usage.total_tokens / usage.window_tokens) * 100))
+  const window = Math.max(1, usage.window)
+  const base = usage.system + usage.sources
+  const talk = usage.history + usage.summary + usage.files
+  const room = Math.max(1, window - base)
+  const pct = Math.min(100, Math.round((talk / room) * 100))
+  const baseW = Math.min(100, (base / window) * 100)
+  const talkW = Math.min(100 - baseW, (talk / window) * 100)
   const n = (v: number) => formatCount(v, lang)
   const tokens = (chars: number) => n(Math.ceil(chars / usage.chars_per_token))
   const recent = (chat.session?.messages?.length ?? 0) - (chat.session?.summarized ?? 0)
@@ -128,10 +138,11 @@ export function ContextMeter({ chat }: { chat: ThreadApi }) {
           className={cn('flex h-7 items-center gap-2 rounded-lg px-2 text-[12px] transition-colors hover:bg-hover', open ? 'bg-hover text-fg' : 'text-muted')}
         >
           <Icon as={Gauge} size={14} />
-          <span className="relative h-1.5 w-14 overflow-hidden rounded-full bg-line">
-            <span className="absolute inset-y-0 left-0 rounded-full bg-fg" style={{ width: `${Math.max(2, pct)}%` }} />
+          <span className="relative flex h-1.5 w-14 overflow-hidden rounded-full bg-line">
+            <span className="h-full bg-line-strong" style={{ width: `${baseW}%` }} />
+            <span className={cn('h-full bg-current transition-[width] duration-300', level(pct))} style={{ width: `${talkW}%` }} />
           </span>
-          <span className="font-mono tabular-nums">{pct}%</span>
+          <span className={cn('font-mono tabular-nums', pct >= 60 && level(pct))}>{pct}%</span>
         </button>
       )}
       className="w-80 p-3"
@@ -145,9 +156,10 @@ export function ContextMeter({ chat }: { chat: ThreadApi }) {
           </div>
           <div className="flex h-2 overflow-hidden rounded-full bg-line">
             {PARTS.map((p) => (
-              <span key={p.key} className={p.cls} style={{ width: `${usage.total ? (usage[p.key] / usage.total) * pct : 0}%` }} />
+              <span key={p.key} className={p.cls} style={{ width: `${(usage[p.key] / window) * 100}%` }} />
             ))}
           </div>
+          <p className="text-[12px] leading-relaxed text-muted">{t('assistant.context.base', { base: tokens(base), pct })}</p>
           <ul className="flex flex-col gap-1.5 text-[12.5px]">
             {PARTS.map((p) => (
               <li key={p.key} className="flex items-center gap-2 text-soft">
