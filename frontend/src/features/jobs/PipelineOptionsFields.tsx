@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Info, Leaf } from 'lucide-react'
+import { Check, ChevronDown, Info, Leaf, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import type { PipelineDefaults } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
@@ -124,7 +124,7 @@ export function PipelineOptionsFields({ value, onChange, source }: { value: Opts
       {/* 2. the notes */}
       <section className="flex flex-col gap-3">
         <Heading>{t('opt.notes')}</Heading>
-        <Segmented value={value.audit} onChange={(v) => set('audit', v)} options={[...providers, { value: 'none', label: t('opt.notes.none') }]} />
+        <Select className="sm:max-w-xs" value={value.audit} onChange={(v) => set('audit', v)} options={[...providers, { value: 'none', label: t('opt.notes.none'), hint: '', icon: X }]} />
         <Hint>{t(`opt.notes.hint.${value.audit}` as TKey)}</Hint>
         {value.transcriber === 'none' && value.audit === 'none' && <Hint>{t('opt.audit.needsText')}</Hint>}
         {value.audit !== 'none' && (

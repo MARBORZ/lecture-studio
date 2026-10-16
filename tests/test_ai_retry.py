@@ -46,7 +46,7 @@ def test_exhausted_retries_explain_in_plain_words():
     with pytest.raises(AIUnavailable) as e:
         with_retry(fn, "Gemini", sleep=lambda s: None)
     assert calls["n"] == len(DELAYS) + 1
-    assert tr("retry.overloaded", provider="Gemini") in str(e.value) and "Whisper" in str(e.value) and "{'error'" not in str(e.value)
+    assert tr("retry.overloaded", provider="Gemini", status=503) in str(e.value) and "Whisper" in str(e.value) and "{'error'" not in str(e.value)
 
 
 def test_waiting_stays_cancellable():

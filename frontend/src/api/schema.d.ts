@@ -1129,10 +1129,18 @@ export interface components {
             deepseek_api_key?: string | null;
             /** Gemini Api Key */
             gemini_api_key?: string | null;
+            /** Openai Api Key */
+            openai_api_key?: string | null;
+            /** Anthropic Api Key */
+            anthropic_api_key?: string | null;
             /** Deepseek Model */
             deepseek_model?: string | null;
             /** Gemini Model */
             gemini_model?: string | null;
+            /** Openai Model */
+            openai_model?: string | null;
+            /** Anthropic Model */
+            anthropic_model?: string | null;
             /** Whisper Model */
             whisper_model?: string | null;
             /** Local Base Url */
@@ -1140,7 +1148,7 @@ export interface components {
             /** Local Model */
             local_model?: string | null;
             /** Assistant Provider */
-            assistant_provider?: ("deepseek" | "gemini" | "local") | null;
+            assistant_provider?: ("deepseek" | "gemini" | "openai" | "anthropic" | "local") | null;
             /** Context Tokens */
             context_tokens?: {
                 [key: string]: number | null;
@@ -1150,10 +1158,16 @@ export interface components {
         AISettingsView: {
             deepseek_key: components["schemas"]["KeyStatus"];
             gemini_key: components["schemas"]["KeyStatus"];
+            openai_key: components["schemas"]["KeyStatus"];
+            anthropic_key: components["schemas"]["KeyStatus"];
             /** Deepseek Model */
             deepseek_model: string;
             /** Gemini Model */
             gemini_model: string;
+            /** Openai Model */
+            openai_model: string;
+            /** Anthropic Model */
+            anthropic_model: string;
             /** Whisper Model */
             whisper_model: string;
             /** Local Base Url */
@@ -1164,7 +1178,7 @@ export interface components {
              * Assistant Provider
              * @enum {string}
              */
-            assistant_provider: "deepseek" | "gemini" | "local";
+            assistant_provider: "deepseek" | "gemini" | "openai" | "anthropic" | "local";
             /** Context Tokens */
             context_tokens: {
                 [key: string]: number;
@@ -1186,7 +1200,7 @@ export interface components {
             /** Sources */
             sources?: string[] | null;
             /** Provider */
-            provider?: ("deepseek" | "gemini" | "local") | null;
+            provider?: ("deepseek" | "gemini" | "openai" | "anthropic" | "local") | null;
             /** Attachments */
             attachments?: string[];
             /** Session Id */
@@ -1229,7 +1243,7 @@ export interface components {
         /** AuditRequest */
         AuditRequest: {
             /** Provider */
-            provider?: ("deepseek" | "gemini" | "local") | null;
+            provider?: ("deepseek" | "gemini" | "openai" | "anthropic" | "local") | null;
             /**
              * Audit Mode
              * @default srt_timecodes
@@ -1333,7 +1347,7 @@ export interface components {
         /** CompactRequest */
         CompactRequest: {
             /** Provider */
-            provider?: ("deepseek" | "gemini" | "local") | null;
+            provider?: ("deepseek" | "gemini" | "openai" | "anthropic" | "local") | null;
             /** Sources */
             sources?: string[] | null;
         };
@@ -1861,7 +1875,7 @@ export interface components {
              * @default deepseek
              * @enum {string}
              */
-            audit: "deepseek" | "gemini" | "local" | "none";
+            audit: "deepseek" | "gemini" | "openai" | "anthropic" | "local" | "none";
             /**
              * Audit Source
              * @default transcript
@@ -1994,7 +2008,7 @@ export interface components {
              * Provider
              * @enum {string}
              */
-            provider: "deepseek" | "gemini" | "local";
+            provider: "deepseek" | "gemini" | "openai" | "anthropic" | "local";
         };
         /** KeyTestResult */
         KeyTestResult: {
@@ -2426,7 +2440,7 @@ export interface components {
              * @default deepseek
              * @enum {string}
              */
-            audit: "deepseek" | "gemini" | "local" | "none";
+            audit: "deepseek" | "gemini" | "openai" | "anthropic" | "local" | "none";
             /**
              * Audit Source
              * @default transcript
@@ -4411,7 +4425,7 @@ export interface operations {
         parameters: {
             query?: {
                 session?: string | null;
-                provider?: ("deepseek" | "gemini" | "local") | null;
+                provider?: ("deepseek" | "gemini" | "openai" | "anthropic" | "local") | null;
                 sources?: string[] | null;
             };
             header?: never;

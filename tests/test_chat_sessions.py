@@ -231,7 +231,7 @@ def test_window_limits_are_checked_by_the_server(lesson_api):
 
     assert set_window({"deepseek": 7_999}).status_code == 422
     assert set_window({"deepseek": 128_001}).status_code == 422
-    assert set_window({"openai": 64_000}).status_code == 422
+    assert set_window({"mistral": 64_000}).status_code == 422  # not a provider
     r = set_window({"gemini": 1_000_000, "deepseek": 96_000})
     assert r.status_code == 200 and r.json()["ai"]["context_tokens"] == {"gemini": 1_000_000, "deepseek": 96_000}
     r = set_window({"gemini": None})  # back to the default; the other one stays

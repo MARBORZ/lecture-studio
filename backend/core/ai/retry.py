@@ -14,7 +14,7 @@ from backend.i18n import tr
 
 logger = logging.getLogger(__name__)
 
-TRANSIENT = {408, 429, 500, 502, 503, 504}
+TRANSIENT = {408, 429, 500, 502, 503, 504, 529}  # 529: Anthropic overloaded
 DELAYS = (2, 5, 10, 20, 30)  # seconds between attempts: ~1 minute in total
 
 
@@ -44,8 +44,8 @@ def status_of(exc: BaseException) -> int | None:
 
 
 def _explain(provider: str, status: int, attempts: int) -> str:
-    if status == 503:
-        what = tr("retry.overloaded", provider=provider)
+    if status in (503, 529):
+        what = tr("retry.overloaded", provider=provider, status=status)
     elif status == 429:
         what = tr("retry.rate_limited", provider=provider)
     elif status == 0:
@@ -59,8 +59,9 @@ def with_retry[T](
     fn: Callable[[], T],
     provider: str,
     check_cancelled: Callable[[], None] = lambda: None,
-    sleep: Callable[[float], None] = time.sleep,
+    sleep: Callable[[float], None] | None = None,
 ) -> T:
+    pause = sleep or time.sleep  # looked up per call (a default argument would freeze it at import)
     attempts = len(DELAYS) + 1
     for attempt in range(1, attempts + 1):
         try:
@@ -75,5 +76,5 @@ def with_retry[T](
             logger.warning("%s: %s, retry %d/%d in %ds", provider, status or "network error", attempt, attempts - 1, delay)
             for _ in range(int(delay * 2)):  # stay cancellable while waiting
                 check_cancelled()
-                sleep(0.5)
+                pause(0.5)
     raise AssertionError("unreachable")

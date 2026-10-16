@@ -7,7 +7,7 @@ import { KeyNotice, useProviderOptions } from '@/features/system/KeyNotice'
 import { useJobs, useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { ActiveMark, AnimatePresence, m, RouteOutlet, SceneMotion, UserMotion } from '@/components/motion'
-import { Button, Collapsible, EmptyState, Field, IconButton, Modal, Segmented, Splitter, Stat } from '@/components/ui'
+import { Button, Collapsible, EmptyState, Field, IconButton, Modal, Segmented, Select, Splitter, Stat } from '@/components/ui'
 import { SkeletonMarkdown, SkeletonPlayer, SkeletonText } from '@/components/skeleton'
 import { ExportModal, LessonEditModal } from '@/features/library/modals'
 import { MoveLessonButton } from '@/features/library/MoveLesson'
@@ -405,7 +405,7 @@ function RegenerateAuditModal({ lesson, language: initial, close }: { lesson: Le
       }
     >
       <div className="flex flex-col gap-4">
-        <Segmented value={provider} onChange={setProvider} options={providerOptions} />
+        <Select value={provider} onChange={setProvider} options={providerOptions} />
         <KeyNotice provider={provider} />
         <Field label={t('lesson.auditSource')} hint={effective === 'video' ? t('opt.auditSource.video.cost', { tokens: formatCount(VIDEO_TOKENS_PER_HOUR, lang) }) : undefined}>
           <Segmented

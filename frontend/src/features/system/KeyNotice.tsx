@@ -5,16 +5,21 @@ import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { cn } from '@/lib/cn'
 
+/** The cloud AI providers, in the order every choice shows them; the local model comes after them. */
+export const CLOUD_PROVIDERS = ['deepseek', 'gemini', 'openai', 'anthropic'] as const
+export type CloudProvider = (typeof CLOUD_PROVIDERS)[number]
+
+export const PROVIDER_NAME: Record<AIProvider, string> = { deepseek: 'DeepSeek', gemini: 'Gemini', openai: 'ChatGPT', anthropic: 'Claude', local: 'Ollama / LM Studio' }
+/** The company behind a key (Settings → AI, the tutorial). */
+export const KEY_TITLE: Record<CloudProvider, string> = { deepseek: 'DeepSeek', gemini: 'Google Gemini', openai: 'OpenAI · ChatGPT', anthropic: 'Anthropic · Claude' }
+
 /** Which AI providers are ready: a key for the cloud ones (settings.json or .env fallback), a chosen model for the local one. */
 export function useAiKeys(): Record<AIProvider, boolean> & { any: boolean; loaded: boolean } {
   const { settings } = useUI()
-  const deepseek = settings?.ai.deepseek_key.source !== 'none'
-  const gemini = settings?.ai.gemini_key.source !== 'none'
+  const cloud = Object.fromEntries(CLOUD_PROVIDERS.map((p) => [p, Boolean(settings) && settings!.ai[`${p}_key`].source !== 'none'])) as Record<CloudProvider, boolean>
   const local = Boolean(settings?.ai.local_model)
-  return { deepseek, gemini, local, any: deepseek || gemini || local, loaded: Boolean(settings) }
+  return { ...cloud, local, any: Object.values(cloud).some(Boolean) || local, loaded: Boolean(settings) }
 }
-
-export const PROVIDER_NAME: Record<AIProvider, string> = { deepseek: 'DeepSeek', gemini: 'Gemini', local: 'Ollama / LM Studio' }
 
 /**
  * The provider choice, one list for every control (Segmented, Select): the cloud ones, then the local model.
@@ -25,8 +30,7 @@ export function useProviderOptions(): { value: AIProvider; label: string; hint: 
   const keys = useAiKeys()
   const ready = (p: AIProvider, what: string) => (keys[p] ? what : t('ai.notReady'))
   return [
-    { value: 'deepseek', label: 'DeepSeek', hint: ready('deepseek', t('ai.hint.deepseek')), icon: Cloud },
-    { value: 'gemini', label: 'Gemini', hint: ready('gemini', t('ai.hint.gemini')), icon: Cloud },
+    ...CLOUD_PROVIDERS.map((p) => ({ value: p as AIProvider, label: PROVIDER_NAME[p], hint: ready(p, t(`ai.hint.${p}`)), icon: Cloud })),
     { value: 'local', label: t('ai.local.short'), hint: ready('local', settings?.ai.local_model || t('ai.hint.local')), icon: Cpu },
   ]
 }
