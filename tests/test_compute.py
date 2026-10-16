@@ -95,7 +95,7 @@ def test_compute_status_endpoint(data_dir, machine):
     from backend.main import app
 
     machine(apple=True, cores=10, threads=10)
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         assert c.get("/api/settings/compute").json()["backend"] == "apple"
         c.patch("/api/settings", json={"compute": {"device": "cpu", "cpu_threads": 6}})
         s = c.get("/api/settings/compute").json()

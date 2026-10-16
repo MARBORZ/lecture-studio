@@ -9,8 +9,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 
+from backend.api.guard import LOCAL_HOSTS, LocalOriginWrites
 from backend.api.routes import assistant, diary, feedback, jobs, lessons, projects, settings, system
 from backend.config import APP_NAME, APP_VERSION, FRONTEND_ORIGINS, PID_FILE
 from backend.core.media import ffmpeg_available
@@ -68,6 +70,8 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(title=APP_NAME, version=APP_VERSION, lifespan=lifespan)
     app.add_middleware(CORSMiddleware, allow_origins=FRONTEND_ORIGINS, allow_methods=["*"], allow_headers=["*"])
+    app.add_middleware(LocalOriginWrites)
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=LOCAL_HOSTS)  # added last = runs first
 
     for module in (system, settings, projects, lessons, jobs, assistant, diary, feedback):
         app.include_router(module.router)

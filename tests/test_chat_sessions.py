@@ -35,7 +35,7 @@ def lesson_api(data_dir, monkeypatch):
     write_json(data_dir / "output" / "x" / "segments.json", [{"clean_start": 0, "clean_end": 2, "orig_start": 0, "orig_end": 2, "text": "типы данных"}])
     fake = FakeProvider()
     monkeypatch.setattr(assistant.AI, "get", staticmethod(lambda name: fake))
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         yield c, fake
 
 
@@ -192,7 +192,7 @@ def test_bookmarks(data_dir):
     from backend.services.storage import Library
 
     Library.save_lesson(Lesson(id="less_b", job_id="b", title="Урок"))
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         r = c.patch("/api/lessons/less_b", json={"bookmarks": [{"id": "b2", "t": 90, "label": "вторая"}, {"id": "b1", "t": 12.5, "label": "первая"}]})
         assert r.status_code == 200, r.text
         assert [b["id"] for b in r.json()["bookmarks"]] == ["b1", "b2"]  # kept in time order
@@ -204,7 +204,7 @@ def test_notebook_cover(data_dir):
     from test_attachments import PNG as png
 
     from backend.main import app
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         pid = c.post("/api/projects", json={"name": "Курс"}).json()["id"]
         assert c.put(f"/api/projects/{pid}/cover", content=b"not an image").status_code == 400
         p = c.put(f"/api/projects/{pid}/cover", content=png).json()

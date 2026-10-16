@@ -35,7 +35,7 @@ def test_diary_rejects_path_traversal(data_dir):
 def test_diary_api(data_dir):
     from backend.main import app
 
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         e = c.post("/api/diary/entries", json={"text": "поток мыслей"}).json()
         assert c.get(f"/api/diary/entries/{e['id']}").json()["text"].strip() == "поток мыслей"
         assert c.put(f"/api/diary/entries/{e['id']}", json={"text": "правка"}).json()["title"] == "правка"
@@ -49,7 +49,7 @@ def test_prompt_overrides(data_dir):
     from backend.main import app
 
     default_style = prompts.BLOCKS["audit.style"].default
-    with TestClient(app) as c:
+    with TestClient(app, base_url="http://127.0.0.1") as c:
         r = c.put("/api/settings/prompts/audit.style", json={"value": "Пиши как для школьника."}).json()
         style = next(b for b in r if b["key"] == "audit.style")
         assert style["modified"] and "школьника" in prompts.audit_system(True, "ru")
