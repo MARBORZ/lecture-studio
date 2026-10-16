@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useState } from 'react'
 import { NavLink } from 'react-router'
 import { useJobs, useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
-import { ActiveMark, m } from '@/components/motion'
+import { ActiveMark, m, SceneMotion, UserMotion } from '@/components/motion'
 import { IconButton } from '@/components/ui'
 import { Skeleton } from '@/components/skeleton'
 import { JobIndicator } from '@/features/jobs/JobIndicator'
@@ -99,12 +99,15 @@ export function Sidebar() {
 
   return (
     <CollapsedContext.Provider value={collapsed}>
+      {/* the width always moves (even with the system's reduce motion, like focus mode); what is inside follows it */}
+      <SceneMotion>
       <m.aside
         initial={false}
         animate={{ width: collapsed ? COLLAPSED : EXPANDED }}
         transition={{ duration: 0.28, ease }}
         className="flex h-full shrink-0 flex-col overflow-hidden border-r border-line bg-bg"
       >
+      <UserMotion>
         <div className="flex h-14 shrink-0 items-center gap-2.5 pr-3 pl-[21px]">
           <button type="button" onClick={collapsed ? toggle : undefined} title={collapsed ? toggleLabel : undefined} className={cn('shrink-0', !collapsed && 'cursor-default')}>
             <LogoMark className="size-[18px]" />
@@ -163,7 +166,9 @@ export function Sidebar() {
           <FeedbackButton />
           <ShutdownButton />
         </div>
+      </UserMotion>
       </m.aside>
+      </SceneMotion>
     </CollapsedContext.Provider>
   )
 }
