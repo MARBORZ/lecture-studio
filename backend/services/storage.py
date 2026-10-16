@@ -2,8 +2,10 @@
 Library storage: projects, lessons and assistant threads in notebook_db.json,
 lesson artifacts in <data_dir>/output/<job_id>/.
 
-Every read-modify-write runs inside one process-wide lock, so pipeline threads,
-API handlers and the MCP server (separate process; atomic file replace) never interleave writes.
+Every read-modify-write holds two locks: a thread lock (pipeline threads, API handlers) and a lock file
+beside the db (the MCP server is a separate process writing the same file). Reads need neither: writes
+replace the file atomically. After an MCP write the MCP server rewrites the library signal, and the running
+app reloads what is open (announce_change / change_signal).
 """
 
 import threading
@@ -14,12 +16,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
+from filelock import FileLock
+
 from backend.i18n import tr
 from backend.models.lesson import Lesson, LessonFull, LessonPatch
 from backend.models.project import INBOX_ID, Project, ProjectCreate, ProjectPatch
 from backend.models.transcript import Segment
 from backend.settings import paths
-from backend.utils.fs import read_json, read_text, remove_dir, write_json
+from backend.utils.fs import read_json, read_text, remove_dir, write_json, write_text
 
 
 class Artifacts:
@@ -71,6 +75,7 @@ def _empty_db() -> dict[str, Any]:
 
 class Library:
     _lock = threading.RLock()
+    _file_locks: dict[Path, FileLock] = {}
 
     # ---------------- low level ----------------
 
@@ -93,13 +98,32 @@ class Library:
         return db
 
     @classmethod
+    def _db_lock(cls) -> FileLock:
+        """The cross-process half of the transaction lock; one object per db, so a nested tx re-enters it."""
+        path = paths().db_lock
+        if path not in cls._file_locks:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            cls._file_locks[path] = FileLock(path, timeout=30)
+        return cls._file_locks[path]
+
+    @classmethod
     @contextmanager
     def tx(cls) -> Iterator[dict[str, Any]]:
-        """Locked read-modify-write transaction."""
-        with cls._lock:
+        """Locked read-modify-write transaction (this process's threads and the MCP server alike)."""
+        with cls._lock, cls._db_lock():
             db = cls._load()
             yield db
             write_json(paths().db, db)
+
+    @staticmethod
+    def announce_change() -> None:
+        """Called by another process (the MCP server) after it changed the library: the running app reloads."""
+        write_text(paths().library_signal, uuid.uuid4().hex)
+
+    @staticmethod
+    def change_signal() -> str:
+        """What announce_change wrote last ("" = never); the app polls it and compares."""
+        return read_text(paths().library_signal)
 
     @classmethod
     def read(cls) -> dict[str, Any]:

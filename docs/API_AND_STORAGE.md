@@ -45,7 +45,7 @@ API: `http://127.0.0.1:3000`, and the same server on `:5173`, where the app wind
 | GET | `/api/videos/info?url` | one video by link or id: title, channel, date, description |
 | POST | `/api/videos/download` | download a video (up to 1080p) as a queued, cancellable job; the file goes to `downloads/` for the Studio |
 | GET / POST | `/api/videos/downloader`, `/api/videos/downloader/update` | yt-dlp version / update it in place |
-| GET | `/api/jobs/stream` | SSE: the full job list on every change |
+| GET | `/api/jobs/stream` | SSE: the full job list on every change; `event: library` when the MCP server changed the library |
 | POST | `/api/jobs/{id}/cancel` | cancel |
 | GET | `/api/assistant/{project\|lesson}/{id}?session&provider&sources` | the session (active by default), the session list, session files, context usage for the next question |
 | POST | `/api/assistant/{project\|lesson}/{id}` | ask `{question, role, attachments, session_id, provider, sources}` → the updated thread |
@@ -74,6 +74,7 @@ API: `http://127.0.0.1:3000`, and the same server on `:5173`, where the app wind
 |---|---|
 | `settings.json`, `server.pid`, `frontend.pid`, `logs/`, `state/`, `chrome-profile/` | settings home (`config.APP_HOME`) |
 | `notebook_db.json` | `<data_dir>/` |
+| `notebook_db.json.lock`, `library_changed` | `<data_dir>/`: the write lock the app and the MCP server share; the MCP server's change signal |
 | Lessons | `<data_dir>/output/<job_id>/` |
 | Diary | `<data_dir>/diary/<category>/*.md` |
 | Notebook covers | `<data_dir>/covers/<project_id>-<hash>.<ext>` (`Project.cover` = file name) |

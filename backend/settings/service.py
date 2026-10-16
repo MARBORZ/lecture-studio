@@ -42,6 +42,16 @@ class Paths:
         return self.data_dir / DB_FILENAME
 
     @property
+    def db_lock(self) -> Path:
+        """Held while notebook_db.json is rewritten, by the app and the MCP server alike (separate processes)."""
+        return self.data_dir / (DB_FILENAME + ".lock")
+
+    @property
+    def library_signal(self) -> Path:
+        """Rewritten by the MCP server after it changes the library; the running app reloads what is open."""
+        return self.data_dir / "library_changed"
+
+    @property
     def output(self) -> Path:
         return self.data_dir / "output"
 
