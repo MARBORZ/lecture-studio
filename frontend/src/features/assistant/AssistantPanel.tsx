@@ -1,4 +1,4 @@
-import { ArrowUp, NotebookPen, Slash, TriangleAlert, X } from 'lucide-react'
+import { ArrowUp, NotebookPen, TriangleAlert, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import type { AIProvider, AssistantRole, Attachment, ChatMessage, ContextUsage, ThreadKind } from '@/api/types'
@@ -228,16 +228,19 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
             onUpload={() => fileInput.current?.click()}
             onPick={files.addExisting}
           />
-          <IconButton
-            icon={Slash}
-            size="sm"
-            label={t('assistant.cmd.title')}
-            className="mb-0.5"
+          {/* a key cap, not an icon: it says "type /" */}
+          <button
+            type="button"
+            title={t('assistant.cmd.title')}
+            aria-label={t('assistant.cmd.title')}
             onClick={() => {
               setQuestion('/')
               inputRef.current?.focus()
             }}
-          />
+            className="mb-1 flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md border border-line px-1.5 font-mono text-[12px] leading-none text-muted transition-colors hover:border-line-strong hover:text-fg"
+          >
+            /
+          </button>
           <textarea
             ref={inputRef}
             onPaste={(e) => {
