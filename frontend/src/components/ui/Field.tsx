@@ -1,6 +1,7 @@
-import { forwardRef, useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
+import { forwardRef, useId, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react'
 import { ActiveMark } from '@/components/motion'
 import { cn } from '@/lib/cn'
+import type { Option } from './Select'
 
 const CONTROL =
   'w-full rounded-[var(--radius-ui)] border border-line bg-surface px-3 text-[13.5px] text-fg placeholder:text-dim transition-colors hover:border-line-strong focus:border-fg focus:outline-none disabled:opacity-50'
@@ -28,24 +29,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
   return <textarea ref={ref} className={cn(CONTROL, 'min-h-20 resize-y py-2 leading-relaxed', className)} {...rest} />
 })
 
-export interface Option<V extends string = string> { value: V; label: string }
 
-export function Select<V extends string>({ options, value, onChange, className, ...rest }: Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onChange' | 'value'> & { options: Option<V>[]; value: V; onChange: (v: V) => void }) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value as V)}
-      className={cn(CONTROL, 'h-9 cursor-pointer appearance-none bg-[url("data:image/svg+xml;utf8,<svg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 fill=%27none%27 stroke=%27%23fafafa%27 stroke-width=%271.5%27><path d=%27M3 4.5l3 3 3-3%27/></svg>")] bg-[length:12px] bg-[right_10px_center] bg-no-repeat pr-8', className)}
-      {...rest}
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value} className="bg-raised">
-          {o.label}
-        </option>
-      ))}
-    </select>
-  )
-}
+export { type Option, Select } from './Select'
 
 export function Slider({ value, onChange, min, max, step = 1, format }: { value: number; onChange: (v: number) => void; min: number; max: number; step?: number; format?: (v: number) => string }) {
   return (

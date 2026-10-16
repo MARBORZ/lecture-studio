@@ -1,4 +1,4 @@
-import { KeyRound } from 'lucide-react'
+import { Cloud, Cpu, KeyRound } from 'lucide-react'
 import { Link } from 'react-router'
 import type { AIProvider } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
@@ -16,10 +16,19 @@ export function useAiKeys(): Record<AIProvider, boolean> & { any: boolean; loade
 
 export const PROVIDER_NAME: Record<AIProvider, string> = { deepseek: 'DeepSeek', gemini: 'Gemini', local: 'Ollama / LM Studio' }
 
-/** The provider choice for Segmented controls: DeepSeek, Gemini, the local model. */
-export function useProviderOptions(): { value: AIProvider; label: string }[] {
-  const { t } = useUI()
-  return [{ value: 'deepseek', label: 'DeepSeek' }, { value: 'gemini', label: 'Gemini' }, { value: 'local', label: t('ai.local.short') }]
+/**
+ * The provider choice, one list for every control (Segmented, Select): the cloud ones, then the local model.
+ * Each says what it is and whether it is ready (a key, a chosen model).
+ */
+export function useProviderOptions(): { value: AIProvider; label: string; hint: string; icon: typeof Cloud }[] {
+  const { t, settings } = useUI()
+  const keys = useAiKeys()
+  const ready = (p: AIProvider, what: string) => (keys[p] ? what : t('ai.notReady'))
+  return [
+    { value: 'deepseek', label: 'DeepSeek', hint: ready('deepseek', t('ai.hint.deepseek')), icon: Cloud },
+    { value: 'gemini', label: 'Gemini', hint: ready('gemini', t('ai.hint.gemini')), icon: Cloud },
+    { value: 'local', label: t('ai.local.short'), hint: ready('local', settings?.ai.local_model || t('ai.hint.local')), icon: Cpu },
+  ]
 }
 
 /** The provider to start with: the preferred one if it has a key, otherwise one that has. */
