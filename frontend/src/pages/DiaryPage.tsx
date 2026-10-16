@@ -1,4 +1,4 @@
-import { NotebookPen, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { ChevronsDownUp, ChevronsUpDown, FolderInput, NotebookPen, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { useDeferredValue, useState } from 'react'
 import { NavLink, useNavigate, useParams } from 'react-router'
 import { api } from '@/api/client'
@@ -6,11 +6,13 @@ import type { DiaryEntry } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { AnimatePresence, ListItem } from '@/components/motion'
-import { Button, EmptyState, IconButton, PageHeader } from '@/components/ui'
+import { Button, EmptyState, IconButton, Input, PageHeader, Segmented } from '@/components/ui'
 import { Skeleton, SkeletonChat } from '@/components/skeleton'
 import { EntryCard, useCategoryLabel } from '@/features/diary/EntryCard'
+import { DIARY_MODES, rowsFor, SplitEditor, useDiaryMode } from '@/features/diary/modes'
 import { cn } from '@/lib/cn'
 import { storage } from '@/lib/format'
+import { shortcutLabel } from '@/lib/keys'
 import { useResource } from '@/lib/useResource'
 
 /** Diary: Obsidian-style categories on the left, quick-capture stream on the right. */
@@ -24,6 +26,7 @@ export function DiaryPage() {
   const entries = useResource(() => api.diaryEntries(category, q || undefined), [category, q])
   const [draft, setDraft] = useState('')
   const [adding, setAdding] = useState(false)
+  const [mode, setMode] = useDiaryMode()
   // folded entries (ids), remembered; "fold all" folds what is on screen
   const [folded, setFolded] = useState<string[]>(() => storage.get('diary.folded', []))
   const fold = (ids: string[], on: boolean) =>
@@ -119,54 +122,39 @@ export function DiaryPage() {
       </aside>
 
       <section className="scroll-area min-w-0 flex-1">
-        <div className="mx-auto max-w-3xl px-6 py-8 lg:px-10">
+        <div className="mx-auto max-w-4xl px-6 py-8 lg:px-10">
           <PageHeader eyebrow={t('diary.title')} title={category ? label(category) : t('diary.all')} subtitle={t('diary.subtitle')} />
 
-          <div className="rounded-xl border border-line bg-surface focus-within:border-line-strong">
-            <textarea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                  e.preventDefault()
-                  void add()
-                }
-              }}
-              rows={Math.min(12, Math.max(3, draft.split('\n').length + 1))}
-              // grows up to 12 lines, then scrolls inside
-              placeholder={t('diary.composer')}
-              className="read-14 max-h-[40vh] w-full resize-none overflow-y-auto bg-transparent px-5 py-4 leading-relaxed text-fg placeholder:text-dim focus:outline-none"
-            />
-            <div className="flex items-center justify-between border-t border-line px-3 py-2">
-              <span className="pl-2 text-[12px] text-dim">→ {target}</span>
-              <Button size="sm" variant="primary" icon={NotebookPen} disabled={!draft.trim() || !target} loading={adding} onClick={add}>
-                {t('diary.add')}
-              </Button>
-            </div>
-          </div>
+          <Composer
+            draft={draft}
+            setDraft={setDraft}
+            preview={mode === 'hybrid'}
+            target={target ? label(target) : ''}
+            adding={adding}
+            onAdd={add}
+          />
 
-          <div className="relative mt-6 mb-4">
-            <Icon as={Search} size={14} className="absolute top-1/2 left-3 -translate-y-1/2 text-dim" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t('common.search')}
-              className="h-9 w-full rounded-lg border border-line bg-surface pr-3 pl-8 text-[13.5px] text-fg placeholder:text-dim focus:border-fg focus:outline-none"
-            />
-          </div>
-
-          {Boolean(entries.data?.length) && (
-            <div className="mb-2 flex justify-end gap-3 text-[12px]">
-              <button type="button" className="text-muted hover:text-fg" onClick={() => fold(entries.data!.map((e) => e.id), true)}>{t('diary.foldAll')}</button>
-              <button type="button" className="text-muted hover:text-fg" onClick={() => fold(entries.data!.map((e) => e.id), false)}>{t('diary.unfoldAll')}</button>
+          <div className="sticky top-0 z-10 -mx-2 mt-8 mb-4 flex flex-wrap items-center gap-2 bg-bg/90 px-2 py-2 backdrop-blur">
+            <div className="relative min-w-48 flex-1">
+              <Icon as={Search} size={14} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-dim" />
+              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('diary.search')} className="pl-8" />
             </div>
-          )}
+            <Segmented size="md" value={mode} onChange={setMode} options={DIARY_MODES.map((m) => ({ value: m.value, label: t(m.key) }))} />
+            {Boolean(entries.data?.length) && (
+              <>
+                <IconButton icon={ChevronsDownUp} label={t('diary.foldAll')} onClick={() => fold(entries.data!.map((e) => e.id), true)} />
+                <IconButton icon={ChevronsUpDown} label={t('diary.unfoldAll')} onClick={() => fold(entries.data!.map((e) => e.id), false)} />
+              </>
+            )}
+          </div>
+          <p className="-mt-2 mb-4 text-[12px] text-dim">{t(`diary.mode.${mode}.hint`)}</p>
+
           {entries.loading && !entries.data ? (
             <div className="flex flex-col gap-3"><SkeletonChat /><SkeletonChat /></div>
           ) : !entries.data?.length ? (
             <EmptyState icon={NotebookPen} title={t('diary.empty')} hint={q ? undefined : t('diary.emptyHint')} />
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
               <AnimatePresence initial={true}>
                 {entries.data.map((e, i) => (
                   <ListItem key={e.id} index={i}>
@@ -174,6 +162,7 @@ export function DiaryPage() {
                       entry={e}
                       categories={categories}
                       showCategory={!category}
+                      mode={mode}
                       onChanged={changed}
                       folded={folded.includes(e.id)}
                       onFold={(on) => fold([e.id], on)}
@@ -202,6 +191,43 @@ function CategoryLink({ to, label, count, end, actions }: { to: string; label: s
         <span className="font-mono text-[11px] text-dim group-hover:opacity-0">{count}</span>
       </NavLink>
       {actions && <div className="absolute top-0.5 right-1 hidden items-center group-hover:flex">{actions}</div>}
+    </div>
+  )
+}
+
+/** New entry: the source, with its live render beside it in the hybrid mode; ⌘/Ctrl+Enter saves into the category. */
+function Composer({ draft, setDraft, preview, target, adding, onAdd }: { draft: string; setDraft: (v: string) => void; preview: boolean; target: string; adding: boolean; onAdd: () => void }) {
+  const { t } = useUI()
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault()
+      onAdd()
+    }
+  }
+  return (
+    <div className="rounded-2xl border border-line bg-surface transition-colors focus-within:border-line-strong">
+      {preview && draft.trim() ? (
+        <SplitEditor value={draft} onChange={setDraft} onKeyDown={onKeyDown} placeholder={t('diary.composer')} minRows={3} autoFocus />
+      ) : (
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={onKeyDown}
+          rows={rowsFor(draft, 3, 12)}
+          placeholder={t('diary.composer')}
+          className="read-15 max-h-[40vh] w-full resize-none overflow-y-auto bg-transparent px-5 py-4 leading-relaxed text-fg placeholder:text-dim focus:outline-none"
+        />
+      )}
+      <div className="flex items-center gap-3 border-t border-line px-3 py-2">
+        <span className="flex min-w-0 items-center gap-1.5 pl-2 text-[12.5px] text-muted">
+          <Icon as={FolderInput} size={13} className="shrink-0" />
+          <span className="truncate">{target}</span>
+        </span>
+        <span className="ml-auto hidden font-mono text-[11.5px] text-dim sm:inline">{shortcutLabel('Enter')}</span>
+        <Button size="sm" variant="primary" icon={NotebookPen} disabled={!draft.trim() || !target} loading={adding} onClick={onAdd}>
+          {t('diary.add')}
+        </Button>
+      </div>
     </div>
   )
 }
