@@ -17,6 +17,21 @@ export function MotionRoot({ children }: { children: ReactNode }) {
   )
 }
 
+/**
+ * Focus mode's scene change (the app sidebar, the lesson header, the blocks under the player sliding away) moves even
+ * with the OS "reduce motion": with it, Motion would skip these size changes and they would snap while the player
+ * glides — the jump the user saw. It is one calm slide (lib/motion focusShift / collapse); what is inside these
+ * blocks goes back to the user's setting (UserMotion). Same reasoning as the boot mark (decision 2026-10-16).
+ */
+export function SceneMotion({ children }: { children: ReactNode }) {
+  return <MotionConfig reducedMotion="never">{children}</MotionConfig>
+}
+
+/** Inside a SceneMotion: the OS reduced-motion setting applies again. */
+export function UserMotion({ children }: { children: ReactNode }) {
+  return <MotionConfig reducedMotion="user">{children}</MotionConfig>
+}
+
 /** Fade-up on mount (and on key change). */
 export function Appear({ delay = 0, ...props }: HTMLMotionProps<'div'> & { delay?: number }) {
   return <m.div variants={fadeUp} initial="hidden" animate="show" exit="exit" custom={delay} {...props} />

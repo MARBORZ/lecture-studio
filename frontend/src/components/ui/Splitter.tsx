@@ -11,6 +11,7 @@ export function Splitter({
   onChange,
   onCommit,
   onReset,
+  onDragging,
   min = 25,
   max = 75,
   label,
@@ -21,6 +22,7 @@ export function Splitter({
   onChange: (pct: number) => void
   onCommit?: (pct: number) => void
   onReset?: () => void
+  onDragging?: (dragging: boolean) => void // the panel follows the pointer at once while true (no width animation)
   min?: number
   max?: number
   label: string
@@ -49,12 +51,14 @@ export function Splitter({
         e.currentTarget.setPointerCapture(e.pointerId)
         document.body.style.userSelect = 'none'
         document.body.style.cursor = 'col-resize'
+        onDragging?.(true)
         const move = (ev: PointerEvent) => set(((ev.clientX - rect.left) / rect.width) * 100)
         const up = () => {
           document.body.style.userSelect = ''
           document.body.style.cursor = ''
           window.removeEventListener('pointermove', move)
           window.removeEventListener('pointerup', up)
+          onDragging?.(false)
           onCommit?.(latest.current)
         }
         window.addEventListener('pointermove', move)
