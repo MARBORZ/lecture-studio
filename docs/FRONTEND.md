@@ -36,9 +36,22 @@ Motion for animation. Geist / Geist Mono fonts are bundled; no external CDNs.
   The video can leave the page: a **floating window** inside the app (drag, corner resize at 16:9, S/M/L, fullscreen;
   keeps playing across routes, geometry remembered) or an **always-on-top OS window** (Document Picture-in-Picture,
   native video PiP as a fallback). Only one `PlayerSurface` exists at a time; `player.setDisplay` carries time and state over.
-- **Studio** (`pages/StudioPage.tsx`): a wizard — file, lesson, processing, start — with the queue beside it.
+- **Studio** (`pages/StudioPage.tsx`): a wizard — file, lesson, processing, start — with the queue beside it. The queue
+  is `features/jobs/JobList.tsx`: one row per job (title, one state label that fades between states, progress), details on
+  click, running jobs first, finished ones folded to the last 3. "Audit language" sits with the processing options; when
+  the recording language is set explicitly and differs from the interface, the form asks which one to write in.
+  "Export after processing" without an export folder says why it is off and links to Settings → Paths.
+- **Moving a lesson** (`features/library/MoveLesson.tsx`): a button in the lesson header and on a library row opens a
+  dialog with the notebooks; a library row can also be dragged onto a notebook in the sidebar (`LESSON_DRAG`). Only
+  `project_id` changes; files stay where they are.
+- **Lesson languages**: when the audit is written in another language than the recording, the lesson shows a notice
+  (dismissed per lesson and language) offering to rebuild it in the recording language; "Regenerate audit" has a language choice.
+- **Settings**: the title and the list of sections stay put, only the content scrolls (`.scroll-hidden`: scrolling
+  without a visible bar). Settings → Instructions lists the prompt blocks collapsed. Settings → Processing has the job
+  queue limit (`features/jobs/QueueLimitCard.tsx`).
 - **Diary**: entries fold to their title (one or all, remembered); long ones open as a preview; editors are bounded and
-  scroll inside instead of growing the page.
+  scroll inside instead of growing the page. An entry moves to another category from the folder icon (a menu opening
+  upwards); the inbox category, a Russian folder name on disk, is shown in the interface language (`useCategoryLabel`).
 - **Assistant** (`features/assistant`, server calls only in `useThread`): **sessions** like Claude Code — a menu to switch,
   rename, delete, a new session starts with an empty history; **Clear** empties the current session (history, summary,
   files). The **context meter** shows how much of the provider's window the next question takes and of what (sources,
@@ -76,6 +89,14 @@ the AI keys step uses the real `KeyField`. Keys ←/→/Enter. "Get started" onl
 they were. Replay: Settings → Interface (`useUI().setTutorialOpen`) — no language question, closable with ×/Esc,
 the `onboarding_done` flag is untouched.
 
+## Languages
+
+UI strings live in `i18n/ru.ts` and `en.ts` (same keys, `tests/test_architecture.py`). Inside React `t()` comes from
+`useUI()`; code outside React (the API client, the router's error screen) uses `tr()` from `i18n/index.ts`, which follows
+the language `AppProvider` last set (`setLanguage`). Texts made by the server arrive already in the interface language
+(`backend/i18n.py`). The Inbox notebook has no stored name: `AppProvider` shows it as "Входящие" / "Inbox" in every view
+until the user renames it.
+
 ## State
 
 `app/AppProvider.tsx` is the only provider. Inside it there are three contexts, so job progress does not re-render the library:
@@ -107,6 +128,7 @@ new pid and reloads. The outcome toast (updated / rolled back) is shown once per
 - `components/ui` — Button, IconButton, Field, Input, Textarea, Select, Slider, Switch, Segmented, Card, Page, PageHeader,
   EmptyState, Progress, Stat, StatusMark, Modal, ConfirmDialog, PromptDialog, Splitter. There are no other implementations of these roles.
 - `components/skeleton` — Skeleton, SkeletonText, SkeletonCard, SkeletonList, SkeletonPlayer, SkeletonMarkdown, SkeletonChat.
+  They appear only after 180 ms (`--animate-skeleton` in `styles/index.css`), so a fast load shows no flash of placeholders.
 - `components/motion` — Appear, ListItem, RouteOutlet, ActiveMark (see Animation).
 - `components/Icon.tsx` — the single lucide wrapper (SVG only, `currentColor`).
 - `features/jobs/PipelineOptionsFields` — one processing-options form for the Studio and Settings → Processing.

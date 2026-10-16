@@ -27,8 +27,8 @@ Cyrillic string literals elsewhere in `backend/` (docstrings and comments aside)
 The Inbox notebook stores `""` as its name and description until the user sets them; the UI shows "Входящие" / "Inbox"
 (`AppProvider`), and older libraries' Russian defaults are read as unset.
 
-Options are one field per step (`PipelineDefaults`: `cut_silence`, `video`, `transcriber`, `audit`, `audit_source`, plus
-fine-tuning). A validator makes impossible combinations possible (original video → no cutting; video analysis → Gemini
+Options are one field per step (`PipelineDefaults`: `cut_silence`, `video`, `transcriber`, `audit`, `audit_source`,
+`output_language`, plus fine-tuning). A validator makes impossible combinations possible (original video → no cutting; video analysis → Gemini
 and a video; no transcript → audit from video or none) and translates pre-1.4 settings (`mode`, `clean_video`,
 `generate_audit`). The UI mirrors those rules (`features/jobs/PipelineOptionsFields.tsx:normalize`); the server decides.
 
@@ -53,6 +53,13 @@ Cancellation is a `JobCancelled` exception, checked between steps and inside lon
 
 Audit regeneration (`POST /api/lessons/{id}/audit`) is the same runner with `[GenerateAuditStep(strict), SaveLessonStep]`.
 
+**Languages of a lesson** (`core/language.py`). `TranscribeStep` stores `speech_language`: the recognition language when
+it was set explicitly (`ru` / `en`), else `detect()` on the transcript (share of Cyrillic letters; `""` for too little
+text). `GenerateAuditStep` writes the audit in `resolve(output_language, ui_language, speech_language)`: `interface`
+(default) = the interface language, `recording` = the language spoken (the interface language when unknown), or an
+explicit `ru` / `en`; the result is `audit_language`. Both are saved with the lesson; the lesson page offers to rebuild an
+audit written in another language than the recording, and "Regenerate audit" takes a language (`language` in the request).
+
 ## Timecode system
 
 Two timelines:
@@ -76,7 +83,12 @@ audit timecodes to the clean timeline; the original audit is kept as `lesson_aud
 
 ## AI
 
-- `core/ai/prompts.py` is the only place with prompt text (audit A/B, merging of parts, assistant, Gemini transcription).
+- `core/ai/prompts.py` is the only place with prompt text (audit A/B, merging of parts, assistant, Gemini transcription,
+  and the framing of an assistant request: SOURCES / SUMMARY / FILES / QUESTION, which `services/context_window.py` only
+  assembles). Prompts are written in **English** — models follow English instructions most reliably — and the output
+  language is a parameter: an audit names its language explicitly ("Write everything in Russian…"), the assistant answers
+  in the language of the question, and in the interface language for quick actions without a typed question. The default
+  questions of quick actions (`ROLE_DEFAULT_QUESTIONS`) exist in both interface languages.
   It is split into **editable blocks** (`BLOCKS`: role, style, audit structure A/B, assistant base instruction and tasks)
   and the **contract** (`[MM:SS]` format, `[[lesson@MM:SS]]` citations, part/merge mechanics). Users override blocks in
   Settings → Instructions; overrides live in `settings.json: prompts`, untouched blocks use the defaults.
@@ -102,7 +114,8 @@ audit timecodes to the clean timeline; the original audit is kept as `lesson_aud
   video and a warning; `POST /api/lessons/{id}/transcribe` (`TRANSCRIBE_STEPS`) redoes only recognition (+ audit).
 - Providers (`DeepSeekProvider`, `GeminiProvider`) implement transport only. Registration via the `AIMeta` metaclass.
 - Default audit style: slide notes, one line per point, no softening, "Wrong: …" / "Simplification: …" said plainly.
-  The default texts are in Russian; output follows the lecture language.
+  Settings → Instructions lists the blocks collapsed, titled by key (`prompt.<key>.title` / `.hint` in the UI dictionaries);
+  a user's own (possibly Russian) block text is sent as written.
 
 ## Diary
 

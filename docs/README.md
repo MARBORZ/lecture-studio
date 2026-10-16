@@ -15,12 +15,14 @@ backend/
   main.py, api/app.py         FastAPI (:3000); lifespan: temp cleanup, import, migration
   api/routes/                 system, settings, projects, lessons, jobs, assistant, diary
   settings/                   AppSettings + SettingsService.paths() — every data path comes from here
+  i18n.py                     server texts the user reads, RU / EN, in the interface language (tr)
   models/                     pydantic schemas by role (job, lesson, project, transcript, assistant, diary, system)
   core/timeline.py            the only time module (clean <-> orig, formats, normalisation)
   core/media/                 ffmpeg, AudioProcessor, VideoProcessor
   core/vad.py                 Silero VAD
+  core/language.py            the audit's language: detect (transcript script), resolve (interface / recording / explicit)
   core/transcription/         whisper, gemini, writer (segments.json -> txt/srt)
-  core/ai/                    prompts.py, base (audit), providers (deepseek, gemini), facade
+  core/ai/                    prompts.py (English, output language as a parameter), base (audit), providers (deepseek, gemini), facade
   core/pipeline/              steps and runner (single-worker queue)
   services/                   storage (Library), jobs (JobRegistry), export, assistant, migration, diary
   utils/                      fs (files, BOM-tolerant reads), proc (processes, cross-platform)

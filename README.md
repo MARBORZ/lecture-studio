@@ -20,6 +20,9 @@ that jump to the exact moment in the video. Video stays on your machine unless y
 - **Audit.** DeepSeek or Gemini writes structured notes in a blunt, no-filler "speaker notes" style, with
   `[MM:SS]` timecodes. Long lectures are processed in parts and merged; nothing is truncated.
   The instructions are editable in **Settings → Instructions**; the timecode format stays system-owned so clicks keep working.
+  The audit is written in the interface language by default, or in the language of the recording, or the one you pick
+  (Studio, Settings → Processing, "Regenerate audit"); a lesson whose audit and recording languages differ offers to
+  rebuild it. The assistant answers in the language of your question.
 - **Lesson workspace.** Player with chapter markers, synced transcript, audit with clickable timecodes,
   per-lesson assistant, downloads and an Obsidian-style export. The video can be popped out into a floating window
   or an always-on-top window and keeps playing while you move around the app; each lesson resumes where you left it.
@@ -30,16 +33,19 @@ that jump to the exact moment in the video. Video stays on your machine unless y
   summary automatically. Attach any file once — PDFs, Office documents and code are read as text,
   images are seen by Gemini — and it stays in the session. Select text in an answer or the audit to ask about it.
 - **Notebooks.** Lessons are grouped into notebooks (courses). A notebook chat answers from the lessons you tick,
-  with citations like "Lesson 2 · 04:15" that open the lesson at that moment.
+  with citations like "Lesson 2 · 04:15" that open the lesson at that moment. Move a lesson from its header, from its
+  row in the library, or by dragging the row onto a notebook in the sidebar; its files stay where they are.
 - **Diary.** A quick-capture stream of Markdown notes in categories. Plain `.md` files, so the folder opens in Obsidian.
 - **Focus mode and resizable video.** Drag the divider between the video and the content, or press **F** to hide
   everything except the video and the content (Esc to leave).
 - **Studio** is a four-step wizard: file → lesson → processing (engine cards say what runs locally and what goes to the
   cloud) → start. Temporary cloud failures (overload, rate limits) are retried; if transcription still fails, the lesson
   is saved with its clean audio and video, and **Recognize speech** in the lesson redoes only that step.
+  The queue beside it is a compact list, one row per job; it holds up to 10 jobs (Settings → Processing).
 - **Notebooks** can have a cover image. **Diary** entries fold to their title; long ones open as previews.
 - **Interface.** Monochrome, light or dark (follows the system by default), adjustable reading text size (80–150%),
-  keyboard-friendly, English and Russian. ⌘B / Ctrl+B collapses the sidebar.
+  keyboard-friendly, English and Russian — including everything the server says (job stages, warnings, errors).
+  ⌘B / Ctrl+B collapses the sidebar.
   A short tutorial runs on first start (language first) and can be replayed from Settings → Interface.
 - **Updates.** When a new release is tagged, the sidebar offers it with the list of changes. One click moves the code to
   the release and restarts the app; if the new version does not start, the previous one comes back automatically.
