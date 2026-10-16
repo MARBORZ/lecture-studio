@@ -165,7 +165,7 @@ export const en: Record<TKey, string> = {
   'files.segments': 'Segments JSON',
   'files.time_map': 'Cut map JSON',
 
-  'assistant.placeholder': 'Ask about the sources. / for commands, Enter to send, Shift+Enter for newline',
+  'assistant.placeholder': 'Ask about the sources · / for commands',
   'assistant.attach': 'Attach files (or drop / paste them)',
   'assistant.attach.upload': 'Upload a file…',
   'assistant.attach.session': 'Files of this session',

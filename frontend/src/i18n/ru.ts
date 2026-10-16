@@ -171,7 +171,7 @@ export const ru = {
   'files.time_map': 'Карта вырезов JSON',
 
   // assistant
-  'assistant.placeholder': 'Вопрос по источникам. / — команды, Enter — отправить, Shift+Enter — перенос',
+  'assistant.placeholder': 'Вопрос по источникам · / — команды',
   'assistant.attach': 'Прикрепить файлы (или перетащите, или вставьте)',
   'assistant.attach.upload': 'Загрузить файл…',
   'assistant.attach.session': 'Файлы этой сессии',

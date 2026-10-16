@@ -260,7 +260,7 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
             rows={Math.min(6, Math.max(1, question.split('\n').length))}
             placeholder={t('assistant.placeholder')}
             disabled={noSources}
-            className="read-14 max-h-40 flex-1 resize-none bg-transparent px-2 py-1.5 text-fg placeholder:text-dim focus:outline-none"
+            className="read-14 max-h-40 min-w-0 flex-1 resize-none bg-transparent px-2 py-1.5 text-fg placeholder:truncate placeholder:text-dim focus:outline-none"
           />
           <button
             type="submit"
