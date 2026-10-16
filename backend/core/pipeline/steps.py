@@ -318,8 +318,8 @@ class GenerateAuditStep(PipelineStep):
     def execute(self, ctx, progress):
         o = ctx.options
         provider_name = o.audit
-        if not SettingsService.api_key(provider_name):
-            return self._fail(ctx, ValueError(tr("ai.no_key", provider=provider_name)), tr("step.audit_no_key"))
+        if not AI.configured(provider_name):
+            return self._fail(ctx, ValueError(AI.not_configured(provider_name)), tr("step.audit_no_key"))
         timed = o.audit_mode == "srt_timecodes"
         provider = AI.get(provider_name)
         lang = language.resolve(o.output_language, SettingsService.get().ui_language, ctx.speech_language)

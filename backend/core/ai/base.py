@@ -20,6 +20,7 @@ CHUNK_CHARS = 30_000
 # (Russian prose, timecodes, code): about 3 characters per token, so the real token count stays under the setting.
 CHARS_PER_TOKEN = 3
 MIN_CONTEXT_TOKENS = 8_000
+SEPARATOR = "\n\n---\n\n"
 
 _EMOJI_RE = re.compile(
     "[\U0001F000-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF\U00002B00-\U00002BFF️‍]"
@@ -71,6 +72,19 @@ class BaseAIProvider(metaclass=AIMeta):
     #: whether chat(images=...) is understood; providers without vision ignore images
     can_see_images: bool = False
 
+    def audit_window_tokens(self) -> int | None:
+        """The window an audit request must fit (a local model's small one); None = parts of CHUNK_CHARS fit."""
+        return None
+
+    def _part_limit(self, system: str) -> int:
+        """Characters of material one request may carry next to `system`, leaving room for the answer."""
+        window = self.audit_window_tokens()
+        if not window:
+            return CHUNK_CHARS
+        answer = min(4096, max(1024, window // 4))  # tokens kept free for the reply
+        room = int((window - answer) * CHARS_PER_TOKEN * 0.9) - len(system) - 500  # 10% margin: the estimate is rough
+        return max(2000, min(CHUNK_CHARS, room))
+
     @abstractmethod
     def chat(self, messages: list[dict[str, str]], system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
         """Multi-turn completion; messages are {'role': 'user'|'assistant', 'content': str}.
@@ -89,7 +103,9 @@ class BaseAIProvider(metaclass=AIMeta):
         if not transcript.strip():
             raise ValueError(tr("audit.empty"))
 
-        chunks = split_lines(transcript)
+        systems = (prompts.audit_system(timed, language), prompts.chunk_notes_system(timed, language), prompts.merge_system(timed, language))
+        limit = self._part_limit(max(systems, key=len))
+        chunks = split_lines(transcript, limit)
         if len(chunks) == 1:
             report(0.1, tr("audit.start"))
             raw = self.generate_text(prompts.audit_prompt(transcript, timed), prompts.audit_system(timed, language))
@@ -103,5 +119,22 @@ class BaseAIProvider(metaclass=AIMeta):
                 prompts.chunk_notes_system(timed, language),
             ))
         report(len(chunks) / (len(chunks) + 1), tr("audit.merge"))
-        raw = self.generate_text("\n\n---\n\n".join(notes), prompts.merge_system(timed, language))
+        raw = self.generate_text(self._fit_notes(notes, limit, prompts.merge_system(timed, language)), prompts.merge_system(timed, language))
         return clean_output(raw, duration, timed)
+
+    def _fit_notes(self, notes: list[str], limit: int, merge_system: str) -> str:
+        """The parts' notes joined for the final merge. When they do not fit the window (a small local model), groups of
+        them are merged first, round after round, until they do."""
+        joined = SEPARATOR.join(notes)
+        while len(joined) > limit and len(notes) > 1:
+            groups: list[list[str]] = [[]]
+            for note in notes:
+                if groups[-1] and len(SEPARATOR.join([*groups[-1], note])) > limit:
+                    groups.append([])
+                groups[-1].append(note)
+            if all(len(g) == 1 for g in groups):  # every note alone is near the limit: pairs, each cut to fit
+                half = limit // 2 - len(SEPARATOR)
+                groups = [[n[:half] for n in notes[i : i + 2]] for i in range(0, len(notes), 2)]
+            notes = [self.generate_text(SEPARATOR.join(g), merge_system) if len(g) > 1 else g[0] for g in groups]
+            joined = SEPARATOR.join(notes)
+        return joined[:limit]

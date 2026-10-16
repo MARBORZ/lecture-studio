@@ -236,6 +236,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/local/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Local
+         * @description Is a local model server (Ollama, LM Studio) answering at this address, and which models does it have.
+         */
+        post: operations["check_local_api_settings_local_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/check-path": {
         parameters: {
             query?: never;
@@ -955,8 +975,12 @@ export interface components {
             gemini_model?: string | null;
             /** Whisper Model */
             whisper_model?: string | null;
+            /** Local Base Url */
+            local_base_url?: string | null;
+            /** Local Model */
+            local_model?: string | null;
             /** Assistant Provider */
-            assistant_provider?: ("deepseek" | "gemini") | null;
+            assistant_provider?: ("deepseek" | "gemini" | "local") | null;
             /** Context Tokens */
             context_tokens?: {
                 [key: string]: number | null;
@@ -972,11 +996,15 @@ export interface components {
             gemini_model: string;
             /** Whisper Model */
             whisper_model: string;
+            /** Local Base Url */
+            local_base_url: string;
+            /** Local Model */
+            local_model: string;
             /**
              * Assistant Provider
              * @enum {string}
              */
-            assistant_provider: "deepseek" | "gemini";
+            assistant_provider: "deepseek" | "gemini" | "local";
             /** Context Tokens */
             context_tokens: {
                 [key: string]: number;
@@ -998,7 +1026,7 @@ export interface components {
             /** Sources */
             sources?: string[] | null;
             /** Provider */
-            provider?: ("deepseek" | "gemini") | null;
+            provider?: ("deepseek" | "gemini" | "local") | null;
             /** Attachments */
             attachments?: string[];
             /** Session Id */
@@ -1041,7 +1069,7 @@ export interface components {
         /** AuditRequest */
         AuditRequest: {
             /** Provider */
-            provider?: ("deepseek" | "gemini") | null;
+            provider?: ("deepseek" | "gemini" | "local") | null;
             /**
              * Audit Mode
              * @default srt_timecodes
@@ -1145,7 +1173,7 @@ export interface components {
         /** CompactRequest */
         CompactRequest: {
             /** Provider */
-            provider?: ("deepseek" | "gemini") | null;
+            provider?: ("deepseek" | "gemini" | "local") | null;
             /** Sources */
             sources?: string[] | null;
         };
@@ -1270,6 +1298,21 @@ export interface components {
              * @default false
              */
             sources_trimmed: boolean;
+            /**
+             * Sources Count
+             * @default 0
+             */
+            sources_count: number;
+            /**
+             * Sources Whole
+             * @default 0
+             */
+            sources_whole: number;
+            /**
+             * Sources Share
+             * @default 1
+             */
+            sources_share: number;
         };
         /** DataDirChange */
         DataDirChange: {
@@ -1599,7 +1642,7 @@ export interface components {
              * @default deepseek
              * @enum {string}
              */
-            audit: "deepseek" | "gemini" | "none";
+            audit: "deepseek" | "gemini" | "local" | "none";
             /**
              * Audit Source
              * @default transcript
@@ -1718,7 +1761,7 @@ export interface components {
              * Provider
              * @enum {string}
              */
-            provider: "deepseek" | "gemini";
+            provider: "deepseek" | "gemini" | "local";
         };
         /** KeyTestResult */
         KeyTestResult: {
@@ -1981,6 +2024,44 @@ export interface components {
             /** Bookmarks */
             bookmarks?: components["schemas"]["Bookmark"][] | null;
         };
+        /** LocalCheckRequest */
+        LocalCheckRequest: {
+            /**
+             * Base Url
+             * @default
+             */
+            base_url: string;
+        };
+        /** LocalModel */
+        LocalModel: {
+            /** Id */
+            id: string;
+            /** Context Tokens */
+            context_tokens?: number | null;
+        };
+        /** LocalServer */
+        LocalServer: {
+            /** Ok */
+            ok: boolean;
+            /**
+             * Kind
+             * @default
+             * @enum {string}
+             */
+            kind: "ollama" | "openai" | "";
+            /** Base Url */
+            base_url: string;
+            /**
+             * Models
+             * @default []
+             */
+            models: components["schemas"]["LocalModel"][];
+            /**
+             * Error
+             * @default
+             */
+            error: string;
+        };
         /**
          * MediaInfo
          * @description What the Studio shows for a file on disk before processing (and whether Eco mode can play it as is).
@@ -2112,7 +2193,7 @@ export interface components {
              * @default deepseek
              * @enum {string}
              */
-            audit: "deepseek" | "gemini" | "none";
+            audit: "deepseek" | "gemini" | "local" | "none";
             /**
              * Audit Source
              * @default transcript
@@ -2927,6 +3008,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["KeyTestResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_local_api_settings_local_check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LocalCheckRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocalServer"];
                 };
             };
             /** @description Validation Error */
@@ -3913,7 +4027,7 @@ export interface operations {
         parameters: {
             query?: {
                 session?: string | null;
-                provider?: ("deepseek" | "gemini") | null;
+                provider?: ("deepseek" | "gemini" | "local") | null;
                 sources?: string[] | null;
             };
             header?: never;

@@ -2,6 +2,7 @@ import { AlertTriangle, ArrowRight, Check, Cpu, Database, Film, KeyRound, Server
 import { useEffect, useState } from 'react'
 import { api } from '@/api/client'
 import type { ComputeStatus, SystemStatus } from '@/api/types'
+import { PROVIDER_NAME } from '@/features/system/KeyNotice'
 import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { AnimatePresence, m } from '@/components/motion'
@@ -35,7 +36,7 @@ export function Bootstrap({ onDone }: { onDone: () => void }) {
     api.compute().then(setCompute, () => setCompute(null))
   }, [])
 
-  const keys = settings ? (['deepseek', 'gemini'] as const).filter((p) => settings.ai[`${p}_key`].source !== 'none') : []
+  const keys = settings ? [...(['deepseek', 'gemini'] as const).filter((p) => settings.ai[`${p}_key`].source !== 'none'), ...(settings.ai.local_model ? ['local' as const] : [])] : []
   const rows: Array<Row | null> = [
     status === undefined ? null : { id: 'server', icon: Server, label: t('onboarding.boot.server'), value: status ? `v${status.version}` : t('onboarding.boot.unknown'), ok: Boolean(status) },
     status === undefined ? null : { id: 'ffmpeg', icon: Film, label: 'FFmpeg', value: status?.ffmpeg ? t('onboarding.boot.ready') : t('onboarding.boot.ffmpegMissing'), ok: Boolean(status?.ffmpeg) },
@@ -54,7 +55,7 @@ export function Bootstrap({ onDone }: { onDone: () => void }) {
         },
     settings ? { id: 'data', icon: Database, label: t('onboarding.boot.data'), value: tail(settings.paths.data_dir), ok: true } : null,
     settings
-      ? { id: 'keys', icon: KeyRound, label: t('onboarding.boot.keys'), value: keys.length ? keys.map((k) => (k === 'deepseek' ? 'DeepSeek' : 'Gemini')).join(', ') : t('onboarding.boot.noKeys'), ok: keys.length > 0 }
+      ? { id: 'keys', icon: KeyRound, label: t('onboarding.boot.keys'), value: keys.length ? keys.map((k) => (k === 'local' ? t('ai.local.short') : PROVIDER_NAME[k])).join(', ') : t('onboarding.boot.noKeys'), ok: keys.length > 0 }
       : null,
   ]
 

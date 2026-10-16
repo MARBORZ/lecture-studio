@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 
 from backend.core.ai import AI, ProviderInfo
 from backend.core.ai.prompts import BLOCKS
+from backend.core.ai.providers.local import LocalServer, inspect
 from backend.i18n import tr
 from backend.services.jobs import JobRegistry
 from backend.settings import SettingsService, hotkeys
@@ -16,6 +17,7 @@ from backend.settings.schema import (
     HotkeyCheckRequest,
     KeyTestRequest,
     KeyTestResult,
+    LocalCheckRequest,
     PathCheckRequest,
     PathCheckResult,
     PromptUpdate,
@@ -101,6 +103,12 @@ def test_key(req: KeyTestRequest) -> KeyTestResult:
         return KeyTestResult(ok=True, model=provider.model)
     except Exception as e:
         return KeyTestResult(ok=False, model=model, error=str(e)[:300])
+
+
+@router.post("/local/check", response_model=LocalServer)
+def check_local(req: LocalCheckRequest) -> LocalServer:
+    """Is a local model server (Ollama, LM Studio) answering at this address, and which models does it have."""
+    return inspect(req.base_url or SettingsService.get().ai.local_base_url)
 
 
 @router.post("/check-path", response_model=PathCheckResult)

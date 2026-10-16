@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 import backend.core.ai.providers.deepseek  # noqa: F401,E402
 import backend.core.ai.providers.gemini  # noqa: F401,E402
+import backend.core.ai.providers.local  # noqa: F401,E402
 from backend.core.ai.base import CHARS_PER_TOKEN, MIN_CONTEXT_TOKENS, BaseAIProvider
 from backend.core.ai.meta import AIMeta
 
@@ -35,7 +36,21 @@ class AI:
             raise ValueError(tr("ai.unknown_provider", provider=category))
         ai = SettingsService.get().ai
         model = model or getattr(ai, f"{category}_model", None) or cls.default_model
+        if category == "local":  # no key: an address and the window the requests are sized for
+            return cls(model=model, base_url=ai.local_base_url, context_tokens=AI.context_tokens("local"))
         return cls(api_key=api_key or SettingsService.api_key(category), model=model)
+
+    @staticmethod
+    def configured(category: str) -> bool:
+        """Ready to be asked: a key for a cloud provider, a chosen model for the local one."""
+        if category == "local":
+            return bool(SettingsService.get().ai.local_model)
+        return bool(SettingsService.api_key(category))
+
+    @staticmethod
+    def not_configured(category: str) -> str:
+        """What to tell the user when configured() is False."""
+        return tr("ai.local_no_model") if category == "local" else tr("ai.no_key", provider=category)
 
     @staticmethod
     def providers() -> dict[str, ProviderInfo]:
@@ -45,7 +60,7 @@ class AI:
                 default_model=cls.default_model,
                 supported_models=cls.supported_models,
                 can_transcribe_audio=cls.can_transcribe_audio,
-                configured=bool(SettingsService.api_key(cat)),
+                configured=AI.configured(cat),
                 min_context_tokens=MIN_CONTEXT_TOKENS,
                 max_context_tokens=cls.max_context_tokens,
                 default_context_tokens=cls.default_context_tokens,
