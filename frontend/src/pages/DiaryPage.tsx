@@ -8,7 +8,7 @@ import { Icon } from '@/components/Icon'
 import { AnimatePresence, ListItem } from '@/components/motion'
 import { Button, EmptyState, IconButton, PageHeader } from '@/components/ui'
 import { Skeleton, SkeletonChat } from '@/components/skeleton'
-import { EntryCard } from '@/features/diary/EntryCard'
+import { EntryCard, useCategoryLabel } from '@/features/diary/EntryCard'
 import { cn } from '@/lib/cn'
 import { storage } from '@/lib/format'
 import { useResource } from '@/lib/useResource'
@@ -36,6 +36,7 @@ export function DiaryPage() {
   const categories = cats.data ?? []
   const target = category ?? categories[0]?.name
   const inbox = categories[0]?.name
+  const label = useCategoryLabel(categories)
 
   const fail = (e: unknown) => toast((e as Error).message, 'error')
 
@@ -84,7 +85,7 @@ export function DiaryPage() {
                 <CategoryLink
                   key={c.name}
                   to={`/diary/${encodeURIComponent(c.name)}`}
-                  label={c.name}
+                  label={label(c.name)}
                   count={c.count ?? 0}
                   actions={
                     c.name !== inbox && (
@@ -119,7 +120,7 @@ export function DiaryPage() {
 
       <section className="scroll-area min-w-0 flex-1">
         <div className="mx-auto max-w-3xl px-6 py-8 lg:px-10">
-          <PageHeader eyebrow={t('diary.title')} title={category ?? t('diary.all')} subtitle={t('diary.subtitle')} />
+          <PageHeader eyebrow={t('diary.title')} title={category ? label(category) : t('diary.all')} subtitle={t('diary.subtitle')} />
 
           <div className="rounded-xl border border-line bg-surface focus-within:border-line-strong">
             <textarea

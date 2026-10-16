@@ -7,6 +7,15 @@ export type TFunction = (key: TKey, vars?: Record<string, string | number>) => s
 
 const dictionaries: Record<UILanguage, Record<TKey, string>> = { ru, en }
 
+let current: UILanguage = 'ru'
+
+/** For code outside React (the API client, the router's error screen); AppProvider keeps it in step with settings. */
+export function setLanguage(lang: UILanguage) {
+  current = lang
+}
+
+export const tr: TFunction = (key, vars) => createT(current)(key, vars)
+
 export function createT(lang: UILanguage): TFunction {
   const dict = dictionaries[lang] ?? ru
   return (key, vars) => {

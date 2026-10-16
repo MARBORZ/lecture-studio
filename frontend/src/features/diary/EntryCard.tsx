@@ -1,16 +1,23 @@
-import { ChevronRight, Trash2 } from 'lucide-react'
+import { Check, ChevronRight, FolderInput, Trash2 } from 'lucide-react'
 import { memo, useEffect, useRef, useState } from 'react'
 import { api } from '@/api/client'
 import type { DiaryCategory, DiaryEntry } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
-import { IconButton, Select } from '@/components/ui'
+import { IconButton, MenuItem, Popover } from '@/components/ui'
 import { MarkdownView } from '@/features/markdown/MarkdownView'
 import { cn } from '@/lib/cn'
 import { formatDateTime } from '@/lib/format'
 
 const AUTOSAVE_MS = 700
 const LONG_CHARS = 700 // longer entries open as a preview with "show all"
+
+/** The inbox category (listed first) is a folder named in Russian on disk: shown in the interface language. */
+export function useCategoryLabel(categories: DiaryCategory[]) {
+  const { t } = useUI()
+  const inbox = categories[0]?.name
+  return (name: string) => (name === inbox ? t('diary.inbox') : name)
+}
 
 /** One diary entry: rendered Markdown; click to edit in place with autosave. */
 export const EntryCard = memo(function EntryCard({
@@ -31,6 +38,7 @@ export const EntryCard = memo(function EntryCard({
   onFold: (folded: boolean) => void
 }) {
   const { t, lang, toast, confirm } = useUI()
+  const label = useCategoryLabel(categories)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(entry.text)
   const [saving, setSaving] = useState(false)
@@ -110,24 +118,42 @@ export const EntryCard = memo(function EntryCard({
         {long && !folded && !editing && (
           <button type="button" onClick={() => setFull(!full)} className="hover:text-fg">{full ? t('diary.showLess') : t('diary.showAll')}</button>
         )}
-        {showCategory && <span className="truncate">· {entry.category}</span>}
+        {showCategory && <span className="truncate">· {label(entry.category)}</span>}
         {editing && <span className="truncate">{saving ? t('diary.saving') : t('diary.editHint')}</span>}
         <div className="flex-1" />
-        <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-          <Select
-            aria-label={t('diary.move')}
-            title={t('diary.move')}
-            value={entry.category}
-            onChange={async (category) => {
-              try {
-                onChanged(await api.updateDiaryEntry(entry.id, { category }), entry.id)
-              } catch (e) {
-                toast((e as Error).message, 'error')
-              }
-            }}
-            options={categories.map((c) => ({ value: c.name, label: c.name }))}
-            className="h-7 w-40 text-[12px]"
-          />
+        {/* stays visible while the menu is open: the pointer may leave the card for the menu */}
+        <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
+          {/* upwards: the next card would cover a menu opening down; a long list scrolls inside */}
+          <Popover
+            side="top"
+            align="end"
+            className="max-h-72 overflow-y-auto"
+            trigger={({ open, toggle }) => <IconButton icon={FolderInput} size="sm" label={t('diary.move')} active={open} aria-expanded={open} onClick={toggle} />}
+          >
+            {(close) =>
+              categories.map((c) => {
+                const here = c.name === entry.category
+                return (
+                  <MenuItem
+                    key={c.name}
+                    active={here}
+                    disabled={here}
+                    onClick={async () => {
+                      close()
+                      try {
+                        onChanged(await api.updateDiaryEntry(entry.id, { category: c.name }), entry.id)
+                      } catch (e) {
+                        toast((e as Error).message, 'error')
+                      }
+                    }}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{label(c.name)}</span>
+                    <Icon as={Check} size={14} className={cn(!here && 'invisible')} />
+                  </MenuItem>
+                )
+              })
+            }
+          </Popover>
           <IconButton
             icon={Trash2}
             size="sm"
