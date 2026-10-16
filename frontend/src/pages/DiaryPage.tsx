@@ -9,7 +9,7 @@ import { AnimatePresence, ListItem } from '@/components/motion'
 import { Button, EmptyState, IconButton, Input, PageHeader, Segmented } from '@/components/ui'
 import { Skeleton, SkeletonChat } from '@/components/skeleton'
 import { EntryCard, useCategoryLabel } from '@/features/diary/EntryCard'
-import { DIARY_MODES, rowsFor, SplitEditor, useDiaryMode } from '@/features/diary/modes'
+import { DIARY_MODES, rowsFor, useDiaryMode } from '@/features/diary/modes'
 import { cn } from '@/lib/cn'
 import { storage } from '@/lib/format'
 import { shortcutLabel } from '@/lib/keys'
@@ -128,7 +128,6 @@ export function DiaryPage() {
           <Composer
             draft={draft}
             setDraft={setDraft}
-            preview={mode === 'hybrid'}
             target={target ? label(target) : ''}
             adding={adding}
             onAdd={add}
@@ -195,8 +194,8 @@ function CategoryLink({ to, label, count, end, actions }: { to: string; label: s
   )
 }
 
-/** New entry: the source, with its live render beside it in the hybrid mode; ⌘/Ctrl+Enter saves into the category. */
-function Composer({ draft, setDraft, preview, target, adding, onAdd }: { draft: string; setDraft: (v: string) => void; preview: boolean; target: string; adding: boolean; onAdd: () => void }) {
+/** New entry: its Markdown source; ⌘/Ctrl+Enter saves it into the category, where it shows rendered. */
+function Composer({ draft, setDraft, target, adding, onAdd }: { draft: string; setDraft: (v: string) => void; target: string; adding: boolean; onAdd: () => void }) {
   const { t } = useUI()
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -206,18 +205,14 @@ function Composer({ draft, setDraft, preview, target, adding, onAdd }: { draft: 
   }
   return (
     <div className="rounded-2xl border border-line bg-surface transition-colors focus-within:border-line-strong">
-      {preview && draft.trim() ? (
-        <SplitEditor value={draft} onChange={setDraft} onKeyDown={onKeyDown} placeholder={t('diary.composer')} minRows={3} autoFocus />
-      ) : (
-        <textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={onKeyDown}
-          rows={rowsFor(draft, 3, 12)}
-          placeholder={t('diary.composer')}
-          className="read-15 max-h-[40vh] w-full resize-none overflow-y-auto bg-transparent px-5 py-4 leading-relaxed text-fg placeholder:text-dim focus:outline-none"
-        />
-      )}
+      <textarea
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={onKeyDown}
+        rows={rowsFor(draft, 3, 12)}
+        placeholder={t('diary.composer')}
+        className="read-15 max-h-[40vh] w-full resize-none overflow-y-auto bg-transparent px-5 py-4 leading-relaxed text-fg placeholder:text-dim focus:outline-none"
+      />
       <div className="flex items-center gap-3 border-t border-line px-3 py-2">
         <span className="flex min-w-0 items-center gap-1.5 pl-2 text-[12.5px] text-muted">
           <Icon as={FolderInput} size={13} className="shrink-0" />

@@ -10,7 +10,8 @@ import { MarkdownView } from '@/features/markdown/MarkdownView'
 import { cn } from '@/lib/cn'
 import { formatDateTime } from '@/lib/format'
 import { collapse } from '@/lib/motion'
-import { ModeSwitch, rowsFor, SplitEditor, type DiaryMode } from './modes'
+import { BlockEditor } from './blocks'
+import { ModeSwitch, rowsFor, type DiaryMode } from './modes'
 
 const AUTOSAVE_MS = 700
 const LONG_CHARS = 900 // longer entries open as a preview with "show all"
@@ -51,9 +52,15 @@ export const EntryCard = memo(function EntryCard({
   // the card's own mode follows the diary's until the card is switched by hand
   const [own, setOwn] = useState<{ base: DiaryMode; mode: DiaryMode } | null>(null)
   const mode = own && own.base === diaryMode ? own.mode : diaryMode
-  const [open, setOpen] = useState(false) // hybrid: the editor is open
+  const [open, setOpen] = useState(false) // hybrid: a block is open as its source
   const editing = mode === 'edit' || (mode === 'hybrid' && open)
   const [draft, setDraft] = useState(entry.text)
+  // a newer saved text (this card's save, or a move) becomes the draft unless the user is typing
+  const [seen, setSeen] = useState(entry.text)
+  if (entry.text !== seen) {
+    setSeen(entry.text)
+    if (!editing) setDraft(entry.text)
+  }
   const [saving, setSaving] = useState(false)
   const [full, setFull] = useState(false)
   const long = entry.text.length > LONG_CHARS
@@ -83,10 +90,6 @@ export const EntryCard = memo(function EntryCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft, editing])
 
-  const startEditing = () => {
-    setDraft(lastSaved.current)
-    setOpen(true)
-  }
   const finish = () => {
     clearTimeout(timer.current)
     void save(draft)
@@ -97,11 +100,6 @@ export const EntryCard = memo(function EntryCard({
     setDraft(lastSaved.current)
     setOwn({ base: diaryMode, mode: next })
   }
-  // the hybrid editor closes when focus leaves the card (not when it moves from the text to the render)
-  const onBlur = (e: React.FocusEvent) => {
-    if (mode === 'hybrid' && open && !cardRef.current?.contains(e.relatedTarget as Node | null)) finish()
-  }
-
   const body = folded ? null : mode === 'edit' ? (
     <textarea
       value={draft}
@@ -109,31 +107,26 @@ export const EntryCard = memo(function EntryCard({
       onBlur={() => void save(draft)}
       rows={rowsFor(draft, 3, 24)}
       aria-label={t('diary.mode.edit')}
-      className="read-14 max-h-[60vh] w-full resize-none overflow-y-auto bg-transparent px-5 py-4 font-mono leading-relaxed text-fg focus:outline-none"
+      className="read-14 max-h-[60vh] w-full resize-none overflow-y-auto bg-transparent px-5 pt-1 pb-4 font-mono leading-relaxed text-fg focus:outline-none"
     />
-  ) : editing ? (
-    <SplitEditor value={draft} onChange={setDraft} autoFocus onKeyDown={(e) => e.key === 'Escape' && finish()} />
   ) : (
-    <div
-      role={mode === 'hybrid' ? 'button' : undefined}
-      tabIndex={mode === 'hybrid' ? 0 : undefined}
-      title={mode === 'hybrid' ? t('diary.clickToEdit') : undefined}
-      onClick={mode === 'hybrid' ? startEditing : undefined}
-      onKeyDown={mode === 'hybrid' ? (e) => e.key === 'Enter' && startEditing() : undefined}
-      className={cn('relative px-5 py-4', mode === 'hybrid' && 'cursor-text', long && !full && 'max-h-80 overflow-hidden')}
-    >
-      <MarkdownView content={entry.text} compact className="read-15" />
-      {long && !full && <span className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-surface to-transparent" />}
+    <div className={cn('relative px-5 pt-1 pb-4', long && !full && !editing && 'max-h-80 overflow-hidden')}>
+      {mode === 'hybrid' ? (
+        <BlockEditor value={draft} onChange={setDraft} onEditing={(on) => (on ? setOpen(true) : finish())} />
+      ) : (
+        <MarkdownView content={entry.text} compact className="read-15" />
+      )}
+      {long && !full && !editing && <span className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-surface to-transparent" />}
     </div>
   )
 
   return (
     <article
       ref={cardRef}
-      onBlur={onBlur}
       className={cn('group rounded-2xl border bg-surface transition-colors', editing ? 'border-line-strong' : 'border-line hover:border-line-strong')}
     >
-      <header className="flex items-center gap-2 px-3 pt-2.5 pb-1">
+      {/* px-3 + the button's px-2 = the body's px-5: the date starts where the text does; py-2 on both sides when folded */}
+      <header className="flex items-center gap-2 px-3 py-2">
         <button
           type="button"
           onClick={() => {
@@ -143,7 +136,7 @@ export const EntryCard = memo(function EntryCard({
           aria-expanded={!folded}
           aria-label={folded ? t('diary.unfold') : t('diary.fold')}
           title={folded ? t('diary.unfold') : t('diary.fold')}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1 text-left hover:bg-hover"
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1 text-left transition-colors hover:bg-hover focus:outline-none focus-visible:bg-hover"
         >
           <Icon as={ChevronDown} size={14} className={cn('shrink-0 text-dim transition-transform duration-200', folded && '-rotate-90')} />
           <span className="truncate text-[12.5px] text-muted">{formatDateTime(entry.created_at, lang)}</span>

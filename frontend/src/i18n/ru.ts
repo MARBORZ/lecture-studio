@@ -756,12 +756,11 @@ export const ru = {
   'diary.mode.hybrid': 'Гибрид',
   'diary.mode.view': 'Просмотр',
   'diary.mode.edit': 'Правка',
-  'diary.mode.hybrid.hint': 'Записи отрендерены; клик — правка с живым рендером рядом.',
+  'diary.mode.hybrid.hint': 'Записи отрендерены; клик по абзацу открывает его исходник прямо на месте.',
   'diary.mode.view.hint': 'Только чтение: записи не меняются.',
   'diary.mode.edit.hint': 'Только исходный Markdown, сразу можно править. Сохраняется само.',
   'diary.clickToEdit': 'Нажмите, чтобы править',
   'diary.autosave': 'Сохраняется автоматически',
-  'diary.previewEmpty': 'Здесь появится рендер',
   'diary.search': 'Поиск по записям',
 
   'error.title': 'Что-то пошло не так',
