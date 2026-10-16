@@ -1,5 +1,5 @@
 import type {
-  AIProvider, AskRequest, DownloaderInfo, VideoInfo, VideoItem, Attachment, DiaryCategory, DiaryEntry, ExportResult, Job, JobOptions, Lesson, LessonFull, LessonPatch, LessonStatus,
+  AIProvider, AskRequest, DiaryPage, DownloaderInfo, VideoInfo, VideoItem, Attachment, DiaryCategory, DiaryEntry, ExportResult, Job, JobOptions, Lesson, LessonFull, LessonPatch, LessonStatus,
   HotkeyCheck, LocalServer, PathCheckResult, PipelineDefaults, Project, PromptView, ProjectCreate, ProjectPatch, ProviderInfo, SessionInfo, SessionPatch, SettingsPatch, SettingsView, SystemStatus,
   Thread, ThreadKind, ComputeStatus, MediaInfo, UninstallPlan, UpdateInfo, FeedbackDraft, FeedbackFile, FeedbackSend, FeedbackResult, JobPage, DownloadPage,
 } from './types'
@@ -178,7 +178,7 @@ export const api = {
   createDiaryCategory: (name: string) => request<DiaryCategory>('POST', '/api/diary/categories', { name }),
   renameDiaryCategory: (name: string, to: string) => request<DiaryCategory>('PATCH', `/api/diary/categories/${encodeURIComponent(name)}`, { name: to }),
   deleteDiaryCategory: (name: string) => request<{ moved: number }>('DELETE', `/api/diary/categories/${encodeURIComponent(name)}`),
-  diaryEntries: (category?: string, q?: string) => get<DiaryEntry[]>(`/api/diary/entries${qs({ category, q })}`),
+  diaryEntries: (category?: string, q?: string, page = 1) => get<DiaryPage>(`/api/diary/entries${qs({ category, q, page: page > 1 ? String(page) : undefined })}`),
   createDiaryEntry: (text: string, category?: string) => request<DiaryEntry>('POST', '/api/diary/entries', { text, category }),
   updateDiaryEntry: (id: string, patch: { text?: string; category?: string }) => request<DiaryEntry>('PUT', `/api/diary/entries/${diaryPath(id)}`, patch),
   deleteDiaryEntry: (id: string) => request<{ ok: boolean }>('DELETE', `/api/diary/entries/${diaryPath(id)}`),

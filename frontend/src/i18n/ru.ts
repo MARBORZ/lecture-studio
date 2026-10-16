@@ -799,6 +799,7 @@ export const ru = {
   'diary.clickToEdit': 'Нажмите, чтобы править',
   'diary.autosave': 'Сохраняется автоматически',
   'diary.search': 'Поиск по записям',
+  'diary.allShown': 'Все записи показаны: {n}',
 
   'error.title': 'Что-то пошло не так',
   'error.notFound': 'Страница не найдена',

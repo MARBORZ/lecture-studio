@@ -41,7 +41,7 @@ def test_diary_api(data_dir):
         assert c.put(f"/api/diary/entries/{e['id']}", json={"text": "правка"}).json()["title"] == "правка"
         assert c.delete("/api/diary/categories/Входящие").status_code == 400
         assert c.delete(f"/api/diary/entries/{e['id']}").status_code == 200
-        assert c.get("/api/diary/entries").json() == []
+        assert c.get("/api/diary/entries").json() == {"items": [], "total": 0, "page": 1, "size": 30}
 
 
 def test_prompt_overrides(data_dir):
@@ -57,3 +57,26 @@ def test_prompt_overrides(data_dir):
         c.delete("/api/settings/prompts/audit.style")
         assert prompts.text("audit.style") == default_style
         assert c.put("/api/settings/prompts/nope", json={"value": "x"}).status_code == 404
+
+
+def test_entries_come_a_page_at_a_time(data_dir):
+    from fastapi.testclient import TestClient
+
+    from backend.main import app
+
+    with TestClient(app, base_url="http://127.0.0.1") as c:
+        for i in range(75):
+            c.post("/api/diary/entries", json={"text": f"запись {i} {'функции' if i % 5 == 0 else 'списки'}"})
+        first = c.get("/api/diary/entries").json()
+        assert (first["total"], first["page"], first["size"], len(first["items"])) == (75, 1, 30, 30)
+        seen = [e["id"] for p in (1, 2, 3) for e in c.get("/api/diary/entries", params={"page": p}).json()["items"]]
+        assert len(seen) == 75 and len(set(seen)) == 75  # pages do not overlap and miss nothing
+        dates = [e["created_at"] for p in (1, 2, 3) for e in c.get("/api/diary/entries", params={"page": p}).json()["items"]]
+        assert dates == sorted(dates, reverse=True)  # newest first across pages
+        assert c.get("/api/diary/entries", params={"page": 4}).json()["items"] == []  # past the end: empty, total kept
+
+        found = c.get("/api/diary/entries", params={"q": "функции", "size": 10}).json()
+        assert found["total"] == 15 and len(found["items"]) == 10  # the search is applied before the cut
+        assert all("функции" in e["text"] for e in found["items"])
+        assert c.get("/api/diary/entries", params={"size": 1000}).json()["size"] == 100  # capped
+        assert c.get("/api/diary/entries", params={"page": 0}).json()["page"] == 1

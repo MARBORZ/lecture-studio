@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 from backend.i18n import tr
-from backend.models.diary import DIARY_INBOX, DiaryCategory, DiaryEntry, DiaryEntryMeta
+from backend.models.diary import DIARY_INBOX, DiaryCategory, DiaryEntry, DiaryEntryMeta, DiaryPage
 from backend.settings import paths
 from backend.utils.fs import read_text, sanitize_filename, write_text
 
@@ -153,7 +153,19 @@ def list_entries(category: str | None = None, query: str | None = None) -> list[
             if q and q not in text.lower():
                 continue
             out.append(DiaryEntry(**_meta(f, text).model_dump(), text=text))
-    return sorted(out, key=lambda m: m.created_at, reverse=True)
+    # the id (the file name) breaks ties within a second: the same order on every read, so pages never overlap
+    return sorted(out, key=lambda m: (m.created_at, m.id), reverse=True)
+
+
+PAGE_SIZE_MAX = 100
+
+
+def page_entries(category: str | None = None, query: str | None = None, page: int = 1, size: int = 30) -> DiaryPage:
+    """Entries a page at a time (the files are read and searched first: cheap, and the order and total stay exact)."""
+    size = max(1, min(size, PAGE_SIZE_MAX))
+    page = max(1, page)
+    entries = list_entries(category, query)
+    return DiaryPage(items=entries[(page - 1) * size : page * size], total=len(entries), page=page, size=size)
 
 
 def get_entry(entry_id: str) -> DiaryEntry:

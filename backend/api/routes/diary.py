@@ -5,7 +5,7 @@ Diary: categories (folders) and quick-capture Markdown entries.
 
 from fastapi import APIRouter, HTTPException
 
-from backend.models.diary import DiaryCategory, DiaryCategoryName, DiaryEntry, DiaryEntryCreate, DiaryEntryUpdate
+from backend.models.diary import DiaryCategory, DiaryCategoryName, DiaryEntry, DiaryEntryCreate, DiaryEntryUpdate, DiaryPage
 from backend.services import diary
 from backend.services.diary import DiaryError
 
@@ -41,9 +41,10 @@ def delete_category(name: str) -> dict:
     return {"moved": _guard(diary.delete_category, name)}
 
 
-@router.get("/entries", response_model=list[DiaryEntry])
-def list_entries(category: str | None = None, q: str | None = None) -> list[DiaryEntry]:
-    return _guard(diary.list_entries, category, q)
+@router.get("/entries", response_model=DiaryPage)
+def list_entries(category: str | None = None, q: str | None = None, page: int = 1, size: int = 30) -> DiaryPage:
+    """Newest first, a page at a time (size up to 100); q searches every entry before the page is cut."""
+    return _guard(diary.page_entries, category, q, page, size)
 
 
 @router.post("/entries", response_model=DiaryEntry)

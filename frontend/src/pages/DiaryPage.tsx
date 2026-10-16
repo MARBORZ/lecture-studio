@@ -1,8 +1,8 @@
 import { ChevronsDownUp, ChevronsUpDown, FolderInput, NotebookPen, Pencil, Plus, Search, Trash2 } from 'lucide-react'
-import { useDeferredValue, useState } from 'react'
+import { useDeferredValue, useEffect, useRef, useState } from 'react'
 import { NavLink, useNavigate, useParams } from 'react-router'
 import { api } from '@/api/client'
-import type { DiaryEntry } from '@/api/types'
+import type { DiaryEntry, DiaryPage as DiaryPageData } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { AnimatePresence, ListItem } from '@/components/motion'
@@ -15,6 +15,8 @@ import { storage } from '@/lib/format'
 import { shortcutLabel } from '@/lib/keys'
 import { useResource } from '@/lib/useResource'
 
+const EMPTY: DiaryPageData = { items: [], total: 0, page: 1, size: 30 }
+
 /** Diary: Obsidian-style categories on the left, quick-capture stream on the right. */
 export function DiaryPage() {
   const { category } = useParams()
@@ -23,7 +25,40 @@ export function DiaryPage() {
   const [query, setQuery] = useState('')
   const q = useDeferredValue(query.trim())
   const cats = useResource(() => api.diaryCategories(), [])
+  // a page at a time (the server searches every entry, then cuts); the next page loads as its end comes into view
   const entries = useResource(() => api.diaryEntries(category, q || undefined), [category, q])
+  const items = entries.data?.items
+  const [more, setMore] = useState({ loading: false, failed: false })
+  const endRef = useRef<HTMLDivElement>(null)
+  const hasMore = Boolean(entries.data && entries.data.items.length < entries.data.total)
+  const loadMore = async (retry = false) => {
+    const list = entries.data
+    if (!list || !hasMore || more.loading || (more.failed && !retry)) return
+    setMore({ loading: true, failed: false })
+    try {
+      const next = await api.diaryEntries(category, q || undefined, list.page + 1)
+      entries.setData((prev = EMPTY) => {
+        const seen = new Set(prev.items.map((e) => e.id)) // an entry written meanwhile shifts the pages by one
+        return { ...next, items: [...prev.items, ...next.items.filter((e) => !seen.has(e.id))] }
+      })
+      setMore({ loading: false, failed: false })
+    } catch (e) {
+      toast((e as Error).message, 'error')
+      setMore({ loading: false, failed: true }) // no retries by scrolling: the button below asks again
+    }
+  }
+  useEffect(() => {
+    const el = endRef.current
+    if (!el || !hasMore) return
+    const io = new IntersectionObserver((seen) => seen[0]?.isIntersecting && void loadMore(), { rootMargin: '400px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }) // re-armed after every render: loadMore reads the current page
+  const patchItems = (fn: (list: DiaryEntry[]) => DiaryEntry[]) =>
+    entries.setData((prev = EMPTY) => {
+      const next = fn(prev.items)
+      return { ...prev, items: next, total: Math.max(0, prev.total + next.length - prev.items.length) }
+    })
   const [draft, setDraft] = useState('')
   const [adding, setAdding] = useState(false)
   const [mode, setMode] = useDiaryMode()
@@ -48,7 +83,7 @@ export function DiaryPage() {
     setAdding(true)
     try {
       const created = await api.createDiaryEntry(draft, target)
-      entries.setData((prev) => [created, ...(prev ?? [])])
+      patchItems((list) => [created, ...list])
       setDraft('')
       void cats.reload()
     } catch (e) {
@@ -60,7 +95,7 @@ export function DiaryPage() {
 
   function changed(updated: DiaryEntry, oldId: string) {
     const leavesView = Boolean(category) && updated.category !== category
-    entries.setData((prev) => (prev ?? []).flatMap((e) => (e.id !== oldId ? [e] : leavesView ? [] : [updated])))
+    patchItems((list) => list.flatMap((e) => (e.id !== oldId ? [e] : leavesView ? [] : [updated])))
     if (updated.id !== oldId) void cats.reload() // moved: counts changed
   }
 
@@ -139,10 +174,10 @@ export function DiaryPage() {
               <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('diary.search')} className="pl-8" />
             </div>
             <Segmented size="md" value={mode} onChange={setMode} options={DIARY_MODES.map((m) => ({ value: m.value, label: t(m.key) }))} />
-            {Boolean(entries.data?.length) && (
+            {Boolean(items?.length) && (
               <>
-                <IconButton icon={ChevronsDownUp} label={t('diary.foldAll')} onClick={() => fold(entries.data!.map((e) => e.id), true)} />
-                <IconButton icon={ChevronsUpDown} label={t('diary.unfoldAll')} onClick={() => fold(entries.data!.map((e) => e.id), false)} />
+                <IconButton icon={ChevronsDownUp} label={t('diary.foldAll')} onClick={() => fold(items!.map((e) => e.id), true)} />
+                <IconButton icon={ChevronsUpDown} label={t('diary.unfoldAll')} onClick={() => fold(items!.map((e) => e.id), false)} />
               </>
             )}
           </div>
@@ -150,12 +185,12 @@ export function DiaryPage() {
 
           {entries.loading && !entries.data ? (
             <div className="flex flex-col gap-3"><SkeletonChat /><SkeletonChat /></div>
-          ) : !entries.data?.length ? (
+          ) : !items?.length ? (
             <EmptyState icon={NotebookPen} title={t('diary.empty')} hint={q ? undefined : t('diary.emptyHint')} />
           ) : (
             <div className="flex flex-col gap-4">
               <AnimatePresence initial={true}>
-                {entries.data.map((e, i) => (
+                {items.map((e, i) => (
                   <ListItem key={e.id} index={i}>
                     <EntryCard
                       entry={e}
@@ -165,11 +200,22 @@ export function DiaryPage() {
                       onChanged={changed}
                       folded={folded.includes(e.id)}
                       onFold={(on) => fold([e.id], on)}
-                      onRemoved={(id) => (entries.setData((prev) => (prev ?? []).filter((x) => x.id !== id)), void cats.reload())}
+                      onRemoved={(id) => (patchItems((list) => list.filter((x) => x.id !== id)), void cats.reload())}
                     />
                   </ListItem>
                 ))}
               </AnimatePresence>
+              <div ref={endRef} className="flex justify-center py-2">
+                {more.failed ? (
+                  <Button variant="ghost" onClick={() => void loadMore(true)}>{t('videos.retryMore')}</Button>
+                ) : more.loading ? (
+                  <span className="animate-pulse-soft text-[12.5px] text-muted">{t('videos.loadingMore')}</span>
+                ) : hasMore ? (
+                  <span className="h-6" />
+                ) : entries.data && entries.data.total > entries.data.size ? (
+                  <span className="text-[12px] text-dim">{t('diary.allShown', { n: entries.data.total })}</span>
+                ) : null}
+              </div>
             </div>
           )}
         </div>
