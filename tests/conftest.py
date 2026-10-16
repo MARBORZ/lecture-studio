@@ -19,6 +19,14 @@ def russian_ui(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_real_feedback(monkeypatch):
+    """No test mails the developer: the feedback relay is off unless a test sets its own URL."""
+    import backend.config as config
+
+    monkeypatch.setattr(config, "FEEDBACK_URL", "")
+
+
+@pytest.fixture(autouse=True)
 def no_real_api_keys(monkeypatch):
     """Tests never see the developer's keys (.env is loaded by backend.config): no test may reach a real AI API."""
     import os

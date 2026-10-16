@@ -76,9 +76,15 @@ never deleted.
 
 ## Install
 
-```bash
-git clone https://github.com/MARBORZ/lecture-studio.git
-```
+1. **Get the code:** a ZIP (on GitHub: **Code → Download ZIP**, then unzip) or
+   `git clone https://github.com/MARBORZ/lecture-studio.git`. A clone updates itself from the app; a ZIP only says
+   that a new release is out.
+2. Open **`setups`** → your system: **`macos`** or **`windows`**.
+3. Run **Setup**: `Setup` on macOS (the first time right-click → Open: it is not notarized), `Setup.cmd` on Windows.
+
+That is all: Lecture Studio appears on the Desktop. To delete it: **Settings → Interface → Delete Lecture Studio**, or
+`setups` → your system → **Uninstall** (`Uninstall` / `Uninstall.cmd`) without opening the app; the delete dialog shows
+the exact path of the Uninstall for this computer.
 
 | | macOS | Windows 10/11 (untested) |
 |---|---|---|

@@ -67,9 +67,20 @@ def _app_dirs() -> list[Path]:
     return [config.REPO_DIR.resolve(), config.APP_HOME.resolve()]
 
 
+# Setup / Uninstall of each OS, in the app folder (setups/<os>/)
+_NATIVE = {"darwin": ("setups/macos/Setup.app", "setups/macos/Uninstall.app"), "win32": ("setups/windows/Setup.cmd", "setups/windows/Uninstall.cmd")}
+
+
+def _native(app: Path) -> tuple[str, str]:
+    """(Setup, Uninstall) of the running OS as full paths, "" where there is none (Linux)."""
+    names = _NATIVE.get(sys.platform)
+    return (str(app / names[0]), str(app / names[1])) if names else ("", "")
+
+
 def preview() -> UninstallPlan:
     data = SettingsService.paths().data_dir.resolve()
     work = _git_work()
+    setup, uninstaller = _native(config.REPO_DIR.resolve())
     return UninstallPlan(
         app_dir=str(config.REPO_DIR.resolve()),
         settings_dir=str(config.APP_HOME.resolve()),
@@ -79,6 +90,8 @@ def preview() -> UninstallPlan:
         git_files=work[:MAX_FILES],
         reinstall="git" if (config.REPO_DIR / ".git").exists() else "setup",
         repo_url=config.REPO_URL,
+        setup=setup,
+        uninstaller=uninstaller,
     )
 
 
@@ -99,7 +112,8 @@ def _targets(plan: UninstallPlan, delete_lessons: bool) -> tuple[list[Path], lis
 
 def _message(plan: UninstallPlan, delete_lessons: bool) -> str:
     """The script's last word: the app window is gone by then."""
-    again = tr("uninstall.reinstall_git", url=config.REPO_URL, path=plan.app_dir) if plan.reinstall == "git" else tr("uninstall.reinstall_setup")
+    git = plan.reinstall == "git"
+    again = tr("uninstall.reinstall_git", url=config.REPO_URL, path=plan.app_dir, setup=plan.setup or "Setup") if git else tr("uninstall.reinstall_setup")
     kept = tr("uninstall.lessons_deleted") if delete_lessons else tr("uninstall.lessons_kept", path=plan.data_dir)
     return f"{tr('uninstall.done')} {kept} {again}"
 

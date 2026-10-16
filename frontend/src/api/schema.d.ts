@@ -2320,6 +2320,16 @@ export interface components {
             reinstall: "git" | "setup";
             /** Repo Url */
             repo_url: string;
+            /**
+             * Setup
+             * @default
+             */
+            setup: string;
+            /**
+             * Uninstaller
+             * @default
+             */
+            uninstaller: string;
         };
         /** UninstallRequest */
         UninstallRequest: {

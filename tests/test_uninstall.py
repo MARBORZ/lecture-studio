@@ -236,3 +236,27 @@ def test_tool_never_touches_another_running_copy(installed, tool, capsys):
     assert cli.main(["run", "--delete-lessons"]) == 2
     assert "/Users/someone/Downloads/lecture-studio" in capsys.readouterr().err
     assert spawned == [] and all(c[0] == "GET" for c in calls)
+
+
+def test_preview_points_to_the_setup_and_uninstall_of_this_os(installed, monkeypatch):
+    app, _, _ = installed
+    from backend.services import uninstall
+
+    root = app.resolve()
+    monkeypatch.setattr(uninstall.sys, "platform", "darwin")
+    plan = uninstall.preview()
+    assert plan.uninstaller == str(root / "setups" / "macos" / "Uninstall.app") and plan.setup == str(root / "setups" / "macos" / "Setup.app")
+    assert str(root / "setups" / "macos" / "Setup.app") in uninstall._message(plan, delete_lessons=False)  # the way back
+    monkeypatch.setattr(uninstall.sys, "platform", "win32")
+    assert uninstall.preview().uninstaller == str(root / "setups" / "windows" / "Uninstall.cmd")
+    monkeypatch.setattr(uninstall.sys, "platform", "linux")
+    assert uninstall.preview().uninstaller == ""
+
+
+def test_the_native_setups_are_where_the_plan_says():
+    from pathlib import Path
+
+    from backend.services.uninstall import _NATIVE
+
+    root = Path(__file__).resolve().parent.parent
+    assert all((root / p).exists() for pair in _NATIVE.values() for p in pair)

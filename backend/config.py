@@ -54,7 +54,7 @@ REPO_URL = "https://github.com/MARBORZ/lecture-studio"
 
 # Bug reports go to a small relay (feedback-relay/, a Vercel function) that mails them to the developer.
 # The relay holds the mail password; the app holds nothing secret. Empty: reports wait in the outbox.
-FEEDBACK_URL = os.getenv("LECTURE_STUDIO_FEEDBACK_URL", "")
+FEEDBACK_URL = os.getenv("LECTURE_STUDIO_FEEDBACK_URL", "https://lecture-studio-feedback-relay.vercel.app/api/feedback")
 
 # Default data location for a fresh install (existing installs keep whatever settings.json says).
 DEFAULT_DATA_DIR = REPO_DIR / "workspace"

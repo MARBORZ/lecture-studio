@@ -66,6 +66,8 @@ class UninstallPlan(BaseModel):
     git_files: list[str] = []  # blocked == "git_work": what would be lost
     reinstall: Literal["git", "setup"]  # how to get it back: git clone + Setup, or the Setup app
     repo_url: str  # what to clone for reinstall == "git"
+    setup: str = ""  # Setup of this OS inside app_dir (setups/<os>/...); "" on a system without one
+    uninstaller: str = ""  # Uninstall of this OS: deletes the app without opening it
 
 
 class UninstallRequest(BaseModel):

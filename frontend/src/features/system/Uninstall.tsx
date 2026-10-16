@@ -57,7 +57,7 @@ function UninstallDialog({ close }: { close: () => void }) {
 
   const reinstall = plan
     ? plan.reinstall === 'git'
-      ? t('uninstall.reinstallGit', { url: plan.repo_url, path: plan.app_dir })
+      ? t('uninstall.reinstallGit', { url: plan.repo_url, path: plan.app_dir, setup: plan.setup || 'Setup' })
       : t('uninstall.reinstallSetup')
     : ''
 
@@ -118,6 +118,7 @@ function UninstallDialog({ close }: { close: () => void }) {
           {lessonsBlock && <p className="rounded-lg border border-line-strong px-3 py-2.5 text-[13px]">{t('uninstall.lessonsInside')}</p>}
           {busy && <BusyList reasons={reasons} />}
           <p className="font-mono text-[12px] break-all text-muted">{reinstall}</p>
+          {plan.uninstaller && <p className="text-[12px] break-all text-muted">{t('uninstall.native', { path: plan.uninstaller })}</p>}
           <label className="flex cursor-pointer items-start gap-2.5 text-[13px] text-fg">
             <input type="checkbox" checked={understood} onChange={(e) => setUnderstood(e.target.checked)} className="mt-[3px] size-3.5 accent-fg" />
             <span>{t('uninstall.confirm')}</span>

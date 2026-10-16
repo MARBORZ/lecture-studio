@@ -10,6 +10,7 @@ diagnostics) to the developer through Gmail. The app holds no secret: the mail p
 3. Project → Settings → Environment Variables: `GMAIL_USER` (your Gmail), `GMAIL_APP_PASSWORD` (the app password),
    optionally `FEEDBACK_TO`. Redeploy.
 4. Put the URL (`https://<project>.vercel.app/api/feedback`) into `backend/config.py: FEEDBACK_URL` and release.
+   Deployed: `https://lecture-studio-feedback-relay.vercel.app/api/feedback` (`LECTURE_STUDIO_FEEDBACK_URL` overrides it).
 
 Until then reports wait in each app's outbox (`<settings home>/feedback/outbox`) and go out once the URL works.
 
