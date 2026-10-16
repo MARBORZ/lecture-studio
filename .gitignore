@@ -20,4 +20,3 @@ __pycache__/
 dist/
 
 # Local editor/agent tooling with machine-specific paths
-.claude/launch.json

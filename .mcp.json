@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "lecture-studio": {
-      "command": "uv",
-      "args": ["run", "--quiet", "python", "mcp_server.py"]
-    }
-  }
-}

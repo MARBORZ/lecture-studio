@@ -5,7 +5,7 @@ Assistant chat sessions. Each session is a folder of its own, paths().sessions/<
     local_session_src/      its files (services/attachments.py): kept from the moment they are added
 
 notebook_db.json keeps only the index: threads["<kind>:<id>"] = {"active": "<session id>", "sessions": ["<id>", ...]}.
-A thread (one lesson, one notebook) holds any number of sessions, branches like in Claude Code: a fresh session starts
+A thread (one lesson, one notebook) holds any number of sessions, branches of one conversation: a fresh session starts
 with an empty history and no files. Older databases kept the sessions themselves in the index (or a plain list of
 messages per thread): migrate() moves them out with their files at startup; reading tolerates the old shapes until then.
 """

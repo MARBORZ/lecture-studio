@@ -53,7 +53,7 @@ def _now() -> str:
 
 
 class ChatSession(BaseModel):
-    """One branch of a thread (like a Claude Code session): its own history, summary and files."""
+    """One branch of a thread (a session): its own history, summary and files."""
 
     id: str
     title: str = ""

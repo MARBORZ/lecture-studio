@@ -7,7 +7,7 @@ import { cn } from '@/lib/cn'
 import { formatCount, formatDateTime } from '@/lib/format'
 import type { ThreadApi } from './useThread'
 
-/** Session switcher (branches of the chat, like Claude Code sessions) + new session + clear. */
+/** Session switcher (branches of the chat) + new session + clear. */
 export function SessionBar({ chat }: { chat: ThreadApi }) {
   const { t, lang, confirm, promptText, toast } = useUI()
   const { thread, session } = chat

@@ -6,7 +6,8 @@
 | [API_AND_STORAGE.md](API_AND_STORAGE.md) | REST API, SSE, lesson files, settings and paths, export |
 | [FRONTEND.md](FRONTEND.md) | React app: routes, the provider, player, Markdown, animation, style |
 | [MCP_REFERENCE.md](MCP_REFERENCE.md) | The 10 tools of the `lecture-studio` MCP server |
-| [CLAUDE_SETUP.md](CLAUDE_SETUP.md) | Connecting Claude Code / Claude Desktop / Cursor |
+| [MCP_SETUP.md](MCP_SETUP.md) | Connecting an MCP client to the `lecture-studio` server |
+| [PROJECT_RULES.md](PROJECT_RULES.md) | The rules the code keeps (timecodes, prompts, paths, frontend, platforms) |
 
 ## Repository map
 

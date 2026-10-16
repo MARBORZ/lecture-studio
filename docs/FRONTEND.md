@@ -52,7 +52,7 @@ Motion for animation. Geist / Geist Mono fonts are bundled; no external CDNs.
 - **Diary**: entries fold to their title (one or all, remembered); long ones open as a preview; editors are bounded and
   scroll inside instead of growing the page. An entry moves to another category from the folder icon (a menu opening
   upwards); the inbox category, a Russian folder name on disk, is shown in the interface language (`useCategoryLabel`).
-- **Assistant** (`features/assistant`, server calls only in `useThread`): **sessions** like Claude Code — a menu to switch,
+- **Assistant** (`features/assistant`, server calls only in `useThread`): **sessions** (branches of one chat) — a menu to switch,
   rename, delete, a new session starts with an empty history; **Clear** empties the current session (history, summary,
   files). The **context meter** shows how much of the provider's window the next question takes and of what (sources,
   files of this question, history, summary, instruction), with "compress now". Files of any type are attached with the

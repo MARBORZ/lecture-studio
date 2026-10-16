@@ -1095,7 +1095,7 @@ export interface components {
         };
         /**
          * ChatSession
-         * @description One branch of a thread (like a Claude Code session): its own history, summary and files.
+         * @description One branch of a thread (a session): its own history, summary and files.
          */
         ChatSession: {
             /** Id */

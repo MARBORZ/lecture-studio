@@ -1,5 +1,5 @@
 """
-MCP server `lecture-studio`: gives AI agents (Claude Desktop / Code, Cursor, Cline) direct access
+MCP server `lecture-studio`: gives AI agents (any MCP client) direct access
 to the local lesson library. Thin layer over backend services — no file logic of its own.
 
 All timecodes are on the CLEAN timeline (the one clean_video.mp4 / clean_speech.mp3 play on).

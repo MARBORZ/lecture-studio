@@ -1,27 +1,6 @@
-# CLAUDE.md
+# Project rules
 
-Lecture Studio — a local NotebookLM-style platform: notebooks (projects) and sources (lessons),
-VAD silence cutting, jump-cut video, transcripts, blunt audits with timecodes, an assistant with citations, a diary.
-
-## Running
-
-- Desktop shortcut → `launcher/macos/start.zsh` (macOS) or `launcher/windows/start.vbs` → `start.ps1` (Windows).
-- Install / remove: `setups/macos/` (`Setup.app`, `Uninstall.app`) and `setups/windows/` (`Setup.cmd`, `Uninstall.cmd`), each
-  with its scripts beside it. Shared icons live in `assets/`.
-- API: FastAPI `127.0.0.1:3000`. UI: Vite `127.0.0.1:5173` (proxies `/api`).
-- Stop: the sidebar button or `launcher/<os>/stop.*` (refused while the system is busy).
-- Logs: `<settings home>/logs/{launcher,server,frontend,setup}.log`; settings home is `backend/config.py:APP_HOME`
-  (macOS `~/Library/Application Support/Lecture Studio`, Windows `%APPDATA%\Lecture Studio`).
-
-## MCP `lecture-studio`
-
-Enabled through `.mcp.json`. For any question about lessons, lectures or notes, go to MCP first:
-`lecture_list_projects`, `lecture_list_lessons`, `lecture_get_lesson_material`, `lecture_search_transcripts`,
-`lecture_get_clean_audio_track`, `lecture_get_clean_video_track`, `lecture_save_audit_markdown`,
-`lecture_update_lesson`, `lecture_export_to_local_folder`, `lecture_apply_agent_transcription`.
-Spec: [docs/MCP_REFERENCE.md](docs/MCP_REFERENCE.md).
-
-## Project rules
+The rules the code keeps; `tests/test_architecture.py` checks most of them on every test run.
 
 1. **Timecodes are on the clean timeline only.** `clean_video.mp4` and `clean_speech.mp3` play on it. All time handling goes
    through `backend/core/timeline.py` (backend) and `frontend/src/lib/time.ts` (frontend). The canonical transcript is
@@ -47,5 +26,3 @@ Spec: [docs/MCP_REFERENCE.md](docs/MCP_REFERENCE.md).
 8. **API types are generated** (`npm run gen:api`), never hand-written. Regenerate after changing backend models.
 9. Before committing: `uv run ruff check .`, `uv run pytest` (includes `tests/test_architecture.py`, which enforces these
    rules), `npm --prefix frontend run lint`, `npm --prefix frontend run build`.
-
-Documentation: [docs/README.md](docs/README.md).

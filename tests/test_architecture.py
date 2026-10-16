@@ -1,5 +1,5 @@
 """
-Project rules from CLAUDE.md, checked on every test run so the code keeps its shape.
+Project rules (docs/PROJECT_RULES.md), checked on every test run so the code keeps its shape.
 Each rule says where something lives; a failure names the file that broke it.
 """
 
