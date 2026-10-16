@@ -110,10 +110,10 @@ export const collapse: Variants = {
 
 /** What focus mode hides (the lesson header, the blocks under the player): the same curve and time as focusShift,
  *  so the whole scene moves as one. */
-export const focusCollapse: Variants = {
-  hidden: { height: 0, opacity: 0 },
-  show: { height: 'auto', opacity: 1, transition: focusShift },
-  exit: { height: 0, opacity: 0, transition: focusShift },
+/** What comes back when focus mode ends: a fade only (no height), so the layout settles in one step for the flip. */
+export const focusFade: Variants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { duration: duration.base, ease, delay: 0.12 } },
 }
 
 /**
@@ -133,4 +133,26 @@ export function useFrameLoop(draw: (seconds: number) => void, { enabled = true, 
     raf = requestAnimationFrame(frame)
     return () => cancelAnimationFrame(raf)
   }, [draw, enabled, always])
+}
+
+/**
+ * FLIP: the element already sits at its new place and size (the layout changed in one step); it is moved back to
+ * `from` with a transform and glides to the new box — one compositor animation, no layout work per frame, so a
+ * video does not stutter. Uniform for a box that keeps its aspect (16:9 player). Runs whatever the OS motion setting,
+ * like the focus scene it belongs to.
+ */
+export function flip(el: HTMLElement, from: DOMRect, ms = duration.slow * 1000): void {
+  const to = el.getBoundingClientRect()
+  if (!from.width || !to.width) return
+  const s = from.width / to.width
+  const dx = from.left - to.left
+  const dy = from.top - to.top
+  if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(s - 1) < 0.01) return
+  el.animate(
+    [
+      { transformOrigin: 'top left', transform: `translate(${dx}px, ${dy}px) scale(${s})` },
+      { transformOrigin: 'top left', transform: 'none' },
+    ],
+    { duration: ms, easing: `cubic-bezier(${easeInOut.join(',')})` },
+  )
 }
