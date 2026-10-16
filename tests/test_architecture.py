@@ -40,6 +40,15 @@ def test_data_paths_come_from_settings():
     assert offenders(BACKEND, ["*.py"], r"data_dir\s*/\s*[\"']|[\"']notebook_db\.json[\"']", {"backend/settings/service.py"}) == []
 
 
+def test_claude_subscription_only_through_claudes_own_apps():
+    # the claude command runs only to manage this app's MCP entry; nothing reads Claude's sign-in or drives Claude itself
+    connect = BACKEND / "services" / "mcp_connect.py"
+    assert re.findall(r"subprocess\.\w+\(\[([^\]]*)\]", connect.read_text("utf-8")) == ['exe, "mcp", *args']
+    assert offenders(BACKEND, ["*.py"], r"which\([\"']claude[\"']\)|CLAUDE_BIN", {str(connect.relative_to(ROOT))}) == []
+    sign_in = r"\.credentials\.json|CLAUDE_CODE_OAUTH_TOKEN|claude_agent_sdk|claude_code_sdk|sessionKey"
+    assert offenders(BACKEND, ["*.py"], sign_in) == [] and not re.search(sign_in, (ROOT / "mcp_server.py").read_text("utf-8"))
+
+
 def test_animation_only_through_motion_layer():
     allowed = {"frontend/src/components/motion/index.tsx", "frontend/src/lib/motion.ts"}
     assert offenders(FRONT, ["*.ts", "*.tsx"], r"from 'motion/react'", allowed) == []
