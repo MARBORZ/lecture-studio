@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Check, FileVideo, HardDrive, Play, Upload, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, FileVideo, HardDrive, History, Play, Upload, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { api } from '@/api/client'
@@ -8,7 +8,8 @@ import { Icon } from '@/components/Icon'
 import { Appear } from '@/components/motion'
 import { Button, Card, EmptyState, Field, Input, Page, PageHeader, Progress, Segmented, Select, Switch } from '@/components/ui'
 import { FALLBACK_DEFAULTS, PipelineOptionsFields, resultLine } from '@/features/jobs/PipelineOptionsFields'
-import { JobList, type StudioHandoff } from '@/features/jobs/JobList'
+import { JobHistoryModal, JobList, type StudioHandoff } from '@/features/jobs/JobList'
+import { UnusedDownloads } from '@/features/videos/DownloadsList'
 import { KeyNotice, PROVIDER_NAME } from '@/features/system/KeyNotice'
 import { cn } from '@/lib/cn'
 import { formatBytes, formatDuration } from '@/lib/format'
@@ -21,7 +22,7 @@ type Step = (typeof STEPS)[number]
 
 /** Studio as a wizard: file -> lesson -> processing -> start. The queue stays on the right. */
 export function StudioPage() {
-  const { t, settings, toast } = useUI()
+  const { t, settings, toast, openModal } = useUI()
   const { projects } = useLibrary()
   const { jobs, trackUpload } = useJobs()
 
@@ -133,7 +134,10 @@ export function StudioPage() {
 
           <Appear key={step}>
             {step === 'file' && (
+              <>
               <FileStep source={source} setSource={setSource} file={file} setFile={(f) => (setFile(f), f && chooseFile(f.name))} localPath={localPath} setLocalPath={(p) => (setLocalPath(p), chooseFile(p.split(/[\\/]/).pop() ?? ''))} />
+              <div className="mt-4"><UnusedDownloads /></div>
+              </>
             )}
             {step === 'lesson' && (
               <Card title={t('studio.step.lesson')} description={t('studio.lessonHint')}>
@@ -217,7 +221,18 @@ export function StudioPage() {
         </div>
 
         <div className="flex min-w-0 flex-col gap-3">
-          <div className="label-caps">{t('studio.queue')}</div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="label-caps">{t('studio.queue')}</div>
+            {/* always there: after a restart the list is empty, but the history is not */}
+            <button
+              type="button"
+              onClick={() => openModal((close) => <JobHistoryModal close={close} />)}
+              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[12px] text-muted hover:bg-hover hover:text-fg"
+            >
+              <Icon as={History} size={13} />
+              {t('jobs.history')}
+            </button>
+          </div>
           {jobs.length ? (
             <JobList jobs={jobs} />
           ) : (

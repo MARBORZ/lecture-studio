@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 
 from backend.i18n import tr
 from backend.models.job import Job
-from backend.models.video import DownloaderInfo, DownloadRequest, VideoInfo, VideoItem
+from backend.models.video import DownloaderInfo, DownloadPage, DownloadRequest, VideoInfo, VideoItem
 from backend.services import videos
 from backend.settings import SettingsService
 
@@ -18,9 +18,9 @@ def _fail(e: videos.VideoError) -> HTTPException:
 
 
 @router.get("/search", response_model=list[VideoItem])
-def search(q: str) -> list[VideoItem]:
+def search(q: str, page: int = 1) -> list[VideoItem]:
     try:
-        return videos.search(q)
+        return videos.search(q, page)
     except videos.VideoError as e:
         raise _fail(e) from e
 
@@ -55,3 +55,15 @@ def update_downloader() -> DownloaderInfo:
         return videos.update_downloader()
     except videos.VideoError as e:
         raise HTTPException(409, detail=str(e)) from e
+
+
+@router.get("/downloads", response_model=DownloadPage)
+def downloads(page: int = 1, size: int = 20, unused: bool = False) -> DownloadPage:
+    return videos.list_downloads(page, size, unused)
+
+
+@router.delete("/downloads/{name}")
+def delete_download(name: str) -> dict:
+    if not videos.delete_download(name):
+        raise HTTPException(404, detail=tr("file.not_found"))
+    return {"ok": True}

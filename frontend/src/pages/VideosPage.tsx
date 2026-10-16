@@ -1,10 +1,11 @@
 import { Link2, MonitorPlay, Search } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '@/api/client'
 import type { VideoItem } from '@/api/types'
 import { useJobs, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
-import { Button, EmptyState, Input, Page, PageHeader } from '@/components/ui'
+import { Button, EmptyState, Input, Page, PageHeader, Segmented } from '@/components/ui'
+import { DownloadsList } from '@/features/videos/DownloadsList'
 import { Skeleton } from '@/components/skeleton'
 import { JobList } from '@/features/jobs/JobList'
 import { VideoModal } from '@/features/videos/VideoModal'
@@ -21,6 +22,11 @@ export function VideosPage() {
   const [link, setLink] = useState('')
   const [results, setResults] = useState<VideoItem[] | null>(null)
   const [searching, setSearching] = useState(false)
+  // more results: the next page is asked for when the end of the grid comes into view (or by the button)
+  const [asked, setAsked] = useState({ q: '', page: 1, more: true })
+  const [loadingMore, setLoadingMore] = useState(false)
+  const endRef = useRef<HTMLDivElement>(null)
+  const [tab, setTab] = useState<'search' | 'downloads'>(() => (new URLSearchParams(window.location.search).get('tab') === 'downloads' ? 'downloads' : 'search'))
   const [opening, setOpening] = useState(false)
   const downloads = jobs.filter((j) => j.kind === 'download')
 
@@ -31,13 +37,42 @@ export function VideosPage() {
     if (!q) return
     setSearching(true)
     try {
-      setResults(await api.searchVideos(q))
+      const first = await api.searchVideos(q, 1)
+      setResults(first)
+      setAsked({ q, page: 1, more: first.length > 0 })
     } catch (e) {
       toast((e as Error).message, 'error')
     } finally {
       setSearching(false)
     }
   }
+
+  const loadMore = async () => {
+    if (loadingMore || !asked.more || !asked.q) return
+    setLoadingMore(true)
+    try {
+      const next = await api.searchVideos(asked.q, asked.page + 1)
+      setResults((r) => {
+        const seen = new Set((r ?? []).map((v) => v.id))
+        return [...(r ?? []), ...next.filter((v) => !seen.has(v.id))]
+      })
+      setAsked((a) => ({ ...a, page: a.page + 1, more: next.length > 0 }))
+    } catch (e) {
+      toast((e as Error).message, 'error')
+      setAsked((a) => ({ ...a, more: false }))
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  // the end of the grid in view: the next page
+  useEffect(() => {
+    const el = endRef.current
+    if (!el || !results?.length) return
+    const io = new IntersectionObserver((entries) => entries[0]?.isIntersecting && void loadMore(), { rootMargin: '400px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }) // re-armed after every render: loadMore reads the current page
 
   const openLink = async () => {
     if (!link.trim()) return
@@ -77,9 +112,22 @@ export function VideosPage() {
         {downloads.length > 0 && (
           <section className="flex flex-col gap-2">
             <h2 className="label-caps">{t('videos.downloads')}</h2>
-            <JobList jobs={downloads} />
+            <JobList jobs={downloads} tools={false} />
           </section>
         )}
+
+        <Segmented
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: 'search', label: t('videos.tab.search') },
+            { value: 'downloads', label: t('videos.tab.downloaded') },
+          ]}
+        />
+        {tab === 'downloads' ? (
+          <DownloadsList />
+        ) : (
+        <>
 
         {searching ? (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -96,9 +144,20 @@ export function VideosPage() {
         ) : results.length === 0 ? (
           <p className="py-10 text-center text-[13px] text-muted">{t('videos.nothing')}</p>
         ) : (
-          <div className="grid gap-x-5 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {results.map((v) => <VideoCard key={v.id} video={v} onOpen={() => open(v)} />)}
+          <div className="flex flex-col gap-6">
+            <div className="grid gap-x-5 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {results.map((v) => <VideoCard key={v.id} video={v} onOpen={() => open(v)} />)}
+            </div>
+            <div ref={endRef} className="flex justify-center">
+              {asked.more ? (
+                <Button variant="ghost" loading={loadingMore} onClick={() => void loadMore()}>{t('videos.more')}</Button>
+              ) : (
+                <span className="text-[12px] text-dim">{t('videos.noMore')}</span>
+              )}
+            </div>
           </div>
+        )}
+        </>
         )}
     </Page>
   )

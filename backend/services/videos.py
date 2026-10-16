@@ -23,19 +23,23 @@ import threading
 import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from backend.i18n import tr
 from backend.models.job import Job
-from backend.models.video import DownloaderInfo, VideoInfo, VideoItem
+from backend.models.video import DownloadedVideo, DownloaderInfo, DownloadPage, VideoInfo, VideoItem
 from backend.services.jobs import JobRegistry
 from backend.settings import paths
 from backend.utils import proc
+from backend.utils.fs import read_json, write_json
 
 logger = logging.getLogger(__name__)
 
 SEARCH_RESULTS = 20
+MAX_PAGES = 10  # 200 results: past that YouTube's relevance is noise
+MEDIA_EXT = {".mp4", ".m4a", ".webm", ".mkv", ".mov", ".mp3"}
 SEARCH_TIMEOUT = 40
 INFO_TIMEOUT = 40
 # best up to 1080p as mp4 + m4a (merged by ffmpeg), falling back to whatever single file is there
@@ -150,11 +154,14 @@ def parse_search(output: str) -> list[VideoItem]:
     return [item for e in data.get("entries") or [] if isinstance(e, dict) and (item := _item(e))]
 
 
-def search(query: str) -> list[VideoItem]:
+def search(query: str, page: int = 1) -> list[VideoItem]:
+    """One page of results (SEARCH_RESULTS each): page 2 asks YouTube for 40 and keeps items 21–40."""
     q = " ".join(query.split())[:200]
+    page = max(1, min(page, MAX_PAGES))
     if not q:
         return []
-    return parse_search(_run([f"ytsearch{SEARCH_RESULTS}:{q}", "--flat-playlist", "-J"], SEARCH_TIMEOUT))
+    start, end = (page - 1) * SEARCH_RESULTS + 1, page * SEARCH_RESULTS
+    return parse_search(_run([f"ytsearch{end}:{q}", "--flat-playlist", "--playlist-items", f"{start}-{end}", "-J"], SEARCH_TIMEOUT))
 
 
 def parse_info(output: str) -> VideoInfo:
@@ -337,3 +344,58 @@ def update_downloader() -> DownloaderInfo:
     global _latest
     _latest = (0.0, "")
     return downloader()
+
+
+# ---------------------------------------------------------------- downloads/
+
+
+def _used_file() -> Path:
+    return paths().downloads / ".used.json"
+
+
+def mark_used(path: Path | str) -> None:
+    """A Studio job took this downloaded file: it moves from "not used yet" to the rest."""
+    p = Path(path).resolve()
+    root = paths().downloads.resolve()
+    if root not in p.parents:
+        return
+    used = read_json(_used_file(), [])
+    if p.name not in used:
+        write_json(_used_file(), [*used, p.name])
+
+
+def list_downloads(page: int = 1, size: int = 20, unused_only: bool = False) -> DownloadPage:
+    """Files the Videos tab downloaded, newest first; the title comes from the file name ("Title [id].mp4")."""
+    root = paths().downloads
+    used = set(read_json(_used_file(), []))
+    found = [f for f in root.iterdir() if f.is_file() and f.suffix.lower() in MEDIA_EXT] if root.is_dir() else []
+    files = sorted(found, key=lambda f: f.stat().st_mtime, reverse=True)
+    items = [
+        DownloadedVideo(
+            name=f.name,
+            path=str(f),
+            title=re.sub(r"\s*\[[A-Za-z0-9_-]{11}\]$", "", f.stem) or f.stem,
+            size_mb=round(f.stat().st_size / 1024 / 1024, 1),
+            downloaded_at=datetime.fromtimestamp(f.stat().st_mtime).isoformat(timespec="seconds"),
+            used=f.name in used,
+        )
+        for f in files
+    ]
+    if unused_only:
+        items = [i for i in items if not i.used]
+    size = max(1, min(size, 100))
+    page = max(1, page)
+    start = (page - 1) * size
+    return DownloadPage(items=items[start : start + size], total=len(items), page=page, size=size)
+
+
+def delete_download(name: str) -> bool:
+    """Remove one downloaded file (a lesson made of it keeps its own copy)."""
+    target = paths().downloads / Path(name).name
+    if not target.is_file() or target.suffix.lower() not in MEDIA_EXT:
+        return False
+    target.unlink()
+    used = read_json(_used_file(), [])
+    if target.name in used:
+        write_json(_used_file(), [u for u in used if u != target.name])
+    return True

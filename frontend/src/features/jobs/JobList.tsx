@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRight, Check, ChevronRight, Minus, X } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Check, ChevronRight, ListX, Minus, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { api } from '@/api/client'
@@ -6,7 +6,10 @@ import type { Job } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { AnimatePresence, m } from '@/components/motion'
-import { IconButton, Progress, Stat } from '@/components/ui'
+import { Button, IconButton, Modal, Pagination, Progress, Stat } from '@/components/ui'
+import { SkeletonList } from '@/components/skeleton'
+import { formatDateTime } from '@/lib/format'
+import { useResource } from '@/lib/useResource'
 import { cn } from '@/lib/cn'
 import { formatDuration } from '@/lib/format'
 import { collapse, fade } from '@/lib/motion'
@@ -26,8 +29,8 @@ const isActive = (j: Job) => j.status === 'pending' || j.status === 'processing'
  * The job queue as a compact list: one row per job (title, one state label, progress), details on click.
  * Running jobs first; finished ones fold to the last few.
  */
-export function JobList({ jobs }: { jobs: Job[] }) {
-  const { t } = useUI()
+export function JobList({ jobs, tools = true }: { jobs: Job[]; tools?: boolean }) {
+  const { t, toast } = useUI()
   const [all, setAll] = useState(false)
   const active = jobs.filter(isActive)
   const finished = jobs.filter((j) => !isActive(j))
@@ -43,11 +46,27 @@ export function JobList({ jobs }: { jobs: Job[] }) {
           ))}
         </AnimatePresence>
       </div>
-      {finished.length > RECENT && (
-        <button type="button" onClick={() => setAll((v) => !v)} className="self-start text-[12px] text-muted hover:text-fg">
-          {all ? t('studio.showRecent') : t('studio.showAll', { n: finished.length })}
-        </button>
-      )}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        {finished.length > RECENT && (
+          <button type="button" onClick={() => setAll((v) => !v)} className="text-[12px] text-muted hover:text-fg">
+            {all ? t('studio.showRecent') : t('studio.showAll', { n: finished.length })}
+          </button>
+        )}
+        {tools && (
+          <span className="ml-auto flex items-center gap-1">
+            {finished.length > 0 && (
+              <button
+                type="button"
+                onClick={() => api.clearFinishedJobs().catch((e: Error) => toast(e.message, 'error'))}
+                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[12px] text-muted hover:bg-hover hover:text-fg"
+              >
+                <Icon as={ListX} size={13} />
+                {t('jobs.clearFinished')}
+              </button>
+            )}
+          </span>
+        )}
+      </div>
     </div>
   )
 }
@@ -169,5 +188,71 @@ function JobDetails({ job, stages, currentIdx }: { job: Job; stages: NonNullable
         </div>
       )}
     </div>
+  )
+}
+
+const HISTORY_PAGE = 15
+
+/** Every finished job, newest first, a page at a time; kept on disk across restarts. */
+export function JobHistoryModal({ close }: { close: () => void }) {
+  const { t, lang, toast, confirm } = useUI()
+  const [page, setPage] = useState(1)
+  const res = useResource(() => api.jobHistory(page, HISTORY_PAGE), [page], { keep: true })
+  const data = res.data
+  return (
+    <Modal
+      title={t('jobs.history')}
+      description={t('jobs.historyHint')}
+      width="md"
+      onClose={close}
+      footer={
+        <>
+          <Button
+            variant="ghost"
+            disabled={!data?.total}
+            onClick={async () => {
+              if (!(await confirm({ title: t('jobs.clearHistory'), text: t('jobs.clearHistoryText'), danger: true, confirmLabel: t('jobs.clearHistory') }))) return
+              await api.clearJobHistory().catch((e: Error) => toast(e.message, 'error'))
+              setPage(1)
+              await res.reload()
+            }}
+          >
+            {t('jobs.clearHistory')}
+          </Button>
+          <Button onClick={close}>{t('common.close')}</Button>
+        </>
+      }
+    >
+      {!data ? (
+        <SkeletonList rows={5} />
+      ) : data.total === 0 ? (
+        <p className="py-8 text-center text-[13px] text-muted">{t('jobs.historyEmpty')}</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <div className="divide-y divide-line rounded-xl border border-line">
+            {data.items.map((j) => (
+              <div key={j.id} className="flex items-center gap-3 px-3.5 py-2.5">
+                <span className="flex size-4 shrink-0 items-center justify-center">
+                  <StateIcon job={j} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] text-fg">{j.title || j.id}</span>
+                  <span className="block truncate text-[11.5px] text-muted">
+                    {t(`job.${j.status ?? 'completed'}`)} · {formatDateTime(j.finished_at ?? j.created_at ?? '', lang)}
+                    {j.status === 'error' && j.error ? ` · ${j.error}` : ''}
+                  </span>
+                </span>
+                {j.status === 'completed' && j.lesson_id && (
+                  <Link to={`/lessons/${j.lesson_id}/notes`} onClick={close} title={t('studio.openLesson')} className="flex size-7 items-center justify-center rounded-md text-soft hover:bg-hover hover:text-fg">
+                    <Icon as={ArrowRight} size={15} />
+                  </Link>
+                )}
+              </div>
+            ))}
+          </div>
+          <Pagination page={data.page} size={data.size} total={data.total} onPage={setPage} />
+        </div>
+      )}
+    </Modal>
   )
 }

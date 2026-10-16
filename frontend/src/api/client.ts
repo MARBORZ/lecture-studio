@@ -1,7 +1,7 @@
 import type {
   AIProvider, AskRequest, DownloaderInfo, VideoInfo, VideoItem, Attachment, DiaryCategory, DiaryEntry, ExportResult, Job, JobOptions, Lesson, LessonFull, LessonPatch, LessonStatus,
   HotkeyCheck, LocalServer, PathCheckResult, PipelineDefaults, Project, PromptView, ProjectCreate, ProjectPatch, ProviderInfo, SessionInfo, SessionPatch, SettingsPatch, SettingsView, SystemStatus,
-  Thread, ThreadKind, ComputeStatus, MediaInfo, UninstallPlan, UpdateInfo, FeedbackDraft, FeedbackFile, FeedbackSend, FeedbackResult,
+  Thread, ThreadKind, ComputeStatus, MediaInfo, UninstallPlan, UpdateInfo, FeedbackDraft, FeedbackFile, FeedbackSend, FeedbackResult, JobPage, DownloadPage,
 } from './types'
 import { tr } from '@/i18n'
 
@@ -112,7 +112,9 @@ export const api = {
   checkPath: (path: string) => request<PathCheckResult>('POST', '/api/settings/check-path', { path }),
 
   // videos (YouTube through yt-dlp on this computer)
-  searchVideos: (q: string) => get<VideoItem[]>(`/api/videos/search?q=${encodeURIComponent(q)}`),
+  searchVideos: (q: string, page = 1) => get<VideoItem[]>(`/api/videos/search?q=${encodeURIComponent(q)}&page=${page}`),
+  downloads: (page = 1, size = 20, unused = false) => get<DownloadPage>(`/api/videos/downloads?page=${page}&size=${size}${unused ? '&unused=true' : ''}`),
+  deleteDownload: (name: string) => request<{ ok: boolean }>('DELETE', `/api/videos/downloads/${encodeURIComponent(name)}`),
   videoInfo: (url: string) => get<VideoInfo>(`/api/videos/info?url=${encodeURIComponent(url)}`),
   downloadVideo: (url: string, title: string) => request<Job>('POST', '/api/videos/download', { url, title }),
   downloader: () => get<DownloaderInfo>('/api/videos/downloader'),
@@ -154,6 +156,10 @@ export const api = {
   // jobs
   startJob: (options: Partial<JobOptions>, upload_id?: string) => request<Job>('POST', '/api/jobs', { options, upload_id }),
   cancelJob: (id: string) => request<{ ok: boolean }>('POST', `/api/jobs/${id}/cancel`),
+  /** finished jobs leave the Studio's list (the history keeps them) */
+  clearFinishedJobs: () => request<{ cleared: number }>('POST', '/api/jobs/clear-finished'),
+  jobHistory: (page = 1, size = 20) => get<JobPage>(`/api/jobs/history?page=${page}&size=${size}`),
+  clearJobHistory: () => request<{ ok: boolean }>('DELETE', '/api/jobs/history'),
 
   /** Media for processing (Studio). */
   upload: (file: File, onProgress: (fraction: number) => void) =>
