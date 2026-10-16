@@ -75,10 +75,13 @@ export const slide: Variants = {
   exit: (dir: number) => ({ opacity: 0, transform: tf(-14 * dir), transition: leave }),
 }
 
-/** Tutorial -> app hand-off: the tutorial dissolves forward, then the app assembles (sidebar, then content). */
+/**
+ * Tutorial -> app hand-off: the tutorial dissolves forward, then the app assembles (sidebar, then content).
+ * No blur: a full-screen filter is repainted every frame and stutters on integrated GPUs.
+ */
 export const sceneOut: Variants = {
-  show: { opacity: 1, ...rest, filter: 'blur(0px)' },
-  exit: { opacity: 0, transform: tf(0, 0, 1.03), filter: 'blur(6px)', transition: { duration: 0.42, ease: easeInOut } },
+  show: { opacity: 1, ...rest },
+  exit: { opacity: 0, transform: tf(0, 0, 1.03), transition: { duration: 0.42, ease: easeInOut } },
 }
 export const sidebarIn: Variants = {
   hidden: { opacity: 0, transform: tf(-16) },

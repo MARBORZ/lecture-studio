@@ -5,11 +5,13 @@ import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { Button, IconButton, Progress } from '@/components/ui'
 import type { TKey } from '@/i18n'
-import { ActiveMark, AnimatePresence, m } from '@/components/motion'
+import { AnimatePresence, m } from '@/components/motion'
 import { cn } from '@/lib/cn'
-import { fadeIn, fadeUp, slide } from '@/lib/motion'
+import { fade, fadeIn, fadeUp, slide } from '@/lib/motion'
 import { AssistantArt, DiaryArt, DoneArt, KeysStep, LessonArt, LibraryArt, PowerArt, SettingsArt, StudioArt, WelcomeArt } from './illustrations'
 import { isTyping } from '@/lib/keys'
+import { Bootstrap } from './Bootstrap'
+import { Intro } from './Intro'
 
 type StepId = 'welcome' | 'library' | 'studio' | 'lesson' | 'assistant' | 'diary' | 'keys' | 'settings' | 'power' | 'done'
 
@@ -32,24 +34,33 @@ const k = (id: StepId, part: 'title' | 'lead' | 'b1' | 'b2' | 'b3') => `onboardi
 
 /**
  * Tutorial.
- *   first run  — mandatory: language first (both languages on screen), then the walkthrough; completion -> settings.json
+ *   first run  — mandatory: intro, language (both languages on screen), a check of this computer, the walkthrough;
+ *                completion -> settings.json
  *   replay     — from Settings -> Interface: straight to the walkthrough in the current language, closable, flag untouched
  */
 export function Onboarding({ replay = false, onClose }: { replay?: boolean; onClose?: () => void }) {
   const { settings, patchSettings, toast } = useUI()
-  const [language, setLanguage] = useState<UILanguage | null>(null)
+  const [phase, setPhase] = useState<'intro' | 'language' | 'boot' | 'walk'>(replay ? 'walk' : 'intro')
+  const toLanguage = useCallback(() => setPhase((p) => (p === 'intro' ? 'language' : p)), [])
+  const toWalk = useCallback(() => setPhase('walk'), [])
 
   async function chooseLanguage(lang: UILanguage) {
     try {
       await patchSettings({ ui_language: lang })
-      setLanguage(lang)
+      setPhase('boot')
     } catch (e) {
       toast((e as Error).message, 'error')
     }
   }
 
-  if (!replay && !language) return <LanguageScreen current={settings?.ui_language ?? 'ru'} onChoose={chooseLanguage} />
-  return <Walkthrough onClose={replay ? onClose : undefined} />
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      {phase === 'intro' && <Intro key="intro" onDone={toLanguage} />}
+      {phase === 'language' && <LanguageScreen key="language" current={settings?.ui_language ?? 'ru'} onChoose={chooseLanguage} />}
+      {phase === 'boot' && <Bootstrap key="boot" onDone={toWalk} />}
+      {phase === 'walk' && <Walkthrough key="walk" onClose={replay ? onClose : undefined} />}
+    </AnimatePresence>
+  )
 }
 
 function LanguageScreen({ current, onChoose }: { current: UILanguage; onChoose: (l: UILanguage) => void }) {
@@ -58,7 +69,7 @@ function LanguageScreen({ current, onChoose }: { current: UILanguage; onChoose: 
     { value: 'en', name: 'English', sample: 'Interface and tutorial in English' },
   ]
   return (
-    <m.div variants={fadeUp} initial="hidden" animate="show" className="fixed inset-0 z-[90] flex flex-col items-center justify-center gap-10 bg-bg px-6">
+    <m.div variants={fadeUp} initial="hidden" animate="show" exit="exit" className="fixed inset-0 z-[90] flex flex-col items-center justify-center gap-10 bg-bg px-6">
       <div className="flex flex-col items-center gap-4 text-center">
         <span className="flex size-12 items-center justify-center rounded-full border border-line-strong"><Icon as={Languages} size={20} /></span>
         <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Выберите язык · Choose your language</h1>
@@ -126,7 +137,7 @@ function Walkthrough({ onClose }: { onClose?: () => void }) {
   }, [next, back, onClose])
 
   return (
-    <div className="fixed inset-0 z-[90] flex bg-bg">
+    <m.div variants={fade} initial="hidden" animate="show" exit="exit" className="fixed inset-0 z-[90] flex bg-bg">
       <aside className="hidden w-72 shrink-0 flex-col border-r border-line px-5 py-7 md:flex">
         <div className="mb-8 flex items-center gap-2.5 px-2">
           <svg viewBox="0 0 64 64" className="size-5" aria-hidden>
@@ -141,9 +152,8 @@ function Walkthrough({ onClose }: { onClose?: () => void }) {
               <button
                 type="button"
                 onClick={() => setIndex(i)}
-                className={cn('relative isolate flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-[13px] transition-colors', i === index ? 'text-fg' : i < index ? 'text-soft hover:bg-surface' : 'text-dim hover:bg-surface hover:text-muted')}
+                className={cn('flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-[13px] transition-colors duration-200', i === index ? 'bg-raised text-fg' : i < index ? 'text-soft hover:bg-surface' : 'text-dim hover:bg-surface hover:text-muted')}
               >
-                {i === index && <ActiveMark layoutId="onboarding-step" />}
                 <span className={cn('flex size-5 shrink-0 items-center justify-center rounded-full border font-mono text-[10px]', i < index ? 'border-fg bg-fg text-bg' : i === index ? 'border-fg text-fg' : 'border-line-strong')}>
                   {i < index ? <Icon as={Check} size={11} strokeWidth={2.4} /> : i + 1}
                 </span>
@@ -162,7 +172,7 @@ function Walkthrough({ onClose }: { onClose?: () => void }) {
           {onClose && <IconButton icon={X} size="sm" label={t('common.close')} onClick={onClose} className="-mr-2" />}
         </div>
 
-        <div className="scroll-area flex flex-1 flex-col">
+        <div className="scroll-area flex flex-1 flex-col overflow-x-clip">
           <div className={cn(COLUMN, 'flex flex-1 items-center py-10')}>
             <AnimatePresence mode="wait" custom={direction} initial={false}>
               <m.div
@@ -204,6 +214,6 @@ function Walkthrough({ onClose }: { onClose?: () => void }) {
           </div>
         </footer>
       </main>
-    </div>
+    </m.div>
   )
 }
