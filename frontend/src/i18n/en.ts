@@ -568,7 +568,7 @@ export const en: Record<TKey, string> = {
   'onboarding.studio.lead': 'Drop a video or point to a file on disk; nothing is copied.',
   'onboarding.studio.b1': 'Silero VAD cuts pauses; video and audio are cut identically, frame for frame',
   'onboarding.studio.b2': 'Whisper (local) or Gemini writes the transcript',
-  'onboarding.studio.b3': 'AI writes the audit; progress shows in the job card and the sidebar',
+  'onboarding.studio.b3': 'AI writes the audit; progress shows in the job list and the sidebar',
   'onboarding.lesson.title': 'Lesson: player and timecodes',
   'onboarding.lesson.lead': 'All timecodes are on the clean timeline: a click seeks the video to the exact moment.',
   'onboarding.lesson.b1': 'The audit is slide-style notes with clickable timecodes',
