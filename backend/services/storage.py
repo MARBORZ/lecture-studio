@@ -12,7 +12,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from backend.models.lesson import Lesson, LessonFull, LessonPatch
 from backend.models.project import INBOX_ID, Project, ProjectCreate, ProjectPatch
@@ -94,6 +94,28 @@ class Library:
     def read(cls) -> dict[str, Any]:
         with cls._lock:
             return cls._load()
+
+    @staticmethod
+    def original_path_of(lesson_dir: Path, original_file: str) -> Path:
+        """original_file is an absolute path (Eco: left where it was) or a file name inside the lesson folder."""
+        p = Path(original_file)
+        return p if p.is_absolute() else lesson_dir / p
+
+    @classmethod
+    def original_path(cls, lesson: Lesson) -> Path | None:
+        """The recording a lesson plays from directly (video "original"), wherever it lives."""
+        return cls.original_path_of(cls.lesson_dir(lesson), lesson.original_file) if lesson.original_file else None
+
+    @classmethod
+    def media_file(cls, lesson: Lesson, kind: Literal["audio", "video"]) -> Path | None:
+        """The file the player, export and MCP use: the lesson's own copy, else the original recording. None = absent."""
+        own = cls.lesson_dir(lesson) / (Artifacts.AUDIO if kind == "audio" else Artifacts.VIDEO)
+        if own.is_file():
+            return own
+        original = cls.original_path(lesson)
+        if original and original.is_file() and (kind == "audio" or lesson.original_kind == "video"):
+            return original
+        return None
 
     @staticmethod
     def lesson_dir(lesson: Lesson | dict[str, Any]) -> Path:
@@ -196,8 +218,9 @@ class Library:
         time_map = read_json(d / Artifacts.TIME_MAP, default=[]) or []
         if isinstance(time_map, dict):
             time_map = time_map.get("segments", [])
-        has_audio = (d / Artifacts.AUDIO).is_file()
-        has_video = (d / Artifacts.VIDEO).is_file()
+        has_audio = cls.media_file(lesson, "audio") is not None
+        has_video = cls.media_file(lesson, "video") is not None
+        original = cls.original_path(lesson)
         return LessonFull(
             **{**lesson.model_dump(), "has_video": has_video},
             segments=[Segment(**s) for s in segments],
@@ -209,6 +232,7 @@ class Library:
             srt_text=read_text(d / Artifacts.CLEAN_SRT),
             audio_url=f"/api/lessons/{lesson.id}/media/audio" if has_audio else None,
             video_url=f"/api/lessons/{lesson.id}/media/video" if has_video else None,
+            source_missing=bool(original) and not original.is_file(),
         )
 
     @classmethod
@@ -218,7 +242,7 @@ class Library:
         lesson = lesson.model_copy(update={
             "has_transcription": (d / Artifacts.SEGMENTS).is_file() or (d / Artifacts.PLAIN).is_file(),
             "has_audit": (d / Artifacts.AUDIT).is_file(),
-            "has_video": (d / Artifacts.VIDEO).is_file(),
+            "has_video": (d / Artifacts.VIDEO).is_file() or (lesson.original_kind == "video" and bool(lesson.original_file)),
         })
         with cls.tx() as db:
             rows = db["lessons"]

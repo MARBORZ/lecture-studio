@@ -33,6 +33,13 @@ def extract_wav(input_path: PathLike, wav_path: PathLike, enhance: bool = False)
     return probe_duration(wav_path)
 
 
+def encode_mp3(src: PathLike, dst: PathLike, bitrate: str = "64k") -> Path:
+    """Compact mono MP3 (for uploading speech to a cloud model)."""
+    Path(dst).parent.mkdir(parents=True, exist_ok=True)
+    run_ffmpeg(["ffmpeg", "-y", "-i", str(src), "-vn", "-ac", "1", "-c:a", "libmp3lame", "-b:a", bitrate, str(dst)], "speech mp3")
+    return Path(dst)
+
+
 class AudioProcessor(BaseMediaProcessor):
     def __init__(self, sample_rate: int = SAMPLE_RATE, fade_ms: int = 5, bitrate: str = "128k"):
         self.sample_rate = sample_rate

@@ -1,25 +1,22 @@
-import { ArrowLeft, ArrowRight, Check, ChevronDown, FileVideo, HardDrive, Play, Upload, X } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { ArrowLeft, ArrowRight, Check, FileVideo, HardDrive, Play, Upload, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '@/api/client'
-import type { PipelineDefaults } from '@/api/types'
+import type { MediaInfo, PipelineDefaults } from '@/api/types'
 import { useJobs, useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
-import { AnimatePresence, Appear, ListItem, m } from '@/components/motion'
+import { AnimatePresence, Appear, ListItem } from '@/components/motion'
 import { Button, Card, EmptyState, Field, Input, Page, PageHeader, Progress, Segmented, Select, Switch } from '@/components/ui'
 import { FALLBACK_DEFAULTS, PipelineOptionsFields } from '@/features/jobs/PipelineOptionsFields'
 import { JobCard } from '@/features/jobs/JobCard'
 import { KeyNotice } from '@/features/system/KeyNotice'
 import { cn } from '@/lib/cn'
-import { formatBytes } from '@/lib/format'
-import { collapse } from '@/lib/motion'
+import { formatBytes, formatDuration } from '@/lib/format'
 
 type Source = 'upload' | 'path'
 type Opts = Required<PipelineDefaults>
-type Mode = Opts['mode']
 
 const STEPS = ['file', 'lesson', 'processing', 'start'] as const
 type Step = (typeof STEPS)[number]
-const MODES: Mode[] = ['deepseek', 'gemini', 'whisper', 'audio_only']
 
 /** Studio as a wizard: file -> lesson -> processing -> start. The queue stays on the right. */
 export function StudioPage() {
@@ -138,7 +135,11 @@ export function StudioPage() {
                 </div>
               </Card>
             )}
-            {step === 'processing' && <ProcessingStep opts={opts} setOpts={setOpts} />}
+            {step === 'processing' && (
+              <Card title={t('studio.step.processing')} description={t('studio.modeHint')}>
+                <PipelineOptionsFields value={opts} onChange={setOpts} source={source} />
+              </Card>
+            )}
             {step === 'start' && (
               <Card title={t('studio.step.start')}>
                 <dl className="grid gap-x-6 gap-y-3 text-[13px] sm:grid-cols-[10rem_minmax(0,1fr)]">
@@ -148,13 +149,15 @@ export function StudioPage() {
                   <dd className="truncate text-fg">{title.trim() || t('studio.untitled')}</dd>
                   <dt className="text-muted">{t('common.notebook')}</dt>
                   <dd className="truncate text-fg">{projects.find((p) => p.id === projectId)?.name}</dd>
-                  <dt className="text-muted">{t('opt.mode')}</dt>
-                  <dd className="text-fg">{t(`opt.mode.${opts.mode}`)}</dd>
+                  <dt className="text-muted">{t('studio.steps')}</dt>
+                  <dd className="text-fg">{stepsLine(opts, t)}</dd>
                   <dt className="text-muted">{t('studio.result')}</dt>
                   <dd className="text-fg">{resultLine(opts, t)}</dd>
                 </dl>
                 <div className="mt-5 flex flex-col gap-3">
-                  {opts.mode === 'gemini' ? <KeyNotice provider="gemini" /> : opts.mode === 'deepseek' && opts.generate_audit ? <KeyNotice provider="deepseek" /> : null}
+                  {opts.transcriber === 'gemini' && <KeyNotice provider="gemini" />}
+                  {opts.audit !== 'none' && opts.audit !== (opts.transcriber === 'gemini' ? 'gemini' : '') && <KeyNotice provider={opts.audit} />}
+                  {opts.video === 'original' && source === 'path' && <p className="text-[12.5px] text-soft">{t('opt.video.original.path')}</p>}
                   {upload && (
                     <div className="flex items-center gap-4 rounded-xl border border-line-strong p-4">
                       <div className="flex-1">
@@ -211,11 +214,22 @@ export function StudioPage() {
 }
 
 function resultLine(o: Opts, t: ReturnType<typeof useUI>['t']): string {
-  const parts = [t('studio.res.audio')]
-  if (o.clean_video) parts.push(t('studio.res.video'))
-  if (o.mode !== 'audio_only') parts.push(t('studio.res.transcript'))
-  if (o.mode !== 'audio_only' && o.generate_audit) parts.push(t('studio.res.audit'))
+  const parts = [o.video === 'original' ? t('studio.res.original') : o.cut_silence ? t('studio.res.audio') : t('studio.res.audioFull')]
+  if (o.video === 'clean') parts.push(t('studio.res.video'))
+  if (o.video === 'compressed') parts.push(t('studio.res.videoCompressed'))
+  if (o.transcriber !== 'none') parts.push(t('studio.res.transcript'))
+  if (o.audit !== 'none') parts.push(o.audit_source === 'video' ? t('studio.res.auditVideo') : t('studio.res.audit'))
   return parts.join(' · ')
+}
+
+/** "Pauses cut · Whisper · audit DeepSeek" — what each step will do. */
+function stepsLine(o: Opts, t: ReturnType<typeof useUI>['t']): string {
+  return [
+    o.cut_silence ? t('studio.steps.cut') : t('studio.steps.noCut'),
+    t(`opt.video.${o.video}`),
+    o.transcriber === 'none' ? t('studio.steps.noText') : o.transcriber === 'gemini' ? 'Gemini' : 'Whisper',
+    o.audit === 'none' ? t('studio.steps.noAudit') : `${t('opt.step.audit')}: ${o.audit === 'gemini' ? 'Gemini' : 'DeepSeek'}`,
+  ].join(' · ')
 }
 
 function FileStep({ source, setSource, file, setFile, localPath, setLocalPath }: {
@@ -277,61 +291,38 @@ function FileStep({ source, setSource, file, setFile, localPath, setLocalPath }:
             <Icon as={HardDrive} size={14} className="absolute top-1/2 left-3 -translate-y-1/2 text-dim" />
             <Input value={localPath} onChange={(e) => setLocalPath(e.target.value)} placeholder={t('studio.pathPlaceholder')} className="pl-8 font-mono text-[12.5px]" autoFocus />
           </div>
+          <PathInfo path={localPath} />
         </Field>
       )}
     </Card>
   )
 }
 
-/** The engine as choice cards (what runs locally, what goes to the cloud), the main switches, and fine-tuning folded. */
-function ProcessingStep({ opts, setOpts }: { opts: Opts; setOpts: (o: Opts) => void }) {
-  const { t } = useUI()
-  const [advanced, setAdvanced] = useState(false)
-  const set = <K extends keyof Opts>(k: K, v: Opts[K]) => setOpts({ ...opts, [k]: v })
-  return (
-    <div className="flex flex-col gap-5">
-      <Card title={t('opt.mode')} description={t('studio.modeHint')}>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {MODES.map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => set('mode', mode)}
-              aria-pressed={opts.mode === mode}
-              className={cn('flex flex-col gap-1 rounded-xl border p-3.5 text-left transition-colors', opts.mode === mode ? 'border-fg bg-raised' : 'border-line hover:border-line-strong')}
-            >
-              <span className="flex items-center justify-between gap-2 text-[13.5px] font-medium text-fg">
-                {t(`opt.mode.${mode}`)}
-                {opts.mode === mode && <Icon as={Check} size={14} />}
-              </span>
-              <span className="text-[12px] leading-snug text-muted">{t(`studio.mode.${mode}`)}</span>
-            </button>
-          ))}
-        </div>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <Switch checked={opts.clean_video} onChange={(v) => set('clean_video', v)} label={t('opt.video')} hint={t('opt.videoHint')} />
-          <Switch disabled={opts.mode === 'audio_only'} checked={opts.generate_audit && opts.mode !== 'audio_only'} onChange={(v) => set('generate_audit', v)} label={t('opt.audit')} hint={t('studio.auditHint')} />
-        </div>
-      </Card>
 
-      <Card padded={false}>
-        <button type="button" onClick={() => setAdvanced((v) => !v)} className="flex w-full items-center justify-between px-5 py-3.5 text-left">
-          <span>
-            <span className="block text-[13.5px] font-semibold">{t('studio.advanced')}</span>
-            <span className="block text-[12.5px] text-muted">{t('studio.defaultsHint')}</span>
-          </span>
-          <Icon as={ChevronDown} size={16} className={cn('text-muted transition-transform', advanced && 'rotate-180')} />
-        </button>
-        <AnimatePresence initial={false}>
-          {advanced && (
-            <m.div key="advanced" variants={collapse} initial="hidden" animate="show" exit="exit" className="overflow-hidden">
-              <div className="border-t border-line p-5">
-                <PipelineOptionsFields value={opts} onChange={setOpts} />
-              </div>
-            </m.div>
-          )}
-        </AnimatePresence>
-      </Card>
+/** What is at the path: length, size, video or sound only, and whether the app plays the original as is (Eco). */
+function PathInfo({ path }: { path: string }) {
+  const { t, lang } = useUI()
+  const [info, setInfo] = useState<{ path: string; data?: MediaInfo; error?: string } | null>(null)
+  useEffect(() => {
+    const p = path.trim()
+    if (!p) return
+    const id = setTimeout(() => {
+      api.inspectMedia(p).then(
+        (data) => setInfo({ path: p, data }),
+        (e: Error) => setInfo({ path: p, error: e.message }),
+      )
+    }, 500)
+    return () => clearTimeout(id)
+  }, [path])
+  if (!info || info.path !== path.trim()) return null
+  if (info.error) return <p className="mt-2 text-[12.5px] text-fg">{info.error}</p>
+  const d = info.data!
+  return (
+    <div className="mt-2 flex flex-col gap-1 text-[12.5px] text-muted">
+      <span className="font-mono">
+        {formatDuration(d.duration_sec, lang)} · {formatBytes(d.size_mb * 1024 * 1024, lang)} · {d.has_video ? t('studio.info.video') : t('studio.info.audio')}
+      </span>
+      {d.playback_problem && <span className="text-soft">{t('studio.info.playback', { problem: d.playback_problem })}</span>}
     </div>
   )
 }

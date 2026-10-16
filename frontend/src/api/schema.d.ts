@@ -373,7 +373,8 @@ export interface paths {
         };
         /**
          * Stream Media
-         * @description FileResponse serves HTTP Range requests (206), so seeking is instant.
+         * @description FileResponse serves HTTP Range requests (206), so seeking is instant. The lesson's own copy, or the original
+         *     recording (Eco / kept upload) — its type is guessed from the extension.
          */
         get: operations["stream_media_api_lessons__lesson_id__media__kind__get"];
         put?: never;
@@ -455,6 +456,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lessons/{lesson_id}/relink": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Relink
+         * @description Eco: the original was moved or renamed — point the lesson at its new path. The file must be the same recording
+         *     (same length), so timecodes, transcript and audit stay right.
+         */
+        post: operations["relink_api_lessons__lesson_id__relink_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/uploads/{filename}": {
         parameters: {
             query?: never;
@@ -466,6 +488,23 @@ export interface paths {
         /** Upload */
         put: operations["upload_api_uploads__filename__put"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/media/inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Inspect Media */
+        post: operations["inspect_media_api_media_inspect_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -861,6 +900,12 @@ export interface components {
              * @enum {string}
              */
             audit_mode: "srt_timecodes" | "clean_summary";
+            /**
+             * Source
+             * @default transcript
+             * @enum {string}
+             */
+            source: "transcript" | "video";
         };
         /**
          * Bookmark
@@ -1141,6 +1186,11 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** InspectRequest */
+        InspectRequest: {
+            /** Path */
+            path: string;
+        };
         /** Job */
         Job: {
             /** Id */
@@ -1203,6 +1253,11 @@ export interface components {
          */
         JobOptions: {
             /**
+             * Cut Silence
+             * @default true
+             */
+            cut_silence: boolean;
+            /**
              * Min Silence Ms
              * @default 800
              */
@@ -1223,10 +1278,11 @@ export interface components {
              */
             enhance_audio: boolean;
             /**
-             * Clean Video
-             * @default true
+             * Video
+             * @default clean
+             * @enum {string}
              */
-            clean_video: boolean;
+            video: "clean" | "compressed" | "original" | "none";
             /**
              * Video Resolution
              * @default 1080p
@@ -1239,11 +1295,11 @@ export interface components {
              */
             video_crf: number;
             /**
-             * Mode
-             * @default deepseek
+             * Transcriber
+             * @default whisper
              * @enum {string}
              */
-            mode: "deepseek" | "gemini" | "whisper" | "audio_only";
+            transcriber: "whisper" | "gemini" | "none";
             /**
              * Language
              * @default auto
@@ -1255,10 +1311,17 @@ export interface components {
              */
             custom_vocabulary: string;
             /**
-             * Generate Audit
-             * @default true
+             * Audit
+             * @default deepseek
+             * @enum {string}
              */
-            generate_audit: boolean;
+            audit: "deepseek" | "gemini" | "none";
+            /**
+             * Audit Source
+             * @default transcript
+             * @enum {string}
+             */
+            audit_source: "transcript" | "video";
             /**
              * Audit Mode
              * @default srt_timecodes
@@ -1450,6 +1513,22 @@ export interface components {
             schema_version: number;
             /** Bookmarks */
             bookmarks?: components["schemas"]["Bookmark"][];
+            /**
+             * Cut Silence
+             * @default true
+             */
+            cut_silence: boolean;
+            /**
+             * Original File
+             * @default
+             */
+            original_file: string;
+            /**
+             * Original Kind
+             * @default
+             * @enum {string}
+             */
+            original_kind: "" | "video" | "audio";
         };
         /** LessonFull */
         LessonFull: {
@@ -1522,6 +1601,22 @@ export interface components {
             schema_version: number;
             /** Bookmarks */
             bookmarks?: components["schemas"]["Bookmark"][];
+            /**
+             * Cut Silence
+             * @default true
+             */
+            cut_silence: boolean;
+            /**
+             * Original File
+             * @default
+             */
+            original_file: string;
+            /**
+             * Original Kind
+             * @default
+             * @enum {string}
+             */
+            original_kind: "" | "video" | "audio";
             /** Segments */
             segments?: components["schemas"]["Segment"][];
             /** Time Map */
@@ -1555,6 +1650,11 @@ export interface components {
             audio_url?: string | null;
             /** Video Url */
             video_url?: string | null;
+            /**
+             * Source Missing
+             * @default false
+             */
+            source_missing: boolean;
         };
         /** LessonPatch */
         LessonPatch: {
@@ -1570,6 +1670,23 @@ export interface components {
             tags?: string | null;
             /** Bookmarks */
             bookmarks?: components["schemas"]["Bookmark"][] | null;
+        };
+        /**
+         * MediaInfo
+         * @description What the Studio shows for a file on disk before processing (and whether Eco mode can play it as is).
+         */
+        MediaInfo: {
+            /** Duration Sec */
+            duration_sec: number;
+            /** Size Mb */
+            size_mb: number;
+            /** Has Video */
+            has_video: boolean;
+            /**
+             * Playback Problem
+             * @default
+             */
+            playback_problem: string;
         };
         /** PathCheckRequest */
         PathCheckRequest: {
@@ -1618,9 +1735,15 @@ export interface components {
         };
         /**
          * PipelineDefaults
-         * @description Default processing options. Every job starts from these and may override any field.
+         * @description Processing options, one field per step. Every job starts from these and may override any field.
+         *     Older settings ("mode", "clean_video", "generate_audit") are read and translated.
          */
         PipelineDefaults: {
+            /**
+             * Cut Silence
+             * @default true
+             */
+            cut_silence: boolean;
             /**
              * Min Silence Ms
              * @default 800
@@ -1642,10 +1765,11 @@ export interface components {
              */
             enhance_audio: boolean;
             /**
-             * Clean Video
-             * @default true
+             * Video
+             * @default clean
+             * @enum {string}
              */
-            clean_video: boolean;
+            video: "clean" | "compressed" | "original" | "none";
             /**
              * Video Resolution
              * @default 1080p
@@ -1658,11 +1782,11 @@ export interface components {
              */
             video_crf: number;
             /**
-             * Mode
-             * @default deepseek
+             * Transcriber
+             * @default whisper
              * @enum {string}
              */
-            mode: "deepseek" | "gemini" | "whisper" | "audio_only";
+            transcriber: "whisper" | "gemini" | "none";
             /**
              * Language
              * @default auto
@@ -1674,10 +1798,17 @@ export interface components {
              */
             custom_vocabulary: string;
             /**
-             * Generate Audit
-             * @default true
+             * Audit
+             * @default deepseek
+             * @enum {string}
              */
-            generate_audit: boolean;
+            audit: "deepseek" | "gemini" | "none";
+            /**
+             * Audit Source
+             * @default transcript
+             * @enum {string}
+             */
+            audit_source: "transcript" | "video";
             /**
              * Audit Mode
              * @default srt_timecodes
@@ -1763,6 +1894,11 @@ export interface components {
             can_transcribe_audio: boolean;
             /** Configured */
             configured: boolean;
+        };
+        /** RelinkRequest */
+        RelinkRequest: {
+            /** Path */
+            path: string;
         };
         /**
          * Segment
@@ -1900,11 +2036,11 @@ export interface components {
         /** TranscribeRequest */
         TranscribeRequest: {
             /**
-             * Mode
+             * Transcriber
              * @default whisper
              * @enum {string}
              */
-            mode: "whisper" | "gemini" | "deepseek";
+            transcriber: "whisper" | "gemini";
         };
         /**
          * UninstallPlan
@@ -3028,6 +3164,41 @@ export interface operations {
             };
         };
     };
+    relink_api_lessons__lesson_id__relink_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lesson_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RelinkRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lesson"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     upload_api_uploads__filename__put: {
         parameters: {
             query?: never;
@@ -3046,6 +3217,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UploadResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    inspect_media_api_media_inspect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InspectRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaInfo"];
                 };
             };
             /** @description Validation Error */

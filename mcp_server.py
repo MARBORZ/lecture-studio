@@ -51,13 +51,13 @@ def lecture_get_lesson_material(lesson_id: str) -> dict[str, Any]:
     return lesson.model_dump() if lesson else _not_found(lesson_id)
 
 
-def _track(lesson_id: str, artifact: str, key: str) -> dict[str, Any]:
+def _track(lesson_id: str, kind: str, key: str) -> dict[str, Any]:
     lesson = Library.get_lesson(lesson_id)
     if not lesson:
         return _not_found(lesson_id)
-    path = Library.lesson_dir(lesson) / artifact
-    if not path.is_file():
-        return {"error": f"{artifact} отсутствует у урока '{lesson_id}'"}
+    path = Library.media_file(lesson, kind)  # the lesson's copy, or the original recording (Eco)
+    if path is None:
+        return {"error": f"{kind} отсутствует у урока '{lesson_id}' (или исходный файл не найден по сохранённому пути)"}
     return {
         "lesson_id": lesson.id,
         "title": lesson.title,
@@ -71,13 +71,13 @@ def _track(lesson_id: str, artifact: str, key: str) -> dict[str, Any]:
 @mcp.tool()
 def lecture_get_clean_audio_track(lesson_id: str) -> dict[str, Any]:
     """Absolute path to clean_speech.mp3 (silence removed by Silero VAD) + durations."""
-    return _track(lesson_id, Artifacts.AUDIO, "audio_path")
+    return _track(lesson_id, "audio", "audio_path")
 
 
 @mcp.tool()
 def lecture_get_clean_video_track(lesson_id: str) -> dict[str, Any]:
     """Absolute path to clean_video.mp4 (jump-cut, H.264 CRF) + durations."""
-    return _track(lesson_id, Artifacts.VIDEO, "video_path")
+    return _track(lesson_id, "video", "video_path")
 
 
 @mcp.tool()

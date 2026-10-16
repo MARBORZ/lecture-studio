@@ -4,9 +4,8 @@ User-editable settings schema (persisted to APP_HOME/settings.json).
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
-ProcessingMode = Literal["deepseek", "gemini", "whisper", "audio_only"]
 AuditMode = Literal["srt_timecodes", "clean_summary"]
 VideoResolution = Literal["1080p", "720p", "original"]
 AIProviderName = Literal["deepseek", "gemini"]
@@ -15,21 +14,67 @@ Theme = Literal["system", "dark", "light"]
 TEXT_SCALE_MIN, TEXT_SCALE_MAX = 80, 150
 
 
-class PipelineDefaults(BaseModel):
-    """Default processing options. Every job starts from these and may override any field."""
+Transcriber = Literal["whisper", "gemini", "none"]
+AuditProvider = Literal["deepseek", "gemini", "none"]
+AuditSource = Literal["transcript", "video"]  # video = Gemini watches an optimized copy (costs more, sees the screen)
+VideoOutput = Literal["clean", "compressed", "original", "none"]
+# clean      — jump-cut video (the pauses cut out like in the audio); without cut_silence it equals "compressed"
+# compressed — the whole video re-encoded smaller (H.264), nothing cut
+# original   — the file itself, untouched: a path on disk stays where it is (Eco mode), an upload moves into the lesson;
+#              implies cut_silence = False (the timeline must be the file's) and no separate audio file
+# none       — sound only
 
+
+class PipelineDefaults(BaseModel):
+    """Processing options, one field per step. Every job starts from these and may override any field.
+    Older settings ("mode", "clean_video", "generate_audit") are read and translated."""
+
+    cut_silence: bool = True
     min_silence_ms: int = Field(800, ge=100, le=5000)
     speech_pad_ms: int = Field(250, ge=0, le=1000)
     vad_threshold: float = Field(0.5, ge=0.1, le=0.95)
     enhance_audio: bool = False
-    clean_video: bool = True
+    video: VideoOutput = "clean"
     video_resolution: VideoResolution = "1080p"
     video_crf: int = Field(26, ge=18, le=36)
-    mode: ProcessingMode = "deepseek"
+    transcriber: Transcriber = "whisper"
     language: str = "auto"
     custom_vocabulary: str = ""
-    generate_audit: bool = True
+    audit: AuditProvider = "deepseek"
+    audit_source: AuditSource = "transcript"
     audit_mode: AuditMode = "srt_timecodes"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _legacy(cls, data):
+        """settings.json from 1.x before 1.4: one "mode" for both transcription and audit, video on/off."""
+        if not isinstance(data, dict) or "mode" not in data and "clean_video" not in data and "generate_audit" not in data:
+            return data
+        data = dict(data)
+        mode = data.pop("mode", "deepseek")
+        generate = data.pop("generate_audit", True)
+        clean = data.pop("clean_video", True)
+        data.setdefault("transcriber", {"gemini": "gemini", "audio_only": "none"}.get(mode, "whisper"))
+        data.setdefault("audit", "none" if mode == "audio_only" or not generate else ("gemini" if mode == "gemini" else "deepseek"))
+        data.setdefault("video", "clean" if clean else "none")
+        return data
+
+    @model_validator(mode="after")
+    def _consistent(self):
+        """Combinations that cannot work are made to: the result is what will actually run."""
+        if self.video == "original":
+            self.cut_silence = False  # the file's own timeline
+        if self.video == "clean" and not self.cut_silence:
+            self.video = "compressed"
+        if self.audit == "none" or (self.audit_source == "video" and (self.audit != "gemini" or self.video == "none")):
+            self.audit_source = "transcript"  # video analysis needs Gemini and a video
+        if self.transcriber == "none" and self.audit_source == "transcript":
+            self.audit = "none"  # nothing to write an audit from
+        return self
+
+    @property
+    def keeps_audio_file(self) -> bool:
+        return self.video != "original"
 
 
 class AISettings(BaseModel):

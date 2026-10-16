@@ -6,11 +6,11 @@ measured with ffprobe (not assumed), so timecodes stay on the exact clean timeli
 import json
 import logging
 import shutil
-import time
 from collections.abc import Callable
 from pathlib import Path
 
 from backend.core.ai.prompts import gemini_transcription_instruction
+from backend.core.ai.providers.gemini import delete_file, upload_file
 from backend.core.ai.retry import with_retry
 from backend.core.media.base import probe_duration, run_ffmpeg
 from backend.core.timeline import parse_tc
@@ -62,17 +62,8 @@ def transcribe(
     try:
         for idx, (chunk, offset) in enumerate(chunks):
             check_cancelled()
-            uploaded = with_retry(lambda c=chunk: client.files.upload(file=str(c)), "Gemini", check_cancelled)
+            uploaded = upload_file(client, chunk, check_cancelled)
             try:
-                for _ in range(30):
-                    state = getattr(client.files.get(name=uploaded.name).state, "name", "")
-                    if state == "ACTIVE":
-                        break
-                    if state == "FAILED":
-                        raise RuntimeError(f"Gemini не принял файл {chunk.name}")
-                    check_cancelled()
-                    time.sleep(2)
-
                 response = with_retry(
                     lambda f=uploaded: client.models.generate_content(model=model, contents=[f, prompt], config=config), "Gemini", check_cancelled
                 )
@@ -81,10 +72,7 @@ def transcribe(
                     end = parse_tc(s.get("end_time_mm_ss", "0")) + offset
                     out.append({"clean_start": start, "clean_end": max(end, start + 1.0), "text": s.get("text", "")})
             finally:
-                try:
-                    client.files.delete(name=uploaded.name)
-                except Exception as e:  # cloud cleanup is best-effort
-                    logger.warning("Gemini file cleanup failed: %s", e)
+                delete_file(client, uploaded)
             if on_progress:
                 on_progress((idx + 1) / len(chunks))
     finally:

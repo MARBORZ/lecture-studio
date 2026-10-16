@@ -42,6 +42,11 @@ class Lesson(BaseModel):
     has_video: bool = False
     schema_version: int = 0
     bookmarks: list[Bookmark] = Field(default_factory=list)
+    cut_silence: bool = True  # False: the lesson plays on the recording's own timeline
+    # The recording itself instead of copies (video "original"): an absolute path left where it was (Eco mode),
+    # or a file name inside the lesson folder (an upload kept as is). "" = clean_speech.mp3 / clean_video.mp4 are used.
+    original_file: str = ""
+    original_kind: Literal["", "video", "audio"] = ""
 
 
 class TimeMapEntry(BaseModel):
@@ -62,6 +67,7 @@ class LessonFull(Lesson):
     srt_text: str = ""
     audio_url: str | None = None
     video_url: str | None = None
+    source_missing: bool = False  # Eco: the original file is no longer at its path (relink it)
 
 
 class LessonPatch(BaseModel):

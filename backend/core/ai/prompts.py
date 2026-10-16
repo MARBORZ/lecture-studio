@@ -147,6 +147,39 @@ def merge_system(timed: bool) -> str:
     ])
 
 
+# ---------- audit from video (Gemini watches an optimized copy) ----------
+
+VIDEO_CONTEXT = """\
+К заданию приложено видео лекции (кадр в секунду, сниженное качество) на той же шкале времени, что и стенограмма.
+Используй то, что видно на экране: код, слайды, схемы, терминал, действия в интерфейсе. Код с экрана переписывай дословно,
+если он читается. Видео не пересказывай — бери из него только то, что добавляет к аудиту.
+"""
+
+VIDEO_TIMECODE_RULE = """\
+ТАЙМКОДЫ:
+- Формат строго [MM:SS] или [HH:MM:SS], в квадратных скобках, без обратных кавычек.
+- Время — позиция в видео от его начала. Стенограммы нет: опирайся на речь и кадры видео.
+"""
+
+
+def video_audit_system(timed: bool, has_transcript: bool, part: bool) -> str:
+    timing = (TIMECODE_RULE if has_transcript else VIDEO_TIMECODE_RULE) if timed else NO_TIMECODE_RULE
+    task = (
+        "Это часть длинной лекции. Выведи только заметки этой части:\n"
+        + ("### [MM:SS] <блок>\n- тезис" if timed else "### <блок>\n- тезис")
+        + "\nПлюс отдельными списками, если есть: «Код и команды», «Ошибки», «Термины». Без заголовка урока и итогов."
+        if part
+        else _structure(timed) + "\n\nОтвечай на языке лекции. Выводи только Markdown аудита, без предисловий."
+    )
+    return "\n\n".join([text("audit.role"), text("audit.style"), VIDEO_CONTEXT, timing, task])
+
+
+def video_audit_prompt(transcript: str, part: int, total: int) -> str:
+    head = f"Часть {part} из {total} (видео приложено только на её отрезок)." if total > 1 else "Видео лекции приложено."
+    body = f"Стенограмма этого отрезка:\n\n{transcript}" if transcript.strip() else "Стенограммы нет — только видео."
+    return f"{head} Сделай аудит.\n\n{body}"
+
+
 # ---------- assistant (NotebookLM) ----------
 
 ASSISTANT_BASE = """\

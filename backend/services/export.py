@@ -15,9 +15,8 @@ from backend.utils.fs import copy_file, ensure_dir, sanitize_filename, to_path
 logger = logging.getLogger(__name__)
 
 # (artifact, subfolder, name template)
+# Audio and video come through Library.media_file (the lesson's copy or the original recording), see export_lesson.
 EXPORT_RULES: list[tuple[str, str, str]] = [
-    (Artifacts.AUDIO, "compressed", "{title}.mp3"),
-    (Artifacts.VIDEO, "compressed", "{title}.mp4"),
     (Artifacts.TIME_MAP, "compressed", "{title}_time_map.json"),
     (Artifacts.SEGMENTS, "compressed", "{title}_segments.json"),
     (Artifacts.CLEAN_SRT, "srt", "{title}.srt"),
@@ -52,7 +51,14 @@ def export_lesson(
     with JobRegistry.exporting():
         for folder in FOLDERS:
             ensure_dir(base / folder)
-        files = [
+        files = []
+        media = {kind: Library.media_file(lesson, kind) for kind in ("video", "audio")}
+        for kind, path in media.items():
+            if path and not (kind == "audio" and path == media["video"]):  # an original with sound: exported once
+                suffix = "" if path.name in (Artifacts.AUDIO, Artifacts.VIDEO) else "_original"
+                if dest := copy_file(path, base / "compressed" / f"{safe_title}{suffix}{path.suffix}"):
+                    files.append(str(dest))
+        files += [
             str(dest)
             for name, sub, tpl in EXPORT_RULES
             if (dest := copy_file(src / name, (base / sub if sub else base) / tpl.format(title=safe_title)))

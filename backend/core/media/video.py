@@ -43,6 +43,41 @@ def probe_video(path: PathLike) -> float | None:
     return None
 
 
+# What Chromium (the app window) plays without help. Anything else in "original" mode gets a warning.
+_PLAYABLE_CONTAINERS = {"mov,mp4,m4a,3gp,3g2,mj2", "matroska,webm", "mp3", "ogg", "wav", "flac"}
+_PLAYABLE_VIDEO = {"h264", "vp8", "vp9", "av1"}
+_PLAYABLE_AUDIO = {"aac", "mp3", "opus", "vorbis", "flac", "pcm_s16le", "pcm_s24le", "pcm_f32le"}
+
+
+def browser_playback_problem(path: PathLike) -> str:
+    """"" if the app window can play the file as is, else a short reason (container or codec)."""
+    try:
+        data = ffprobe_json(path, "-show_entries", "format=format_name:stream=codec_type,codec_name")
+    except RuntimeError as e:
+        return str(e)[:120]
+    container = data.get("format", {}).get("format_name", "")
+    if container not in _PLAYABLE_CONTAINERS:
+        return f"контейнер {container}"
+    for st in data.get("streams", []):
+        kind, codec = st.get("codec_type"), st.get("codec_name", "")
+        if kind == "video" and codec not in _PLAYABLE_VIDEO and codec not in ("mjpeg", "png"):
+            return f"видеокодек {codec}"
+        if kind == "audio" and codec not in _PLAYABLE_AUDIO:
+            return f"аудиокодек {codec}"
+    return ""
+
+
+def make_analysis_proxy(src: PathLike, dst: PathLike) -> PathLike:
+    """A light copy for a cloud model to watch: 480p, 1 frame per second (what Gemini samples anyway), quiet mono
+    speech. An hour of screen recording becomes tens of MB instead of gigabytes; timing is unchanged."""
+    run_ffmpeg(
+        ["ffmpeg", "-y", "-i", str(src), "-vf", "fps=1,scale=-2:'min(480,ih)'", "-c:v", "libx264", "-crf", "30", "-preset", "veryfast",
+         "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "32k", "-ac", "1", "-movflags", "+faststart", str(dst)],
+        "video for analysis",
+    )
+    return dst
+
+
 Encoder = Literal["x264", "nvenc"]
 
 

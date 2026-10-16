@@ -15,7 +15,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from backend.core.media import MediaError, check_input
+from backend.core.media import MediaError, browser_playback_problem, check_input, probe_video
 from backend.core.pipeline import start_processing
 from backend.models.job import Job, JobOptions
 from backend.services.jobs import JobRegistry
@@ -70,6 +70,36 @@ def _check(media) -> None:
         check_input(media)
     except MediaError as e:
         raise HTTPException(400, detail=str(e)) from e
+
+
+class InspectRequest(BaseModel):
+    path: str
+
+
+class MediaInfo(BaseModel):
+    """What the Studio shows for a file on disk before processing (and whether Eco mode can play it as is)."""
+
+    duration_sec: float
+    size_mb: float
+    has_video: bool
+    playback_problem: str = ""  # "" = the app window plays the original as is
+
+
+@router.post("/media/inspect", response_model=MediaInfo)
+def inspect_media(req: InspectRequest) -> MediaInfo:
+    path = to_path(req.path)
+    if not path.is_file():
+        raise HTTPException(400, detail=f"Файл не найден: {path}")
+    try:
+        duration = check_input(path)
+    except MediaError as e:
+        raise HTTPException(400, detail=str(e)) from e
+    return MediaInfo(
+        duration_sec=round(duration, 2),
+        size_mb=round(path.stat().st_size / 1024 / 1024, 1),
+        has_video=probe_video(path) is not None,
+        playback_problem=browser_playback_problem(path),
+    )
 
 
 @router.post("/jobs", response_model=Job)

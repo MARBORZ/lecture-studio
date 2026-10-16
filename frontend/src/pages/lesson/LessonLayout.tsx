@@ -1,4 +1,4 @@
-import { ArrowLeft, FileText, FolderOutput, MessagesSquare, Paperclip, Pencil, RefreshCw, ScrollText, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, FileText, FolderSearch, FolderOutput, MessagesSquare, Paperclip, Pencil, RefreshCw, ScrollText, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router'
 import { api } from '@/api/client'
@@ -6,10 +6,11 @@ import type { LessonFull, LessonStatus } from '@/api/types'
 import { useJobs, useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { ActiveMark, AnimatePresence, m, RouteOutlet } from '@/components/motion'
-import { Collapsible, EmptyState, IconButton, Segmented, Splitter, Stat } from '@/components/ui'
+import { Button, Collapsible, EmptyState, Field, IconButton, Modal, Segmented, Splitter, Stat } from '@/components/ui'
 import { SkeletonMarkdown, SkeletonPlayer, SkeletonText } from '@/components/skeleton'
 import { ExportModal, LessonEditModal } from '@/features/library/modals'
 import { MarkdownView } from '@/features/markdown/MarkdownView'
+import { VIDEO_TOKENS_PER_HOUR } from '@/features/jobs/PipelineOptionsFields'
 import { BookmarkList } from '@/features/player/bookmarks'
 import { MediaPlayer, type Chapter } from '@/features/player/MediaPlayer'
 import { player, usePlayer } from '@/features/player/store'
@@ -45,7 +46,7 @@ export function LessonLayout() {
   const { lessonId = '' } = useParams()
   const [search, setSearch] = useSearchParams()
   const navigate = useNavigate()
-  const { t, openModal, confirm, toast, settings, lang, focusMode, setFocusMode, modals } = useUI()
+  const { t, openModal, confirm, toast, lang, focusMode, setFocusMode, modals } = useUI()
   const splitRef = useRef<HTMLDivElement>(null)
   const [widths, setWidths] = useState(() => ({
     normal: storage.get<number>(WIDTH.normal.key, WIDTH.normal.initial),
@@ -102,14 +103,8 @@ export function LessonLayout() {
   }, [finished, res])
 
   async function regenerate() {
-    const ok = await confirm({ title: t('lesson.regenerate'), text: t('lesson.regenerateText'), confirmLabel: t('lesson.regenerate') })
-    if (!ok) return
-    try {
-      await api.regenerateAudit(lessonId, settings?.ai.assistant_provider, settings?.pipeline.audit_mode)
-      toast(t('lesson.regenerateStarted'))
-    } catch (e) {
-      toast((e as Error).message, 'error')
-    }
+    if (!lesson) return
+    openModal((close) => <RegenerateAuditModal lesson={lesson} close={close} />)
   }
 
   if (res.error) {
@@ -164,6 +159,8 @@ export function LessonLayout() {
           </m.div>
         )}
       </AnimatePresence>
+
+      {lesson?.source_missing && !focusMode && <SourceMissing lessonId={lesson.id} onRelinked={res.reload} />}
 
       <div ref={splitRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
         <aside
@@ -271,5 +268,92 @@ function Chapters({ chapters }: { chapters: Chapter[] }) {
           </li>
         ))}
     </ol>
+  )
+}
+
+/** Eco: the recording is no longer at its path. Point the lesson at it again (the server checks it is the same one). */
+function SourceMissing({ lessonId, onRelinked }: { lessonId: string; onRelinked: () => Promise<void> }) {
+  const { t, promptText, toast } = useUI()
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-fg px-6 py-3 lg:px-8">
+      <Icon as={AlertTriangle} size={16} className="shrink-0" />
+      <div className="min-w-[14rem] flex-1">
+        <p className="text-[13.5px] font-medium text-fg">{t('lesson.sourceMissing')}</p>
+        <p className="text-[12.5px] text-muted">{t('lesson.sourceMissingHint')}</p>
+      </div>
+      <Button
+        size="sm"
+        variant="primary"
+        icon={FolderSearch}
+        onClick={async () => {
+          const path = await promptText({ title: t('lesson.relink'), label: t('lesson.relinkLabel'), maxLength: 1000 })
+          if (!path) return
+          try {
+            await api.relink(lessonId, path)
+            toast(t('lesson.relinked'))
+            await onRelinked()
+          } catch (e) {
+            toast((e as Error).message, 'error')
+          }
+        }}
+      >
+        {t('lesson.relink')}
+      </Button>
+    </div>
+  )
+}
+
+/** Regenerate the audit: model, and source — the transcript, or (Gemini) the lesson's video. */
+function RegenerateAuditModal({ lesson, close }: { lesson: LessonFull; close: () => void }) {
+  const { t, settings, toast } = useUI()
+  const [provider, setProvider] = useState<'deepseek' | 'gemini'>(settings?.ai.assistant_provider ?? 'deepseek')
+  const [source, setSource] = useState<'transcript' | 'video'>(lesson.has_transcription ? 'transcript' : 'video')
+  const [busy, setBusy] = useState(false)
+  const canVideo = provider === 'gemini' && Boolean(lesson.video_url)
+  const effective = source === 'video' && !canVideo ? 'transcript' : source
+  return (
+    <Modal
+      title={t('lesson.regenerate')}
+      description={t('lesson.regenerateText')}
+      width="sm"
+      onClose={close}
+      footer={
+        <>
+          <Button variant="ghost" onClick={close}>{t('common.cancel')}</Button>
+          <Button
+            variant="primary"
+            loading={busy}
+            disabled={effective === 'transcript' && !lesson.has_transcription}
+            onClick={async () => {
+              setBusy(true)
+              try {
+                await api.regenerateAudit(lesson.id, provider, settings?.pipeline.audit_mode, effective)
+                toast(t('lesson.regenerateStarted'))
+                close()
+              } catch (e) {
+                toast((e as Error).message, 'error')
+                setBusy(false)
+              }
+            }}
+          >
+            {t('lesson.regenerate')}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <Segmented value={provider} onChange={setProvider} options={[{ value: 'deepseek', label: 'DeepSeek' }, { value: 'gemini', label: 'Gemini' }]} />
+        <Field label={t('lesson.auditSource')} hint={effective === 'video' ? t('opt.auditSource.video.cost', { tokens: VIDEO_TOKENS_PER_HOUR.toLocaleString() }) : undefined}>
+          <Segmented
+            value={effective}
+            onChange={setSource}
+            options={[
+              { value: 'transcript', label: t('opt.auditSource.transcript') },
+              ...(canVideo ? [{ value: 'video' as const, label: t('opt.auditSource.video') }] : []),
+            ]}
+          />
+        </Field>
+      </div>
+    </Modal>
   )
 }

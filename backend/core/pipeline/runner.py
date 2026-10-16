@@ -22,19 +22,14 @@ _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="pipeline")
 
 
 def _planned(steps: list[PipelineStep], options: JobOptions) -> list[PipelineStep]:
-    """Steps expected to run (video is assumed present until probed)."""
-    out = []
-    for s in steps:
-        if s.stage == "video":
-            if options.clean_video:
-                out.append(s)
-        elif s.stage in ("transcribe", "audit") and options.mode == "audio_only":
-            continue
-        elif s.stage == "audit" and not options.generate_audit:
-            continue
-        else:
-            out.append(s)
-    return out
+    """Steps expected to run for these options (a video step for a file without video is skipped at run time)."""
+    skip = {
+        "vad": not options.cut_silence,
+        "video": options.video == "none",
+        "transcribe": options.transcriber == "none",
+        "audit": options.audit == "none",
+    }
+    return [s for s in steps if not skip.get(s.stage, False)]
 
 
 class LecturePipeline:
@@ -101,8 +96,8 @@ def start_transcription(lesson: Lesson, options: JobOptions) -> Job:
     return job
 
 
-def start_audit(lesson: Lesson, provider: str, audit_mode: str) -> Job:
-    options = JobOptions(mode=provider, audit_mode=audit_mode, generate_audit=True, clean_video=False)
+def start_audit(lesson: Lesson, provider: str, audit_mode: str, source: str = "transcript") -> Job:
+    options = JobOptions(audit=provider, audit_mode=audit_mode, audit_source=source, video="clean")
     job = JobRegistry.create("audit", f"Аудит: {lesson.title}", _stages(AUDIT_STEPS, options))
     ctx = JobContext(job.id, options, lesson=lesson, cancel_check=lambda: JobRegistry.is_cancel_requested(job.id))
     ctx.segments = load_segments(ctx.lesson_dir)

@@ -1,4 +1,4 @@
-import { AudioLines, Download, FileText, FolderOutput, RefreshCw, ScrollText } from 'lucide-react'
+import { AudioLines, Download, VideoOff, FileText, FolderOutput, RefreshCw, ScrollText } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '@/api/client'
@@ -12,6 +12,7 @@ import { ExportModal } from '@/features/library/modals'
 import { MarkdownView } from '@/features/markdown/MarkdownView'
 import { Outline } from '@/features/markdown/Outline'
 import { TranscriptView } from '@/features/transcript/TranscriptView'
+import { player } from '@/features/player/store'
 import { useLesson } from './LessonLayout'
 
 export function LessonNotes() {
@@ -134,6 +135,7 @@ export function LessonFiles() {
             ))}
           </ul>
         </section>
+        {lesson.video_url && <DropVideo lessonId={lesson.id} />}
         <section className="flex flex-col items-start gap-3">
           <div className="label-caps">{t('files.export')}</div>
           <p className="text-[13px] text-muted">{t('files.exportHint')}</p>
@@ -143,5 +145,34 @@ export function LessonFiles() {
         </section>
       </div>
     </div>
+  )
+}
+
+/** Keep the sound, free the space: the lesson becomes an audio lesson. A user's own Eco file is never deleted. */
+function DropVideo({ lessonId }: { lessonId: string }) {
+  const { t, confirm, toast } = useUI()
+  const { refresh } = useLibrary()
+  const { reload } = useLesson()
+  return (
+    <section className="flex flex-col items-start gap-3">
+      <div className="label-caps">{t('files.dropVideo')}</div>
+      <p className="text-[13px] text-muted">{t('files.dropVideoHint')}</p>
+      <Button
+        icon={VideoOff}
+        onClick={async () => {
+          if (!(await confirm({ title: t('files.dropVideo'), text: t('files.dropVideoText'), danger: true, confirmLabel: t('common.delete') }))) return
+          try {
+            await api.dropVideo(lessonId)
+            player.unload()
+            toast(t('files.dropVideoDone'))
+            await Promise.all([reload(), refresh()])
+          } catch (e) {
+            toast((e as Error).message, 'error')
+          }
+        }}
+      >
+        {t('files.dropVideo')}
+      </Button>
+    </section>
   )
 }
