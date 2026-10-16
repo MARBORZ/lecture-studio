@@ -222,6 +222,7 @@ def _queued() -> list[Path]:
 def _deliver(folder: Path) -> bool:
     """Post one outbox report to the relay; on success the folder goes. False = keep it for later."""
     if not config.FEEDBACK_URL:
+        logger.warning("Feedback relay URL is not set (LECTURE_STUDIO_FEEDBACK_URL): the report waits in the outbox")
         return False
     report = read_json(folder / "report.json", {})
     files = [("files", (p.name, p.read_bytes(), mimetypes.guess_type(p.name)[0] or "application/octet-stream")) for p in _files(folder)]
