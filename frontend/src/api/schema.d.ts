@@ -936,6 +936,12 @@ export interface components {
              * @enum {string}
              */
             source: "transcript" | "video";
+            /**
+             * Language
+             * @default interface
+             * @enum {string}
+             */
+            language: "interface" | "recording" | "ru" | "en";
         };
         /**
          * Bookmark
@@ -1375,6 +1381,12 @@ export interface components {
              */
             audit_mode: "srt_timecodes" | "clean_summary";
             /**
+             * Output Language
+             * @default interface
+             * @enum {string}
+             */
+            output_language: "interface" | "recording" | "ru" | "en";
+            /**
              * Lesson Title
              * @default
              */
@@ -1575,6 +1587,16 @@ export interface components {
              * @enum {string}
              */
             original_kind: "" | "video" | "audio";
+            /**
+             * Speech Language
+             * @default
+             */
+            speech_language: string;
+            /**
+             * Audit Language
+             * @default
+             */
+            audit_language: string;
         };
         /** LessonFull */
         LessonFull: {
@@ -1663,6 +1685,16 @@ export interface components {
              * @enum {string}
              */
             original_kind: "" | "video" | "audio";
+            /**
+             * Speech Language
+             * @default
+             */
+            speech_language: string;
+            /**
+             * Audit Language
+             * @default
+             */
+            audit_language: string;
             /** Segments */
             segments?: components["schemas"]["Segment"][];
             /** Time Map */
@@ -1861,6 +1893,12 @@ export interface components {
              * @enum {string}
              */
             audit_mode: "srt_timecodes" | "clean_summary";
+            /**
+             * Output Language
+             * @default interface
+             * @enum {string}
+             */
+            output_language: "interface" | "recording" | "ru" | "en";
         };
         /** Project */
         Project: {
@@ -1908,7 +1946,10 @@ export interface components {
             /** Value */
             value: string;
         };
-        /** PromptView */
+        /**
+         * PromptView
+         * @description An editable instruction block. Its title and hint are translated in the UI by key.
+         */
         PromptView: {
             /** Key */
             key: string;
@@ -1917,10 +1958,6 @@ export interface components {
              * @enum {string}
              */
             group: "audit" | "assistant";
-            /** Title */
-            title: string;
-            /** Hint */
-            hint: string;
             /** Default */
             default: string;
             /** Value */

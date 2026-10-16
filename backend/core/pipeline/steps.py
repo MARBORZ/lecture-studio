@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from pathlib import Path
 
+from backend.core import language
 from backend.core.ai import AI
 from backend.core.media import (
     AudioProcessor,
@@ -70,6 +71,8 @@ class JobContext:
         self.segments: list[Segment] = []
         self.stats = JobStats()
         self.warnings: list[str] = []
+        self.speech_language = lesson.speech_language if lesson else ""
+        self.audit_language = lesson.audit_language if lesson else ""
         self.original_file = lesson.original_file if lesson else ""
         self.original_kind = lesson.original_kind if lesson else ""
 
@@ -293,6 +296,8 @@ class TranscribeStep(PipelineStep):
 
         ctx.segments = segments_from_clean(raw, ctx.time_map or TimeMap([]))
         write_transcripts(ctx.lesson_dir, ctx.segments)
+        # the lecture's language: as set for the job, else read from the transcript (decides "recording" audits)
+        ctx.speech_language = o.language if o.language in ("ru", "en") else language.detect(" ".join(s.text for s in ctx.segments))
 
 
 class GenerateAuditStep(PipelineStep):
@@ -316,9 +321,11 @@ class GenerateAuditStep(PipelineStep):
             return self._fail(ctx, ValueError(f"Нет API-ключа {provider_name}. Настройки → ИИ"), "Нет ключа — аудит не создан")
         timed = o.audit_mode == "srt_timecodes"
         provider = AI.get(provider_name)
+        lang = language.resolve(o.output_language, SettingsService.get().ui_language, ctx.speech_language)
+        ctx.audit_language = lang
         if o.audit_source == "video":
             try:
-                md = self._from_video(ctx, provider, timed, progress)
+                md = self._from_video(ctx, provider, timed, progress, lang)
                 write_text(ctx.lesson_dir / Artifacts.AUDIT, md)
                 return
             except JobCancelled:
@@ -332,7 +339,7 @@ class GenerateAuditStep(PipelineStep):
             return
         try:
             progress(0, f"Аудит ({provider_name} {provider.model})")
-            md = provider.generate_audit(compact_transcript(ctx.segments), ctx.clean_duration, timed, progress)
+            md = provider.generate_audit(compact_transcript(ctx.segments), ctx.clean_duration, timed, progress, language=lang)
         except JobCancelled:
             raise
         except Exception as e:
@@ -345,7 +352,7 @@ class GenerateAuditStep(PipelineStep):
         ctx.warn(f"{label}: {error}")
 
     @staticmethod
-    def _from_video(ctx, provider, timed: bool, progress) -> str:
+    def _from_video(ctx, provider, timed: bool, progress, lang: str) -> str:
         """The lesson's own video if it has one (already on the clean timeline), else the original recording."""
         if not getattr(provider, "can_watch_video", False):
             raise ValueError(f"{provider.category} не принимает видео — выберите Gemini")
@@ -364,7 +371,7 @@ class GenerateAuditStep(PipelineStep):
         def transcript_between(a: float, b: float) -> str:
             return compact_transcript([s for s in segments if a <= s.clean_start < b])
 
-        return provider.generate_audit_from_video(proxy, ctx.clean_duration, timed, transcript_between, progress, ctx.check_cancelled)
+        return provider.generate_audit_from_video(proxy, ctx.clean_duration, timed, transcript_between, progress, ctx.check_cancelled, language=lang)
 
 
 class SaveLessonStep(PipelineStep):
@@ -392,6 +399,7 @@ class SaveLessonStep(PipelineStep):
                 "original_file": ctx.original_file,
                 "original_kind": ctx.original_kind,
             })
+        base = base.model_copy(update={"speech_language": ctx.speech_language, "audit_language": ctx.audit_language})
         ctx.lesson = Library.save_lesson(base)
 
         if o.export_after and SettingsService.get().export_dir:

@@ -96,8 +96,8 @@ def start_transcription(lesson: Lesson, options: JobOptions) -> Job:
     return job
 
 
-def start_audit(lesson: Lesson, provider: str, audit_mode: str, source: str = "transcript") -> Job:
-    options = JobOptions(audit=provider, audit_mode=audit_mode, audit_source=source, video="clean")
+def start_audit(lesson: Lesson, provider: str, audit_mode: str, source: str = "transcript", output_language: str = "interface") -> Job:
+    options = JobOptions(audit=provider, audit_mode=audit_mode, audit_source=source, video="clean", output_language=output_language)
     job = JobRegistry.create("audit", f"Аудит: {lesson.title}", _stages(AUDIT_STEPS, options))
     ctx = JobContext(job.id, options, lesson=lesson, cancel_check=lambda: JobRegistry.is_cancel_requested(job.id))
     ctx.segments = load_segments(ctx.lesson_dir)

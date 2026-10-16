@@ -81,6 +81,7 @@ class GeminiProvider(BaseAIProvider):
         transcript_between: Callable[[float, float], str],
         on_progress: Callable[[float, str], None] | None = None,
         check_cancelled: Callable[[], None] = lambda: None,
+        language: str = "en",
     ) -> str:
         """Audit from an optimized video copy (+ the transcript of each part when there is one). Long videos go part by
         part over one uploaded file (video offsets), then the part notes are merged like a long transcript audit."""
@@ -102,7 +103,7 @@ class GeminiProvider(BaseAIProvider):
                 meta = types.VideoMetadata(start_offset=f"{a:.0f}s", end_offset=f"{b:.0f}s") if n > 1 else None
                 video = types.Part(file_data=types.FileData(file_uri=uploaded.uri, mime_type=uploaded.mime_type), video_metadata=meta)
                 config = types.GenerateContentConfig(
-                    system_instruction=prompts.video_audit_system(timed, has_transcript, part=n > 1),
+                    system_instruction=prompts.video_audit_system(timed, has_transcript, n > 1, language),
                     temperature=0.2,
                     media_resolution=types.MediaResolution.MEDIA_RESOLUTION_LOW,
                 )
@@ -116,7 +117,7 @@ class GeminiProvider(BaseAIProvider):
                 raw = notes[0]
             else:
                 report(n / (n + 1), "Аудит по видео: сборка")
-                raw = self.generate_text("\n\n---\n\n".join(notes), prompts.merge_system(timed))
+                raw = self.generate_text("\n\n---\n\n".join(notes), prompts.merge_system(timed, language))
             return clean_output(raw, duration, timed)
         finally:
             delete_file(client, uploaded)

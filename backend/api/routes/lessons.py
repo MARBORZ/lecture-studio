@@ -16,7 +16,7 @@ from backend.models.lesson import ExportRequest, ExportResult, Lesson, LessonFul
 from backend.services.export import export_lesson
 from backend.services.storage import Artifacts, Library
 from backend.settings import SettingsService
-from backend.settings.schema import AIProviderName, AuditMode, AuditSource
+from backend.settings.schema import AIProviderName, AuditMode, AuditSource, OutputLanguage
 from backend.utils.fs import remove_file, to_path
 
 router = APIRouter(prefix="/api/lessons", tags=["lessons"])
@@ -95,6 +95,7 @@ class AuditRequest(BaseModel):
     provider: AIProviderName | None = None
     audit_mode: AuditMode = "srt_timecodes"
     source: AuditSource = "transcript"  # video: Gemini watches an optimized copy of the lesson's video
+    language: OutputLanguage = "interface"
 
 
 class TranscribeRequest(BaseModel):
@@ -131,7 +132,7 @@ def regenerate_audit(lesson_id: str, req: AuditRequest) -> Job:
         raise HTTPException(400, detail="У урока нет стенограммы")
     if not SettingsService.api_key(provider):
         raise HTTPException(400, detail=f"Нет API-ключа {provider}. Настройки → ИИ")
-    return start_audit(lesson, provider, req.audit_mode, req.source)
+    return start_audit(lesson, provider, req.audit_mode, req.source, req.language)
 
 
 @router.post("/{lesson_id}/drop-video", response_model=Lesson)

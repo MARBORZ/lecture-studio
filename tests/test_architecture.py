@@ -29,8 +29,8 @@ def test_processes_only_through_proc_helpers():
 
 
 def test_prompt_text_only_in_prompts_module():
-    # the assistant/audit voice ("Ты — ...", "ЗАДАЧА:") must not leak into providers or services
-    assert offenders(BACKEND, ["*.py"], r"Ты — |ЗАДАЧА: ", {"backend/core/ai/prompts.py"}) == []
+    # instruction text ("You are ...", "TASK:", "SOURCES:" framing) must not leak into providers or services
+    assert offenders(BACKEND, ["*.py"], r"[\"']You are an? |TASK: |SOURCES:|QUESTION:", {"backend/core/ai/prompts.py"}) == []
 
 
 def test_data_paths_come_from_settings():

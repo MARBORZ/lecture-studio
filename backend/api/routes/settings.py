@@ -50,7 +50,7 @@ def list_prompts() -> list[PromptView]:
     overrides = SettingsService.get().prompts
     return [
         PromptView(
-            key=b.key, group=b.group, title=b.title, hint=b.hint, default=b.default,
+            key=b.key, group=b.group, default=b.default,
             value=overrides.get(b.key) or b.default, modified=bool(overrides.get(b.key)),
         )
         for b in BLOCKS.values()

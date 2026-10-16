@@ -104,7 +104,7 @@ def test_history_is_compressed_when_it_outgrows_its_share(lesson_api, monkeypatc
     assert s["summary"].startswith("СВОДКА") and s["summarized"] == len(s["messages"]) - 2 - context_window.KEEP_RECENT
     # what was sent: the summary, then only the recent messages verbatim
     sent = fake.chats[-1]
-    assert any("СВОДКА НАЧАЛА" in m["content"] for m in sent)
+    assert any("SUMMARY OF THE START" in m["content"] for m in sent)
     assert not any(m["content"].startswith("вопрос 0") for m in sent)
     assert len(s["messages"]) == 10  # nothing is lost for reading
 

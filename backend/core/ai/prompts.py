@@ -8,6 +8,10 @@ Two kinds of text:
     (clickable [MM:SS], [[lesson@MM:SS]] citations).
 
 Default house style: slide-deck speaker notes. Blunt, architectural, no softening, no filler, no emoji.
+
+Prompts are written in English (models follow English instructions most reliably); the OUTPUT language is a parameter:
+an audit is written in the language chosen for it (the interface language by default, see core/language.py), the
+assistant answers in the language of the question.
 """
 
 from dataclasses import dataclass
@@ -15,209 +19,226 @@ from typing import Literal
 
 from backend.settings import SettingsService
 
+LANGUAGE_NAMES = {"ru": "Russian", "en": "English", "uk": "Ukrainian", "de": "German", "es": "Spanish", "fr": "French"}
+
+
+def language_name(code: str) -> str:
+    return LANGUAGE_NAMES.get(code, code or "the language of the lecture")
+
+
+def _write_in(language: str) -> str:
+    return (
+        f"Write everything in {language_name(language)} — headings, bullets and terms' definitions — whatever the "
+        "language of the transcript. Keep code, commands and proper names as they are."
+    )
+
+
 AUDIT_STYLE = """\
-СТИЛЬ (обязателен, нарушение = брак):
-- Формат заметок к слайдам: один пункт = одна строка, максимум ~15 слов.
-- Только факты, решения, причины, последствия. Начинай пункт с сути: существительное или глагол.
-- Грубо и прямо. Без смягчений и оговорок: никаких «стоит отметить», «важно понимать», «можно сказать», «как бы», «интересно», «давайте».
-- Без вводных, без пересказа очевидного, без похвалы лектору, без морали, без восклицаний.
-- Никаких эмодзи и декоративных символов.
-- Если лектор ошибается, упрощает или противоречит себе — пиши прямо: «Неверно: …», «Упрощение: …», «Противоречие: …».
-- Повторы лектора сворачивай в один пункт. Оговорки, шум, «эээ» — выбрасывай.
-- Термины — как есть, без перевода на «простой язык».
-- Код, команды, пути, флаги — дословно, в кодовых блоках с языком.
+STYLE (mandatory; breaking it makes the audit worthless):
+- Slide speaker notes: one bullet = one line, at most ~15 words.
+- Facts, decisions, reasons, consequences only. Start a bullet with the point: a noun or a verb.
+- Blunt and direct. No softening or hedging: no "it is worth noting", "it is important to understand", "one could say".
+- No intros, no retelling the obvious, no praise for the lecturer, no moralising, no exclamations.
+- No emoji or decorative symbols.
+- When the lecturer is wrong, oversimplifies or contradicts themselves, say so plainly: "Wrong: …", "Simplification: …",
+  "Contradiction: …" (in the output language).
+- Fold the lecturer's repetitions into one bullet. Drop slips, noise and filler words.
+- Terms as they are, not paraphrased into "simple words".
+- Code, commands, paths and flags verbatim, in code blocks with the language.
 """
 
 TIMECODE_RULE = """\
-ТАЙМКОДЫ:
-- Формат строго [MM:SS] или [HH:MM:SS], в квадратных скобках, без обратных кавычек.
-- Бери время только из строк стенограммы. Не выдумывай и не округляй сверх строки.
-- Таймкод ставится в начале пункта или в заголовке блока.
+TIMECODES:
+- Strictly [MM:SS] or [HH:MM:SS], in square brackets, no backticks.
+- Take times only from the transcript lines. Do not invent or round beyond the line.
+- A timecode goes at the start of a bullet or in a block heading.
 """
 
 NO_TIMECODE_RULE = """\
-ТАЙМКОДЫ: не используй вообще. Никаких [MM:SS] и упоминаний времени.
+TIMECODES: do not use any. No [MM:SS], no mentions of time.
 """
 
 AUDIT_STRUCTURE_TIMED = """\
-СТРУКТУРА (Markdown, ровно эти разделы, пустой раздел — удалить):
-# <Тема урока — 3–8 слов>
-**Суть:** 1–2 строки — что разобрано и зачем.
+STRUCTURE (Markdown, exactly these sections, drop an empty section; headings in the output language):
+# <Lesson topic — 3–8 words>
+**Gist:** 1–2 lines — what is covered and why.
 
-## Блоки
-### [MM:SS] <Название смыслового блока>
-- тезис
-- тезис
+## Blocks
+### [MM:SS] <Name of a meaningful block>
+- point
+- point
 
-## Архитектура и решения
-- [MM:SS] решение — почему — цена/компромисс
+## Architecture and decisions
+- [MM:SS] decision — why — cost/trade-off
 
-## Код и команды
-```язык
-дословно
+## Code and commands
+```language
+verbatim
 ```
-- [MM:SS] что делает, одной строкой
+- [MM:SS] what it does, one line
 
-## Ошибки и антипаттерны
-- [MM:SS] ошибка → как правильно
+## Mistakes and anti-patterns
+- [MM:SS] mistake → how it should be
 
-## Термины
-| Термин | Определение | Время |
+## Terms
+| Term | Definition | Time |
 |---|---|---|
 
-## Итог
-- 3–5 пунктов: что вынести с урока
+## Takeaways
+- 3–5 bullets: what to take from the lesson
 """
 
 AUDIT_STRUCTURE_PLAIN = """\
-СТРУКТУРА (Markdown, ровно эти разделы, пустой раздел — удалить):
-# <Тема урока — 3–8 слов>
-**Суть:** 1–2 строки — что разобрано и зачем.
+STRUCTURE (Markdown, exactly these sections, drop an empty section; headings in the output language):
+# <Lesson topic — 3–8 words>
+**Gist:** 1–2 lines — what is covered and why.
 
-## Блоки
-### <Название смыслового блока>
-- тезис
+## Blocks
+### <Name of a meaningful block>
+- point
 
-## Архитектура и решения
-- решение — почему — цена/компромисс
+## Architecture and decisions
+- decision — why — cost/trade-off
 
-## Код и команды
-```язык
-дословно
+## Code and commands
+```language
+verbatim
 ```
 
-## Ошибки и антипаттерны
-- ошибка → как правильно
+## Mistakes and anti-patterns
+- mistake → how it should be
 
-## Термины
-| Термин | Определение |
+## Terms
+| Term | Definition |
 |---|---|
 
-## Итог
-- 3–5 пунктов: что вынести с урока
+## Takeaways
+- 3–5 bullets: what to take from the lesson
 """
 
 ROLE_AUDITOR = (
-    "Ты — технический аудитор учебных материалов. Твой продукт — жёсткий аудит лекции "
-    "в виде заметок к презентации: прочитал за минуту, понял архитектуру, пошёл дальше."
+    "You are a technical auditor of learning material. Your product is a hard-hitting audit of a lecture as slide "
+    "speaker notes: read in a minute, understand the architecture, move on."
+)
+
+PART_NOTES = (
+    "This is one part of a long lecture. Output only the notes of this part:\n{block}\n"
+    "Plus separate lists, if any: code and commands, mistakes, terms. No lesson title and no takeaways."
 )
 
 
+def _part_task(timed: bool) -> str:
+    return PART_NOTES.format(block="### [MM:SS] <block>\n- point" if timed else "### <block>\n- point")
 
-def audit_system(timed: bool) -> str:
+
+def audit_system(timed: bool, language: str) -> str:
     return "\n\n".join([
         text("audit.role"),
         text("audit.style"),
         TIMECODE_RULE if timed else NO_TIMECODE_RULE,
         _structure(timed),
-        "Отвечай на языке лекции. Выводи только Markdown аудита, без предисловий.",
+        _write_in(language),
+        "Output only the audit Markdown, no preface.",
     ])
 
 
 def audit_prompt(transcript: str, timed: bool) -> str:
-    kind = "Стенограмма с таймкодами чистой записи" if timed else "Стенограмма"
-    return f"{kind}. Сделай аудит по структуре.\n\n{transcript}"
+    kind = "Transcript with timecodes of the clean recording" if timed else "Transcript"
+    return f"{kind}. Write the audit following the structure.\n\n{transcript}"
 
 
 # ---------- long lectures: chunk notes -> final merge ----------
 
-def chunk_notes_system(timed: bool) -> str:
-    return "\n\n".join([
-        text("audit.role"),
-        text("audit.style"),
-        TIMECODE_RULE if timed else NO_TIMECODE_RULE,
-        "Это часть длинной лекции. Выведи только заметки этой части:\n"
-        + ("### [MM:SS] <блок>\n- тезис" if timed else "### <блок>\n- тезис")
-        + "\nПлюс отдельными списками, если есть: «Код и команды», «Ошибки», «Термины». Без заголовка урока и итогов.",
-    ])
+def chunk_notes_system(timed: bool, language: str) -> str:
+    return "\n\n".join([text("audit.role"), text("audit.style"), TIMECODE_RULE if timed else NO_TIMECODE_RULE, _part_task(timed), _write_in(language)])
 
 
 def chunk_notes_prompt(transcript: str, part: int, total: int) -> str:
-    return f"Часть {part} из {total}.\n\n{transcript}"
+    return f"Part {part} of {total}.\n\n{transcript}"
 
 
-def merge_system(timed: bool) -> str:
+def merge_system(timed: bool, language: str) -> str:
     return "\n\n".join([
         text("audit.role"),
         text("audit.style"),
         TIMECODE_RULE if timed else NO_TIMECODE_RULE,
         _structure(timed),
-        "На входе — заметки по частям одной лекции. Собери единый аудит по структуре. "
-        "Сохрани все блоки и все таймкоды. Дубли объедини. Выводи только Markdown.",
+        _write_in(language),
+        "The input is notes on the parts of one lecture. Assemble one audit following the structure. "
+        "Keep every block and every timecode. Merge duplicates. Output only Markdown.",
     ])
 
 
 # ---------- audit from video (Gemini watches an optimized copy) ----------
 
 VIDEO_CONTEXT = """\
-К заданию приложено видео лекции (кадр в секунду, сниженное качество) на той же шкале времени, что и стенограмма.
-Используй то, что видно на экране: код, слайды, схемы, терминал, действия в интерфейсе. Код с экрана переписывай дословно,
-если он читается. Видео не пересказывай — бери из него только то, что добавляет к аудиту.
+A video of the lecture is attached (one frame per second, reduced quality) on the same timeline as the transcript.
+Use what is visible on screen: code, slides, diagrams, the terminal, actions in a UI. Copy code from the screen verbatim
+when it is readable. Do not describe the video for its own sake — take from it only what adds to the audit.
 """
 
 VIDEO_TIMECODE_RULE = """\
-ТАЙМКОДЫ:
-- Формат строго [MM:SS] или [HH:MM:SS], в квадратных скобках, без обратных кавычек.
-- Время — позиция в видео от его начала. Стенограммы нет: опирайся на речь и кадры видео.
+TIMECODES:
+- Strictly [MM:SS] or [HH:MM:SS], in square brackets, no backticks.
+- Time is the position in the video from its start. There is no transcript: rely on the speech and the frames.
 """
 
 
-def video_audit_system(timed: bool, has_transcript: bool, part: bool) -> str:
+def video_audit_system(timed: bool, has_transcript: bool, part: bool, language: str) -> str:
     timing = (TIMECODE_RULE if has_transcript else VIDEO_TIMECODE_RULE) if timed else NO_TIMECODE_RULE
-    task = (
-        "Это часть длинной лекции. Выведи только заметки этой части:\n"
-        + ("### [MM:SS] <блок>\n- тезис" if timed else "### <блок>\n- тезис")
-        + "\nПлюс отдельными списками, если есть: «Код и команды», «Ошибки», «Термины». Без заголовка урока и итогов."
-        if part
-        else _structure(timed) + "\n\nОтвечай на языке лекции. Выводи только Markdown аудита, без предисловий."
-    )
-    return "\n\n".join([text("audit.role"), text("audit.style"), VIDEO_CONTEXT, timing, task])
+    task = _part_task(timed) if part else _structure(timed) + "\n\nOutput only the audit Markdown, no preface."
+    return "\n\n".join([text("audit.role"), text("audit.style"), VIDEO_CONTEXT, timing, task, _write_in(language)])
 
 
 def video_audit_prompt(transcript: str, part: int, total: int) -> str:
-    head = f"Часть {part} из {total} (видео приложено только на её отрезок)." if total > 1 else "Видео лекции приложено."
-    body = f"Стенограмма этого отрезка:\n\n{transcript}" if transcript.strip() else "Стенограммы нет — только видео."
-    return f"{head} Сделай аудит.\n\n{body}"
+    head = f"Part {part} of {total} (the video is attached for this stretch only)." if total > 1 else "The lecture video is attached."
+    body = f"Transcript of this stretch:\n\n{transcript}" if transcript.strip() else "No transcript — the video only."
+    return f"{head} Write the audit.\n\n{body}"
 
 
 # ---------- assistant (NotebookLM) ----------
 
 ASSISTANT_BASE = """\
-Ты — ассистент по базе лекций пользователя. Отвечаешь только по предоставленным источникам.
-Стиль: заметки к слайдам. Коротко, прямо, без смягчений, без вводных, без эмодзи.
-Нет ответа в источниках — так и скажи одной строкой: «В источниках нет».
+You are an assistant over the user's lecture library. Answer only from the sources provided.
+Style: slide speaker notes. Short, direct, no softening, no intros, no emoji.
+If the sources do not contain the answer, say so in one line.
 """
 
+ASSISTANT_LANGUAGE = (
+    "Answer in the language of the user's question. When the request is one of the quick actions (no question typed), "
+    "answer in {language}."
+)
+
 CITATION_SINGLE = """\
-ЦИТИРОВАНИЕ: каждый факт подкрепляй таймкодом [MM:SS] или [HH:MM:SS] из стенограммы.
+CITATIONS: back every fact with a timecode [MM:SS] or [HH:MM:SS] from the transcript.
 """
 
 CITATION_MULTI = """\
-ЦИТИРОВАНИЕ: каждый факт подкрепляй ссылкой вида [[<lesson_id>@MM:SS]] (или @HH:MM:SS),
-где lesson_id — из заголовка источника, время — из его стенограммы. Пример: [[less_ab12cd34@04:15]].
+CITATIONS: back every fact with a reference [[<lesson_id>@MM:SS]] (or @HH:MM:SS), where lesson_id comes from the source
+heading and the time from its transcript. Example: [[less_ab12cd34@04:15]].
 """
 
 ROLE_TASKS: dict[str, str] = {
-    "qa": "Ответь на вопрос. Списком, если пунктов больше двух.",
-    "key_moments": "Ключевые моменты: 8–15 пунктов, каждый с привязкой ко времени.",
-    "quiz": "Тест самопроверки: 6 вопросов. Формат: вопрос → короткий правильный ответ → ссылка на время.",
-    "pitfalls": "Ошибки, антипаттерны, предостережения лектора. Формат: ошибка → как правильно → время.",
-    "code_summary": "Весь код, команды, пути, флаги — дословно в кодовых блоках, по порядку, с временем.",
-    "chapters": "Оглавление-главы: 8–15 строк вида «[MM:SS] Название», начиная с [00:00].",
+    "qa": "Answer the question. As a list if there are more than two points.",
+    "key_moments": "Key moments: 8–15 bullets, each tied to a time.",
+    "quiz": "Self-check quiz: 6 questions. Format: question → short correct answer → time reference.",
+    "pitfalls": "Mistakes, anti-patterns, the lecturer's warnings. Format: mistake → how it should be → time.",
+    "code_summary": "All code, commands, paths and flags verbatim in code blocks, in order, with times.",
+    "chapters": "Chapters: 8–15 lines like \"[MM:SS] Title\", starting at [00:00].",
 }
 
 # Compressing the older part of a chat session (our own context window, services/context_window.py).
 ASSISTANT_COMPACT = """\
-Сожми начало переписки пользователя с ассистентом по лекциям в рабочую сводку для продолжения разговора.
-Сохрани: что спрашивал пользователь и зачем; данные ответы и выводы; определения и термины; решения и поправки;
-код, команды и пути — дословно; таймкоды и ссылки на источники — как есть; что осталось непонятным, на чём остановились.
-Убери: повторы, вежливость, пересказ источников, который и так есть в материалах.
-Стиль: заметки, пункты, без вводных и без эмодзи.
+Compress the start of a conversation between the user and the lecture assistant into a working summary to continue from.
+Keep: what the user asked and why; the answers and conclusions; definitions and terms; decisions and corrections;
+code, commands and paths verbatim; timecodes and source references as they are; what is still unclear, where it stopped.
+Drop: repetitions, politeness, retellings of the sources that the materials already contain.
+Style: notes, bullets, no intros, no emoji. Write it in the language of the conversation.
 """
 
 COMPACT_CONTRACT = """\
-Выводи только сводку. Объём — не больше {limit} символов.
-Если дана прошлая сводка, объедини её с новыми сообщениями в одну, ничего важного из неё не теряя.
+Output only the summary. At most {limit} characters.
+If a previous summary is given, merge it with the new messages into one, losing nothing important from it.
 """
 
 
@@ -228,47 +249,96 @@ def compact_system() -> str:
 def compact_prompt(previous_summary: str, transcript: str, limit: int) -> str:
     parts = [COMPACT_CONTRACT.format(limit=limit)]
     if previous_summary.strip():
-        parts.append(f"ПРОШЛАЯ СВОДКА:\n{previous_summary.strip()}")
-    parts.append(f"НОВЫЕ СООБЩЕНИЯ:\n{transcript}")
+        parts.append(f"PREVIOUS SUMMARY:\n{previous_summary.strip()}")
+    parts.append(f"NEW MESSAGES:\n{transcript}")
     return "\n\n".join(parts)
 
 
-ROLE_DEFAULT_QUESTIONS: dict[str, str] = {
-    "key_moments": "Выдели ключевые моменты.",
-    "quiz": "Сделай тест самопроверки.",
-    "pitfalls": "Собери ошибки и антипаттерны.",
-    "code_summary": "Собери весь код и команды.",
-    "chapters": "Сделай оглавление по главам.",
+# ---------- assistant request framing (services/context_window.py assembles these) ----------
+
+CTX_SOURCES = "SOURCES:\n\n{corpus}"
+CTX_SOURCES_ACK = "Sources received."
+CTX_SUMMARY = "SUMMARY OF THE START OF THIS SESSION:\n{summary}"
+CTX_SUMMARY_ACK = "Summary received."
+CTX_FILES = "SESSION FILES:\n\n{parts}"
+CTX_QUESTION = "{files}\n\nQUESTION:\n{question}"
+FILE_IMAGE_EARLIER = "[an image from this session: shown earlier, not attached again]"
+FILE_IMAGE_ATTACHED = "[image attached to the message]"
+FILE_IMAGE_BLIND = "[image: this model cannot see images — say so if the question is about it]"
+FILE_UNREADABLE = "[content not readable: only the name and size are available]"
+
+
+def source_head(lesson_id: str, title: str) -> str:
+    return f"### SOURCE lesson_id={lesson_id} | {title}\n"
+
+
+def source_audit(audit: str) -> str:
+    return f"--- AUDIT ---\n{audit}\n"
+
+
+def source_transcript(transcript: str) -> str:
+    return f"--- TRANSCRIPT ---\n{transcript}\n"
+
+
+def file_head(name: str, mime: str, size: int) -> str:
+    return f"### FILE: {name} ({mime}, {size} bytes)"
+
+
+def chat_line(role: str, content: str, files: list[str]) -> str:
+    """A message in the text the compactor reads."""
+    who = "USER" if role == "user" else "ASSISTANT"
+    attached = f" [files: {', '.join(files)}]" if files else ""
+    return f"{who}{attached}:\n{content}"
+
+
+# The question a quick-action button puts into the chat: the user reads it, so it is in the interface language.
+ROLE_DEFAULT_QUESTIONS: dict[str, dict[str, str]] = {
+    "ru": {
+        "key_moments": "Выдели ключевые моменты.",
+        "quiz": "Сделай тест самопроверки.",
+        "pitfalls": "Собери ошибки и антипаттерны.",
+        "code_summary": "Собери весь код и команды.",
+        "chapters": "Сделай оглавление по главам.",
+    },
+    "en": {
+        "key_moments": "Pick out the key moments.",
+        "quiz": "Make a self-check quiz.",
+        "pitfalls": "Collect the mistakes and anti-patterns.",
+        "code_summary": "Collect all the code and commands.",
+        "chapters": "Make chapters.",
+    },
 }
 
 
+def default_question(role: str, ui_language: str) -> str:
+    return ROLE_DEFAULT_QUESTIONS.get(ui_language, ROLE_DEFAULT_QUESTIONS["en"]).get(role, "")
+
 
 # ---------- editable blocks ----------
+# Titles and hints are shown in Settings -> Instructions; the UI translates them by key (i18n "prompts.<key>.*").
 
 @dataclass(frozen=True)
 class PromptBlock:
     key: str
     group: Literal["audit", "assistant"]
-    title: str
-    hint: str
     default: str
 
 
 BLOCKS: dict[str, PromptBlock] = {
     b.key: b
     for b in [
-        PromptBlock("audit.role", "audit", "Роль", "Кто пишет аудит и для чего.", ROLE_AUDITOR),
-        PromptBlock("audit.style", "audit", "Стиль", "Тон, длина пунктов, запреты.", AUDIT_STYLE),
-        PromptBlock("audit.structure_timed", "audit", "Структура (с таймкодами)", "Разделы аудита в формате «С таймкодами».", AUDIT_STRUCTURE_TIMED),
-        PromptBlock("audit.structure_plain", "audit", "Структура (без таймкодов)", "Разделы аудита в формате «Без таймкодов».", AUDIT_STRUCTURE_PLAIN),
-        PromptBlock("assistant.base", "assistant", "Базовая инструкция", "Как ассистент отвечает по источникам.", ASSISTANT_BASE),
-        PromptBlock("assistant.role.qa", "assistant", "Вопрос-ответ", "Свободный вопрос из поля ввода.", ROLE_TASKS["qa"]),
-        PromptBlock("assistant.role.key_moments", "assistant", "Ключевое", "Кнопка «Ключевое».", ROLE_TASKS["key_moments"]),
-        PromptBlock("assistant.role.pitfalls", "assistant", "Ошибки", "Кнопка «Ошибки».", ROLE_TASKS["pitfalls"]),
-        PromptBlock("assistant.role.code_summary", "assistant", "Код", "Кнопка «Код».", ROLE_TASKS["code_summary"]),
-        PromptBlock("assistant.role.quiz", "assistant", "Тест", "Кнопка «Тест».", ROLE_TASKS["quiz"]),
-        PromptBlock("assistant.role.chapters", "assistant", "Главы", "Кнопка «Главы».", ROLE_TASKS["chapters"]),
-        PromptBlock("assistant.compact", "assistant", "Сжатие истории", "Как сворачивать старую часть длинной сессии в сводку.", ASSISTANT_COMPACT),
+        PromptBlock("audit.role", "audit", ROLE_AUDITOR),
+        PromptBlock("audit.style", "audit", AUDIT_STYLE),
+        PromptBlock("audit.structure_timed", "audit", AUDIT_STRUCTURE_TIMED),
+        PromptBlock("audit.structure_plain", "audit", AUDIT_STRUCTURE_PLAIN),
+        PromptBlock("assistant.base", "assistant", ASSISTANT_BASE),
+        PromptBlock("assistant.role.qa", "assistant", ROLE_TASKS["qa"]),
+        PromptBlock("assistant.role.key_moments", "assistant", ROLE_TASKS["key_moments"]),
+        PromptBlock("assistant.role.pitfalls", "assistant", ROLE_TASKS["pitfalls"]),
+        PromptBlock("assistant.role.code_summary", "assistant", ROLE_TASKS["code_summary"]),
+        PromptBlock("assistant.role.quiz", "assistant", ROLE_TASKS["quiz"]),
+        PromptBlock("assistant.role.chapters", "assistant", ROLE_TASKS["chapters"]),
+        PromptBlock("assistant.compact", "assistant", ASSISTANT_COMPACT),
     ]
 }
 
@@ -283,12 +353,13 @@ def _structure(timed: bool) -> str:
     return text("audit.structure_timed" if timed else "audit.structure_plain")
 
 
-def assistant_system(role: str, multi_source: bool) -> str:
+def assistant_system(role: str, multi_source: bool, ui_language: str = "en") -> str:
     task = text(f"assistant.role.{role}" if f"assistant.role.{role}" in BLOCKS else "assistant.role.qa")
     return "\n".join([
         text("assistant.base"),
         CITATION_MULTI if multi_source else CITATION_SINGLE,
-        "ЗАДАЧА: " + task,
+        ASSISTANT_LANGUAGE.format(language=language_name(ui_language)),
+        "TASK: " + task,
     ])
 
 

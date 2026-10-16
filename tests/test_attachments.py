@@ -82,7 +82,7 @@ def test_attachments_reach_the_model_and_are_cleaned(data_dir, monkeypatch):
 
         monkeypatch.setattr(assistant.AI, "get", staticmethod(lambda name: Fake(vision=False)))
         c.post("/api/assistant/lesson/less_x", json={"question": "а картинка?", "attachments": [img["id"]]})
-        assert seen["images"] == [] and "не видит изображения" in seen["prompt"]
+        assert seen["images"] == [] and "cannot see images" in seen["prompt"]
 
         c.delete("/api/assistant/lesson/less_x")
         assert not (data_dir / "attachments" / doc["id"]).exists()

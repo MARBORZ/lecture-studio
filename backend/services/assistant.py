@@ -59,13 +59,17 @@ def thread(kind: ThreadKind, thread_id: str, session_id: str | None = None, prov
         resolved = []
     if resolved:
         window = context_window.window_for(name)
-        usage = context_window.build(provider_name=name, window=window, vision=False, sources=resolved, session=session, multi=kind == "project").usage
+        usage = context_window.build(
+            provider_name=name, window=window, vision=False, sources=resolved, session=session, multi=kind == "project",
+            ui_language=SettingsService.get().ui_language,
+        ).usage
     return Thread(kind=kind, id=thread_id, session=session, sessions=infos, files=chats.session_files(session), context=usage)
 
 
 def ask(kind: ThreadKind, thread_id: str, req: AskRequest) -> Thread:
     sources = _resolve_sources(kind, thread_id, req.sources)
-    question = req.question.strip() or prompts.ROLE_DEFAULT_QUESTIONS.get(req.role, "")
+    ui = SettingsService.get().ui_language
+    question = req.question.strip() or prompts.default_question(req.role, ui)
     if not question:
         raise ValueError("Пустой вопрос")
 
@@ -80,8 +84,7 @@ def ask(kind: ThreadKind, thread_id: str, req: AskRequest) -> Thread:
     multi = kind == "project"
     request = context_window.build(
         provider_name=name, window=window, vision=provider.can_see_images, sources=sources, session=session,
-        role=req.role, multi=multi, question=question, new_files=new_files,
-    )
+        role=req.role, multi=multi, question=question, new_files=new_files, ui_language=SettingsService.get().ui_language)
     answer = strip_emoji(provider.chat(request.messages, request.system, images=request.images)).strip()
     answer = _clean_citations(answer, sources) if multi else normalize_timecodes(answer, sources[0].clean_duration_sec or None)
 

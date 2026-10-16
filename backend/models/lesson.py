@@ -47,6 +47,8 @@ class Lesson(BaseModel):
     # or a file name inside the lesson folder (an upload kept as is). "" = clean_speech.mp3 / clean_video.mp4 are used.
     original_file: str = ""
     original_kind: Literal["", "video", "audio"] = ""
+    speech_language: str = ""  # detected (or set) language of the lecture, e.g. "en"
+    audit_language: str = ""  # the language the current audit is written in
 
 
 class TimeMapEntry(BaseModel):

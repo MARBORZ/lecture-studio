@@ -14,6 +14,7 @@ Theme = Literal["system", "dark", "light"]
 TEXT_SCALE_MIN, TEXT_SCALE_MAX = 80, 150
 
 
+OutputLanguage = Literal["interface", "recording", "ru", "en"]  # the audit's language (core/language.py resolves it)
 Transcriber = Literal["whisper", "gemini", "none"]
 AuditProvider = Literal["deepseek", "gemini", "none"]
 AuditSource = Literal["transcript", "video"]  # video = Gemini watches an optimized copy (costs more, sees the screen)
@@ -43,6 +44,7 @@ class PipelineDefaults(BaseModel):
     audit: AuditProvider = "deepseek"
     audit_source: AuditSource = "transcript"
     audit_mode: AuditMode = "srt_timecodes"
+    output_language: OutputLanguage = "interface"  # the audit's language: interface / recording / ru / en
 
     @model_validator(mode="before")
     @classmethod
@@ -205,10 +207,10 @@ class PathCheckResult(BaseModel):
 
 
 class PromptView(BaseModel):
+    """An editable instruction block. Its title and hint are translated in the UI by key."""
+
     key: str
     group: Literal["audit", "assistant"]
-    title: str
-    hint: str
     default: str
     value: str
     modified: bool

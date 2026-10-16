@@ -81,8 +81,9 @@ class BaseAIProvider(metaclass=AIMeta):
         duration: float | None,
         timed: bool = True,
         on_progress: Callable[[float, str], None] | None = None,
+        language: str = "en",
     ) -> str:
-        """Audit markdown from a compact '[MM:SS] text' transcript (clean timeline)."""
+        """Audit markdown from a compact '[MM:SS] text' transcript (clean timeline), written in `language`."""
         report = on_progress or (lambda f, m: None)
         if not transcript.strip():
             raise ValueError("Стенограмма пуста — аудит невозможен")
@@ -90,7 +91,7 @@ class BaseAIProvider(metaclass=AIMeta):
         chunks = split_lines(transcript)
         if len(chunks) == 1:
             report(0.1, "Аудит")
-            raw = self.generate_text(prompts.audit_prompt(transcript, timed), prompts.audit_system(timed))
+            raw = self.generate_text(prompts.audit_prompt(transcript, timed), prompts.audit_system(timed, language))
             return clean_output(raw, duration, timed)
 
         notes = []
@@ -98,8 +99,8 @@ class BaseAIProvider(metaclass=AIMeta):
             report((i - 1) / (len(chunks) + 1), f"Аудит: часть {i}/{len(chunks)}")
             notes.append(self.generate_text(
                 prompts.chunk_notes_prompt(chunk, i, len(chunks)),
-                prompts.chunk_notes_system(timed),
+                prompts.chunk_notes_system(timed, language),
             ))
         report(len(chunks) / (len(chunks) + 1), "Аудит: сборка")
-        raw = self.generate_text("\n\n---\n\n".join(notes), prompts.merge_system(timed))
+        raw = self.generate_text("\n\n---\n\n".join(notes), prompts.merge_system(timed, language))
         return clean_output(raw, duration, timed)

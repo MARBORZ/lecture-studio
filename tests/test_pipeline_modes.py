@@ -123,12 +123,12 @@ def test_audit_from_video_and_its_fallback(data_dir, tmp_path, monkeypatch):
     class Gemini:
         category, model, can_watch_video = "gemini", "fake", True
 
-        def generate_audit_from_video(self, proxy, duration, timed, transcript_between, progress, cancel):
+        def generate_audit_from_video(self, proxy, duration, timed, transcript_between, progress, cancel, language="en"):
             seen["proxy"] = proxy
             seen["transcript"] = transcript_between(0, duration)
             return "# По видео\\n\\n- кадр [00:01]"
 
-        def generate_audit(self, transcript, duration, timed, progress):
+        def generate_audit(self, transcript, duration, timed, progress, language="en"):
             return "# По стенограмме"
 
     monkeypatch.setattr(steps.AI, "get", staticmethod(lambda name: Gemini()))

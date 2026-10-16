@@ -52,8 +52,8 @@ def test_prompt_overrides(data_dir):
     with TestClient(app) as c:
         r = c.put("/api/settings/prompts/audit.style", json={"value": "Пиши как для школьника."}).json()
         style = next(b for b in r if b["key"] == "audit.style")
-        assert style["modified"] and "школьника" in prompts.audit_system(True)
-        assert "[MM:SS]" in prompts.audit_system(True)  # contract stays even with custom style
+        assert style["modified"] and "школьника" in prompts.audit_system(True, "ru")
+        assert "[MM:SS]" in prompts.audit_system(True, "ru")  # contract stays even with custom style
         c.delete("/api/settings/prompts/audit.style")
         assert prompts.text("audit.style") == default_style
         assert c.put("/api/settings/prompts/nope", json={"value": "x"}).status_code == 404

@@ -57,9 +57,7 @@ def needs_compaction(session: ChatSession, window: int) -> bool:
 def _as_text(messages: Sequence[ChatMessage]) -> str:
     lines = []
     for m in messages:
-        who = "ПОЛЬЗОВАТЕЛЬ" if m.role == "user" else "АССИСТЕНТ"
-        files = f" [файлы: {', '.join(a.name for a in m.attachments)}]" if m.attachments else ""
-        lines.append(f"{who}{files}:\n{m.content}")
+        lines.append(prompts.chat_line(m.role, m.content, [a.name for a in m.attachments]))
     return "\n\n".join(lines)
 
 
@@ -90,12 +88,12 @@ class Request:
 def _source_block(lesson: LessonFull, budget: int) -> tuple[str, bool]:
     transcript = compact_transcript(lesson.segments) or lesson.clean_timestamps_text or lesson.plain_text
     audit = lesson.lesson_audit_md
-    head = f"### ИСТОЧНИК lesson_id={lesson.id} | {lesson.title}\n"
+    head = prompts.source_head(lesson.id, lesson.title)
     audit_cut = audit[: budget // 3]
-    audit_part = f"--- АУДИТ ---\n{audit_cut}\n" if audit else ""
+    audit_part = prompts.source_audit(audit_cut) if audit else ""
     rest = max(2000, budget - len(head) - len(audit_part))
     trimmed = len(audit_cut) < len(audit) or len(transcript) > rest
-    return f"{head}{audit_part}--- СТЕНОГРАММА ---\n{transcript[:rest]}\n", trimmed
+    return f"{head}{audit_part}{prompts.source_transcript(transcript[:rest])}", trimmed
 
 
 def files_for(session: ChatSession, new: Sequence[Attachment]) -> list[Attachment]:
@@ -114,20 +112,20 @@ def _files_block(files: Sequence[Attachment], new_ids: set, vision: bool, budget
     parts, images = [], []
     per_file = max(2000, budget // len(files))
     for f in files:
-        head = f"### ФАЙЛ: {f.name} ({f.mime}, {f.size} байт)"
+        head = prompts.file_head(f.name, f.mime, f.size)
         if f.kind == "image":
             if f.id not in new_ids:
-                parts.append(f"{head}\n[изображение из этой сессии: показано раньше, повторно не прикладывается]")
+                parts.append(f"{head}\n{prompts.FILE_IMAGE_EARLIER}")
             elif vision:
                 images.append((attachment_store.image_bytes(f), f.mime))
-                parts.append(f"{head}\n[изображение приложено к сообщению]")
+                parts.append(f"{head}\n{prompts.FILE_IMAGE_ATTACHED}")
             else:
-                parts.append(f"{head}\n[изображение: эта модель не видит изображения — скажи об этом, если вопрос о нём]")
+                parts.append(f"{head}\n{prompts.FILE_IMAGE_BLIND}")
         elif f.chars:
             parts.append(f"{head}\n{attachment_store.text(f)[:per_file]}")
         else:
-            parts.append(f"{head}\n[содержимое не читается: доступны только имя и размер]")
-    return "ФАЙЛЫ СЕССИИ:\n\n" + "\n\n".join(parts), images
+            parts.append(f"{head}\n{prompts.FILE_UNREADABLE}")
+    return prompts.CTX_FILES.format(parts="\n\n".join(parts)), images
 
 
 def build(
@@ -141,21 +139,22 @@ def build(
     multi: bool = False,
     question: str = "",
     new_files: Sequence[Attachment] = (),
+    ui_language: str = "en",
 ) -> Request:
-    system = prompts.assistant_system(role, multi)
-    summary_block = f"СВОДКА НАЧАЛА ЭТОЙ СЕССИИ:\n{session.summary}" if session.summary else ""
+    system = prompts.assistant_system(role, multi, ui_language)
+    summary_block = prompts.CTX_SUMMARY.format(summary=session.summary) if session.summary else ""
     history = [{"role": m.role, "content": m.content} for m in recent(session)]
     files_block, images = _files_block(files_for(session, new_files), {a.id for a in new_files}, vision, int(window * SHARE_FILES))
-    final = f"{files_block}\n\nВОПРОС:\n{question}" if files_block else question
+    final = prompts.CTX_QUESTION.format(files=files_block, question=question) if files_block else question
 
     used = len(system) + len(summary_block) + sum(len(h["content"]) for h in history) + len(final)
     per_source = max(MIN_SOURCE_CHARS, window - used) // max(1, len(sources))
     blocks = [_source_block(s, per_source) for s in sources]
     corpus = "\n\n".join(b for b, _ in blocks)
 
-    messages = [{"role": "user", "content": f"ИСТОЧНИКИ:\n\n{corpus}"}, {"role": "assistant", "content": "Источники приняты."}]
+    messages = [{"role": "user", "content": prompts.CTX_SOURCES.format(corpus=corpus)}, {"role": "assistant", "content": prompts.CTX_SOURCES_ACK}]
     if summary_block:
-        messages += [{"role": "user", "content": summary_block}, {"role": "assistant", "content": "Сводка принята."}]
+        messages += [{"role": "user", "content": summary_block}, {"role": "assistant", "content": prompts.CTX_SUMMARY_ACK}]
     messages += history
     if question:
         messages.append({"role": "user", "content": final})
