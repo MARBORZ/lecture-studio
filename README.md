@@ -1,8 +1,8 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/banner/banner-dark.gif">
-    <source media="(prefers-color-scheme: light)" srcset="assets/banner/banner-light.gif">
-    <img alt="Lecture Studio — hours of lectures, minutes to study" src="assets/banner/banner-light.gif" width="100%">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/banner/banner-dark-en.gif">
+    <source media="(prefers-color-scheme: light)" srcset="assets/banner/banner-light-en.gif">
+    <img alt="Lecture Studio — hours of lectures, minutes to study" src="assets/banner/banner-light-en.gif" width="100%">
   </picture>
 </p>
 
