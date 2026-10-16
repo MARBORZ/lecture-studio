@@ -16,7 +16,7 @@ export function QueueLimitCard() {
     setDraft(null)
   }
   return (
-    <Card title={t('settings.queueLimit')} description={t('settings.queueLimitHint')}>
+    <Card title={t('settings.queueLimit')} description={t('settings.queueLimitHint')} fold="processing.queue" summary={t('settings.queueLimit.jobs', { n: saved })}>
       <div className="flex flex-col gap-4" onPointerUp={commit} onKeyUp={commit}>
         <Slider value={value} min={1} max={100} step={1} format={(v) => t('settings.queueLimit.jobs', { n: v })} onChange={setDraft} />
         <div className="flex flex-wrap gap-1.5">

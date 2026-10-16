@@ -180,7 +180,12 @@ export function AISettingsSection() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Card title={t('settings.keys')} description={t('settings.keysHint')}>
+      <Card
+        title={t('settings.keys')}
+        description={t('settings.keysHint')}
+        fold="ai.keys"
+        summary={(['deepseek', 'gemini'] as const).map((p) => `${p === 'deepseek' ? 'DeepSeek' : 'Gemini'}: ${ai[`${p}_key`].source === 'none' ? t('settings.summary.noKey') : ai[`${p}_key`].hint || t('settings.summary.keySet')}`).join(' · ')}
+      >
         <div className="flex flex-col gap-6">
           <KeyField provider="deepseek" />
           <KeyField provider="gemini" />
@@ -188,7 +193,7 @@ export function AISettingsSection() {
       </Card>
       <LocalModelCard />
       <ComputeCard />
-      <Card title={t('settings.models')}>
+      <Card title={t('settings.models')} fold="ai.models" summary={`${ai.deepseek_model} · ${ai.gemini_model} · Whisper ${ai.whisper_model}`}>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="DeepSeek">
             <Select value={ai.deepseek_model} onChange={(v) => patch({ deepseek_model: v })} options={models('deepseek').length ? models('deepseek') : [{ value: ai.deepseek_model, label: ai.deepseek_model }]} />
@@ -225,7 +230,12 @@ function ContextWindowCard({ providers }: { providers: Record<string, ProviderIn
   const n = (v: number) => formatCount(v, lang)
 
   return (
-    <Card title={t('settings.contextWindow')} description={t('settings.contextWindowHint')}>
+    <Card
+      title={t('settings.contextWindow')}
+      description={t('settings.contextWindowHint')}
+      fold="ai.context"
+      summary={CONTEXT_PROVIDERS.filter(({ id }) => providers[id]).map(({ id, label }) => `${label} ${n(stored[id as keyof typeof stored] ?? providers[id].default_context_tokens)}`).join(' · ')}
+    >
       <div className="flex flex-col gap-6">
         {CONTEXT_PROVIDERS.map(({ id, label }) => {
           const p = providers[id]
@@ -302,7 +312,12 @@ function ComputeCard() {
   const shown = threads ?? (c.cpu_threads || s?.cores || 1)
 
   return (
-    <Card title={t('settings.compute')} description={t('settings.computeHint')}>
+    <Card
+      title={t('settings.compute')}
+      description={t('settings.computeHint')}
+      fold="ai.compute"
+      summary={!s ? t('settings.deviceChecking') : s.backend === 'cpu' ? t('settings.compute.onCpu', { n: s.threads }) : t('settings.compute.onGpu', { name: s.gpu_name })}
+    >
       <div className="flex flex-col gap-5">
         <Segmented<ComputeSettings['device']>
           value={c.device}

@@ -55,7 +55,7 @@ export function LocalModelCard() {
     : ai.local_model ? [{ value: ai.local_model, label: ai.local_model }] : [{ value: '', label: t('settings.local.noModels') }]
 
   return (
-    <Card title={t('settings.local')} description={t('settings.local.hint')}>
+    <Card title={t('settings.local')} description={t('settings.local.hint')} fold="ai.local" summary={ai.local_model ? `${ai.local_model} · ${ai.local_base_url.replace(/^https?:\/\//, '')}` : t('ai.notReady')}>
       <div className="flex flex-col gap-4">
         <Field label={t('settings.local.address')} hint={t('settings.local.addressHint')}>
           <div className="flex flex-wrap items-center gap-2">
