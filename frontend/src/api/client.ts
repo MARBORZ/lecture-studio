@@ -1,6 +1,6 @@
 import type {
   AIProvider, AskRequest, Attachment, DiaryCategory, DiaryEntry, ExportResult, Job, JobOptions, Lesson, LessonFull, LessonPatch, LessonStatus,
-  PathCheckResult, Project, PromptView, ProjectCreate, ProjectPatch, ProviderInfo, SessionInfo, SessionPatch, SettingsPatch, SettingsView, SystemStatus,
+  PathCheckResult, PipelineDefaults, Project, PromptView, ProjectCreate, ProjectPatch, ProviderInfo, SessionInfo, SessionPatch, SettingsPatch, SettingsView, SystemStatus,
   Thread, ThreadKind, ComputeStatus, MediaInfo, UninstallPlan, UpdateInfo,
 } from './types'
 
@@ -124,8 +124,13 @@ export const api = {
   relink: (id: string, path: string) => request<Lesson>('POST', `/api/lessons/${id}/relink`, { path }),
   dropVideo: (id: string) => request<Lesson>('POST', `/api/lessons/${id}/drop-video`),
   inspectMedia: (path: string) => request<MediaInfo>('POST', '/api/media/inspect', { path }),
-  regenerateAudit: (id: string, provider?: AIProvider, audit_mode?: 'srt_timecodes' | 'clean_summary', source: 'transcript' | 'video' = 'transcript') =>
-    request<Job>('POST', `/api/lessons/${id}/audit`, { provider, audit_mode, source }),
+  regenerateAudit: (
+    id: string,
+    provider?: AIProvider,
+    audit_mode?: 'srt_timecodes' | 'clean_summary',
+    source: 'transcript' | 'video' = 'transcript',
+    language: PipelineDefaults['output_language'] = 'interface',
+  ) => request<Job>('POST', `/api/lessons/${id}/audit`, { provider, audit_mode, source, language }),
   fileUrl: (id: string, kind: string) => `/api/lessons/${id}/files/${kind}`,
 
   // jobs

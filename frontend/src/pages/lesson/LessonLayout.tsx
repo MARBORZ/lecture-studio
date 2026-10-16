@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowLeft, FileText, FolderSearch, FolderOutput, MessagesSquare, Paperclip, Pencil, RefreshCw, ScrollText, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, FileText, FolderSearch, FolderOutput, Languages, MessagesSquare, Paperclip, Pencil, RefreshCw, ScrollText, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router'
 import { api } from '@/api/client'
@@ -24,7 +24,7 @@ import { isTyping } from '@/lib/keys'
 export interface LessonContext {
   lesson: LessonFull
   reload: () => Promise<void>
-  regenerate: () => Promise<void>
+  regenerate: () => void
 }
 
 export const useLesson = () => useOutletContext<LessonContext>()
@@ -102,9 +102,9 @@ export function LessonLayout() {
     seen.current = finished
   }, [finished, res])
 
-  async function regenerate() {
+  function regenerate(language?: 'ru' | 'en') {
     if (!lesson) return
-    openModal((close) => <RegenerateAuditModal lesson={lesson} close={close} />)
+    openModal((close) => <RegenerateAuditModal lesson={lesson} language={language} close={close} />)
   }
 
   if (res.error) {
@@ -140,7 +140,7 @@ export function LessonLayout() {
                 />
                 <span className="mx-1 h-5 w-px bg-line" />
                 <IconButton icon={Pencil} size="sm" label={t('lesson.edit')} onClick={() => meta && openModal((close) => <LessonEditModal lesson={meta} close={close} />)} />
-                <IconButton icon={RefreshCw} size="sm" label={t('lesson.regenerate')} disabled={!current.has_transcription} onClick={regenerate} />
+                <IconButton icon={RefreshCw} size="sm" label={t('lesson.regenerate')} disabled={!current.has_transcription} onClick={() => regenerate()} />
                 <IconButton icon={FolderOutput} size="sm" label={t('files.export')} onClick={() => meta && openModal((close) => <ExportModal lesson={meta} close={close} />)} />
                 <IconButton
                   icon={Trash2}
@@ -161,6 +161,7 @@ export function LessonLayout() {
       </AnimatePresence>
 
       {lesson?.source_missing && !focusMode && <SourceMissing lessonId={lesson.id} onRelinked={res.reload} />}
+      {lesson && !focusMode && <LanguageMismatch lesson={lesson} onRegenerate={regenerate} />}
 
       <div ref={splitRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
         <aside
@@ -303,9 +304,45 @@ function SourceMissing({ lessonId, onRelinked }: { lessonId: string; onRelinked:
   )
 }
 
-/** Regenerate the audit: model, and source — the transcript, or (Gemini) the lesson's video. */
-function RegenerateAuditModal({ lesson, close }: { lesson: LessonFull; close: () => void }) {
+const isLang = (v: string): v is 'ru' | 'en' => v === 'ru' || v === 'en'
+
+/**
+ * The audit came out in a language other than the recording's (e.g. an English lecture, a Russian interface).
+ * Offer to rebuild it in the recording language; dismissing it is remembered per lesson.
+ */
+function LanguageMismatch({ lesson, onRegenerate }: { lesson: LessonFull; onRegenerate: (language: 'ru' | 'en') => void }) {
+  const { t } = useUI()
+  const key = `lesson.langNotice.${lesson.id}.${lesson.audit_language}`
+  const [dismissed, setDismissed] = useState(() => storage.get(key, false))
+  const { speech_language: speech, audit_language: audit } = lesson
+  if (dismissed || !isLang(speech) || !isLang(audit) || speech === audit || !lesson.has_transcription) return null
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-line px-6 py-3 lg:px-8">
+      <Icon as={Languages} size={16} className="shrink-0 text-muted" />
+      <div className="min-w-[14rem] flex-1">
+        <p className="text-[13.5px] text-fg">{t('lesson.languageMismatch', { audit: t(`lang.name.${audit}`), speech: t(`lang.name.${speech}`) })}</p>
+        <p className="text-[12.5px] text-muted">{t('lesson.languageMismatchHint')}</p>
+      </div>
+      <Button size="sm" variant="secondary" icon={RefreshCw} onClick={() => onRegenerate(speech)}>
+        {t('lesson.regenerateIn', { language: t(`lang.name.${speech}`) })}
+      </Button>
+      <IconButton
+        icon={X}
+        size="sm"
+        label={t('common.close')}
+        onClick={() => {
+          storage.set(key, true)
+          setDismissed(true)
+        }}
+      />
+    </div>
+  )
+}
+
+/** Regenerate the audit: model, source — the transcript, or (Gemini) the lesson's video — and the language. */
+function RegenerateAuditModal({ lesson, language: initial, close }: { lesson: LessonFull; language?: 'ru' | 'en'; close: () => void }) {
   const { t, settings, toast, lang } = useUI()
+  const [language, setLanguage] = useState<'ru' | 'en'>(initial ?? (isLang(lesson.audit_language) ? lesson.audit_language : lang))
   const [provider, setProvider] = useState<'deepseek' | 'gemini'>(settings?.ai.assistant_provider ?? 'deepseek')
   const [source, setSource] = useState<'transcript' | 'video'>(lesson.has_transcription ? 'transcript' : 'video')
   const [busy, setBusy] = useState(false)
@@ -327,7 +364,7 @@ function RegenerateAuditModal({ lesson, close }: { lesson: LessonFull; close: ()
             onClick={async () => {
               setBusy(true)
               try {
-                await api.regenerateAudit(lesson.id, provider, settings?.pipeline.audit_mode, effective)
+                await api.regenerateAudit(lesson.id, provider, settings?.pipeline.audit_mode, effective, language)
                 toast(t('lesson.regenerateStarted'))
                 close()
               } catch (e) {
@@ -352,6 +389,9 @@ function RegenerateAuditModal({ lesson, close }: { lesson: LessonFull; close: ()
               ...(canVideo ? [{ value: 'video' as const, label: t('opt.auditSource.video') }] : []),
             ]}
           />
+        </Field>
+        <Field label={t('lesson.auditLanguage')}>
+          <Segmented value={language} onChange={setLanguage} options={(['ru', 'en'] as const).map((l) => ({ value: l, label: t(`lang.name.${l}`) }))} />
         </Field>
       </div>
     </Modal>

@@ -4,7 +4,7 @@ import type { PipelineDefaults } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { AnimatePresence, m } from '@/components/motion'
-import { Field, Input, Segmented, Select, Slider, Switch } from '@/components/ui'
+import { Button, Field, Input, Segmented, Select, Slider, Switch } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { formatCount } from '@/lib/format'
 import { collapse } from '@/lib/motion'
@@ -30,6 +30,7 @@ export const FALLBACK_DEFAULTS: Opts = {
   audit: 'deepseek',
   audit_source: 'transcript',
   audit_mode: 'srt_timecodes',
+  output_language: 'interface',
 }
 
 /** Presets set the step choices only; fine-tuning (silence thresholds, quality, language) stays as it is. */
@@ -178,6 +179,7 @@ export function PipelineOptionsFields({ value, onChange, source }: { value: Opts
           </div>
         )}
         {value.audit_source === 'video' && <Note>{t('opt.auditSource.video.cost', { tokens: formatCount(VIDEO_TOKENS_PER_HOUR, lang) })}</Note>}
+        {value.audit !== 'none' && <OutputLanguage value={value} onChange={(v) => set('output_language', v)} />}
         {value.audit !== 'none' && (
           <Field label={t('opt.auditMode')}>
             <Segmented
@@ -224,6 +226,42 @@ export function PipelineOptionsFields({ value, onChange, source }: { value: Opts
         </AnimatePresence>
       </div>
     </div>
+  )
+}
+
+/**
+ * Audit language. When the recording language is set explicitly and differs from the interface, the default
+ * ("same as interface") is turned into a question — the choice becomes explicit and the question goes away.
+ */
+function OutputLanguage({ value, onChange }: { value: Opts; onChange: (v: Opts['output_language']) => void }) {
+  const { t, lang } = useUI()
+  const speech = value.language === 'ru' || value.language === 'en' ? value.language : null
+  const mismatch = value.output_language === 'interface' && speech !== null && speech !== lang ? ([lang, speech] as const) : null
+  return (
+    <Field label={t('opt.outputLanguage')} hint={t('opt.outputLanguage.hint')}>
+      <Segmented
+        value={value.output_language}
+        onChange={onChange}
+        options={[
+          { value: 'interface', label: t('opt.outputLanguage.interface') },
+          { value: 'recording', label: t('opt.outputLanguage.recording') },
+          { value: 'ru', label: 'RU' },
+          { value: 'en', label: 'EN' },
+        ]}
+      />
+      {mismatch && (
+        <div className="mt-2 flex flex-col gap-2 rounded-lg border border-line-strong px-3 py-2.5 text-[12.5px] text-soft">
+          {t('opt.outputLanguage.mismatch', { speech: t(`lang.name.${mismatch[1]}`), ui: t(`lang.name.${mismatch[0]}`) })}
+          <div className="flex flex-wrap gap-2">
+            {mismatch.map((l) => (
+              <Button key={l} size="sm" variant="secondary" onClick={() => onChange(l)}>
+                {t(`lang.name.${l}`)}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+    </Field>
   )
 }
 
