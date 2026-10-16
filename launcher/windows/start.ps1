@@ -55,7 +55,7 @@ function Test-Changed([string]$Name, [string]$Fingerprint) {
 $status = $null
 if ($Mode -eq 'normal') { try { $status = Invoke-RestMethod -Uri "$ApiUrl/api/system/status" -TimeoutSec 2 } catch { $status = $null } }
 if ($status -and $status.busy) {
-    $answer = Show-Message "Сейчас идёт обработка. Перезапуск прервёт её.`n`nПерезапустить всё равно?" 'YesNo' 'Warning'
+    $answer = Show-Message (L "Сейчас идёт обработка. Перезапуск прервёт её.`n`nПерезапустить всё равно?" "Processing is running. A restart interrupts it.`n`nRestart anyway?") 'YesNo' 'Warning'
     if ($answer -ne 'Yes') {
         if (-not (Get-AppWindowPids)) { Open-AppWindow }
         exit 0
@@ -76,7 +76,7 @@ Remove-Item -Path (Join-Path $AppHome 'server.pid'), (Join-Path $AppHome 'fronte
 
 # ---- 2. Toolchain.
 foreach ($tool in 'uv', 'node', 'ffmpeg') {
-    if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { Fail "Не найден $tool. Запустите Setup.cmd в папке программы." }
+    if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { Fail (L "Не найден $tool. Запустите Setup.cmd в папке программы." "$tool not found. Run Setup.cmd in the app folder.") }
 }
 $nodeProblem = Update-Node -LogFile $Log
 if ($nodeProblem) { Fail $nodeProblem }
@@ -87,7 +87,7 @@ Write-Log $Log "torch: $($probe.torch_build) ($($probe.reason)) gpu='$($probe.gp
 $pyFp = (Get-Fingerprint @('pyproject.toml', 'uv.lock')) + "-$($probe.torch_build)"
 if (-not (Test-Path (Join-Path $Repo '.venv\Scripts\python.exe')) -or (Test-Changed 'python' $pyFp)) {
     Write-Log $Log "uv sync --extra $($probe.torch_build)"
-    if ((Invoke-Logged -Exe (Get-Command uv).Source -Arguments @('sync', '--frozen', '--extra', $probe.torch_build) -LogFile $Log) -ne 0) { Fail "uv sync не удался. Лог: $Log" }
+    if ((Invoke-Logged -Exe (Get-Command uv).Source -Arguments @('sync', '--frozen', '--extra', $probe.torch_build) -LogFile $Log) -ne 0) { Fail (L "uv sync не удался. Лог: $Log" "uv sync failed. Log: $Log") }
     Set-Content -Path (Join-Path $State 'python') -Value $pyFp
 }
 $nodeFp = Get-Fingerprint @('frontend\package-lock.json')
@@ -95,7 +95,7 @@ if (-not (Test-Path (Join-Path $Repo 'frontend\node_modules\vite')) -or (Test-Ch
     Write-Log $Log 'npm ci'
     # cmd /c npm can return a non-zero code after a successful install: judge by the result, not the exit code.
     $code = Invoke-Logged -Exe 'cmd.exe' -Arguments @('/c', 'npm', 'ci', '--no-audit', '--no-fund') -Cwd (Join-Path $Repo 'frontend') -LogFile $Log
-    if (-not (Test-Path (Join-Path $Repo 'frontend\node_modules\vite'))) { Fail "npm ci не удался (npm код $code). Лог: $Log" }
+    if (-not (Test-Path (Join-Path $Repo 'frontend\node_modules\vite'))) { Fail (L "npm ci не удался (npm код $code). Лог: $Log" "npm ci failed (npm code $code). Log: $Log") }
     Set-Content -Path (Join-Path $State 'node') -Value $nodeFp
 }
 
@@ -115,9 +115,9 @@ Set-Content -Path (Join-Path $AppHome 'frontend.pid') -Value $ui.Id
 $deadline = (Get-Date).AddSeconds(90)
 # gives up at once if the API process has exited (a broken release: roll back without waiting 90 s)
 while (-not (Test-Http "$ApiUrl/api/health") -and -not $api.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
-if (-not (Test-Http "$ApiUrl/api/health")) { Fail "API не запустился. Лог: $(Join-Path $Logs 'server.log')" }
+if (-not (Test-Http "$ApiUrl/api/health")) { Fail (L "API не запустился. Лог: $(Join-Path $Logs 'server.log')" "The API did not start. Log: $(Join-Path $Logs 'server.log')") }
 while (-not (Test-Http "$UiUrl/") -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
-if (-not (Test-Http "$UiUrl/")) { Fail "Интерфейс не запустился. Лог: $(Join-Path $Logs 'frontend.log')" }
+if (-not (Test-Http "$UiUrl/")) { Fail (L "Интерфейс не запустился. Лог: $(Join-Path $Logs 'frontend.log')" "The interface did not start. Log: $(Join-Path $Logs 'frontend.log')") }
 
 # ---- 6. App window.
 if (-not (Get-AppWindowPids)) { Open-AppWindow }

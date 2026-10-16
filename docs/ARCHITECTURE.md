@@ -209,6 +209,12 @@ refuses while busy), starts the remover directly when nothing runs, and refuses 
   SIGTERM on POSIX, SIGINT via `signal.raise_signal` on Windows, so uvicorn exits cleanly and lifespan clears temp.
 - A second server on the same data folder (a dev instance next to the running app) leaves the first one's `temp/`
   and pid file alone.
+- **Script language.** Setup, Uninstall and the launchers speak the language of the OS, not of the app (it may not be
+  installed yet): Russian when the system is Russian, English otherwise. Every text is `L ru en`: `common.ps1`
+  (`Get-UICulture`), the same `os_lang` / `L` lines in `install.zsh`, `start.zsh`, `stop.zsh` (the first of
+  `AppleLanguages`; `LECTURE_STUDIO_LANG=ru|en` overrides), `my L(…)` in the `.applescript` files. The uninstall tool gets
+  the dialogs' language through `LECTURE_STUDIO_LANG`, which `backend/i18n.py` puts before the interface setting.
+  `tests/test_script_language.py` runs the macOS helper and checks that every Russian line has its English twin.
 
 ## Principles
 

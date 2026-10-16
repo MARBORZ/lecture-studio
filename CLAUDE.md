@@ -42,6 +42,7 @@ Spec: [docs/MCP_REFERENCE.md](docs/MCP_REFERENCE.md).
    Strings in `i18n/ru.ts` + `en.ts`; server texts the user reads go through `backend/i18n.py` (`tr`), logs stay as they are.
 6. **Processes and platforms:** process handling only via `backend/utils/proc.py` (psutil, macOS/Windows/Linux).
    Windows scripts: `.ps1` in UTF-8 with BOM, CRLF (see `.gitattributes`); shared helpers in `launcher/windows/common.ps1`.
+   Setup / Uninstall / launcher texts follow the OS language: every one is `L "ru" "en"` (`my L(…)` in AppleScript).
 7. **Diary** — `services/diary.py`: plain `.md` files in `<data_dir>/diary/<category>/`, no index (files are the source of truth).
 8. **API types are generated** (`npm run gen:api`), never hand-written. Regenerate after changing backend models.
 9. Before committing: `uv run ruff check .`, `uv run pytest` (includes `tests/test_architecture.py`, which enforces these

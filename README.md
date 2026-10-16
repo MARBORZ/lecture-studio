@@ -91,6 +91,8 @@ Setup shows a progress window: tools → Python dependencies and models (5–15 
 (default `~/Lecture Studio`) → shortcut. The app runs from the cloned folder. Running Setup again updates dependencies
 and the shortcut; lessons and settings are never touched. The install log is `logs/setup.log` in the settings folder.
 
+Setup, Uninstall and the launcher speak Russian on a Russian system and English everywhere else.
+
 On macOS, if the clone lives in `~/Desktop` or `~/Documents`, the system asks once for access to that folder — allow it.
 
 Without git (macOS only): `Lecture-Studio-Setup.zip` from [Releases](https://github.com/MARBORZ/lecture-studio/releases)

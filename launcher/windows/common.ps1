@@ -15,6 +15,10 @@ New-Item -ItemType Directory -Force -Path $Logs, $State | Out-Null
 
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 
+# What these scripts say follows the Windows display language: Russian on a Russian system, English everywhere else.
+$script:Ru = (Get-UICulture).TwoLetterISOLanguageName -eq 'ru'
+function L([string]$RuText, [string]$EnText) { if ($script:Ru) { $RuText } else { $EnText } }
+
 function Update-Path {
     # Tools installed by winget/uv during this session are not on the inherited PATH yet.
     $parts = @(
@@ -128,7 +132,7 @@ function Update-Node([string]$LogFile, [scriptblock]$Tick) {
         Write-Log $LogFile "winget upgrade node: code $code, now $version"
         if (Test-NodeVersion $version) { return '' }
     }
-    return "Нужен Node.js 20.19+ или 22.12+, установлен $version. Обновите: winget upgrade OpenJS.NodeJS.LTS"
+    return (L "Нужен Node.js 20.19+ или 22.12+, установлен $version. Обновите: winget upgrade OpenJS.NodeJS.LTS" "Node.js 20.19+ or 22.12+ is needed, $version is installed. Update: winget upgrade OpenJS.NodeJS.LTS")
 }
 
 function Test-Http([string]$Url) {
@@ -222,16 +226,16 @@ function Get-ComputeProbe {
 }
 
 function Get-TorchLabel($Probe) {
-    # For the installer window: "PyTorch с CUDA (RTX 3080 Laptop)" / "PyTorch для процессора (видеокарта NVIDIA не найдена)".
+    # For the installer window: "PyTorch with CUDA (RTX 3080 Laptop)" / "PyTorch for the CPU (no NVIDIA GPU found)".
     $gpu = ($Probe.gpu -replace '^NVIDIA\s+', '' -replace '^GeForce\s+', '' -replace '\s+GPU$', '')
     if ($Probe.torch_build -eq 'cu126') {
-        if ($gpu) { return "PyTorch с CUDA ($gpu)" }
-        return 'PyTorch с CUDA'
+        if ($gpu) { return (L "PyTorch с CUDA ($gpu)" "PyTorch with CUDA ($gpu)") }
+        return (L 'PyTorch с CUDA' 'PyTorch with CUDA')
     }
     switch ($Probe.reason) {
-        'old_gpu' { return "PyTorch для процессора ($gpu не поддерживает CUDA 12)" }
-        'old_driver' { return "PyTorch для процессора (драйвер NVIDIA $($Probe.driver) старше $MinDriver)" }
-        'forced' { return 'PyTorch для процессора (выбрано в LS_TORCH_BUILD)' }
-        default { return 'PyTorch для процессора (видеокарта NVIDIA не найдена)' }
+        'old_gpu' { return (L "PyTorch для процессора ($gpu не поддерживает CUDA 12)" "PyTorch for the CPU ($gpu does not support CUDA 12)") }
+        'old_driver' { return (L "PyTorch для процессора (драйвер NVIDIA $($Probe.driver) старше $MinDriver)" "PyTorch for the CPU (NVIDIA driver $($Probe.driver) is older than $MinDriver)") }
+        'forced' { return (L 'PyTorch для процессора (выбрано в LS_TORCH_BUILD)' 'PyTorch for the CPU (set by LS_TORCH_BUILD)') }
+        default { return (L 'PyTorch для процессора (видеокарта NVIDIA не найдена)' 'PyTorch for the CPU (no NVIDIA GPU found)') }
     }
 }

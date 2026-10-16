@@ -8,6 +8,7 @@ writes Cyrillic for the user.
     tr("ai.no_key", provider="Gemini")      -> str.format parameters, format specs included
 """
 
+import os
 from typing import Any
 
 RU: dict[str, str] = {
@@ -347,8 +348,13 @@ MESSAGES = {"ru": RU, "en": EN}
 
 
 def lang() -> str:
+    """LECTURE_STUDIO_LANG (ru / en) first: Uninstall.app / Uninstall.cmd run the uninstall tool in the language of the OS,
+    like their own dialogs. Otherwise the interface language from the settings."""
     from backend.settings import SettingsService  # settings never import this module back; lazy keeps it so
 
+    forced = os.environ.get("LECTURE_STUDIO_LANG", "")
+    if forced in MESSAGES:
+        return forced
     try:
         return SettingsService.get().ui_language
     except Exception:  # unreadable settings.json: still say something

@@ -5,9 +5,10 @@
 
 $ErrorActionPreference = 'Continue'
 . (Join-Path $PSScriptRoot '..\..\launcher\windows\common.ps1')
+$env:LECTURE_STUDIO_LANG = L 'ru' 'en'  # the uninstall tool speaks the language of Windows, like these dialogs
 $Py = Join-Path $Repo '.venv\Scripts\python.exe'
 if (-not (Test-Path $Py)) {
-    Show-Message "Lecture Studio в $Repo установлена не до конца (нет .venv).`n`nЕсли папка не нужна, удалите её вручную." 'OK' 'Error' | Out-Null
+    Show-Message (L "Lecture Studio в $Repo установлена не до конца (нет .venv).`n`nЕсли папка не нужна, удалите её вручную." "Lecture Studio in $Repo is not fully installed (no .venv).`n`nIf you do not need the folder, delete it by hand.") 'OK' 'Error' | Out-Null
     exit 1
 }
 
@@ -29,14 +30,14 @@ $body = ($lines | Select-Object -Skip 1) -join "`n"
 if ($state -eq 'blocked') { Show-Message $body 'OK' 'Error' | Out-Null; exit 1 }
 $runArgs = @('run')
 if ($state -eq 'lessons_inside') {
-    if ((Show-Message "$body`n`nУдалить программу вместе с уроками?" 'OKCancel' 'Warning') -ne 'OK') { exit 0 }
+    if ((Show-Message "$body`n`n$(L 'Удалить программу вместе с уроками?' 'Delete the app together with the lessons?')" 'OKCancel' 'Warning') -ne 'OK') { exit 0 }
     $runArgs += '--delete-lessons'
 } else {
-    $answer = Show-Message "$body`n`nУдалить и уроки тоже?`n`nДа — удалить и уроки`nНет — уроки оставить`nОтмена — ничего не удалять" 'YesNoCancel' 'Warning'
+    $answer = Show-Message ("$body`n`n" + (L "Удалить и уроки тоже?`n`nДа — удалить и уроки`nНет — уроки оставить`nОтмена — ничего не удалять" "Delete the lessons too?`n`nYes — delete the lessons as well`nNo — keep the lessons`nCancel — delete nothing")) 'YesNoCancel' 'Warning'
     if ($answer -eq 'Cancel') { exit 0 }
     if ($answer -eq 'Yes') { $runArgs += '--delete-lessons' }
 }
-if ((Show-Message 'Lecture Studio будет удалена. Это нельзя отменить. Продолжить?' 'OKCancel' 'Warning') -ne 'OK') { exit 0 }
+if ((Show-Message (L 'Lecture Studio будет удалена. Это нельзя отменить. Продолжить?' 'Lecture Studio will be deleted. This cannot be undone. Continue?') 'OKCancel' 'Warning') -ne 'OK') { exit 0 }
 
 $r = Invoke-Tool $runArgs
 if ($r.Code -ne 0) { Show-Message $r.Text 'OK' 'Error' | Out-Null; exit 1 }

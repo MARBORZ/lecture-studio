@@ -52,6 +52,15 @@ node_ok() {
   [[ ${v[1]-} == <-> && ${v[2]-} == <-> ]] || return 1
   (( (v[1] == 20 && v[2] >= 19) || (v[1] == 22 && v[2] >= 12) || v[1] > 22 ))
 }
+# Texts follow the Mac's first preferred language: Russian on a Russian system, English everywhere else
+# (LECTURE_STUDIO_LANG=ru|en overrides). The same lines are in installer/macos/install.zsh and launcher/macos/{start,stop}.zsh.
+os_lang() {
+  [[ ${LECTURE_STUDIO_LANG-} == (ru|en) ]] && { print -r -- $LECTURE_STUDIO_LANG; return }
+  local first=${$(defaults read -g AppleLanguages 2>/dev/null | sed -n 2p)//[[:space:]\",]/}
+  [[ $first == ru || $first == ru[-_]* ]] && print ru || print en
+}
+OS_LANG=$(os_lang)
+L() { [[ $OS_LANG == ru ]] && print -r -- "$1" || print -r -- "$2" }
 fingerprint() { (cd "$REPO" && find "$@" -type f -print0 2>/dev/null | sort -z | xargs -0 shasum 2>/dev/null | shasum | cut -d' ' -f1) }
 changed() { [[ "$(cat "$STATE/$1" 2>/dev/null)" != "$2" ]] }
 # wait_http URL [PID]: up to 90 s; gives up at once if PID (the server being waited for) has exited.
@@ -86,8 +95,9 @@ open_window() {
 
 # ---- 0. Already running and busy? Don't kill a long job by accident. (An update was checked by the API.)
 if [[ "$MODE" == normal ]] && sys_status=$(curl -fsS --max-time 2 "$API/api/system/status" 2>/dev/null) && [[ "$sys_status" == *'"busy":true'* ]]; then
-  choice=$(dialog "Сейчас идёт обработка. Перезапуск прервёт её." '"Открыть окно", "Перезапустить"')
-  if [[ "$choice" != "Перезапустить" ]]; then
+  restart=$(L "Перезапустить" "Restart")
+  choice=$(dialog "$(L "Сейчас идёт обработка. Перезапуск прервёт её." "Processing is running. A restart interrupts it.")" "\"$(L "Открыть окно" "Open the window")\", \"$restart\"")
+  if [[ "$choice" != "$restart" ]]; then
     pgrep -f -- "--user-data-dir=$PROFILE" >/dev/null || open_window
     exit 0
   fi
@@ -117,22 +127,22 @@ rm -f "$APP_HOME/server.pid" "$APP_HOME/frontend.pid"
 
 # ---- 2. Toolchain.
 for tool in uv npm ffmpeg ffprobe lsof; do
-  command -v $tool >/dev/null || fail "Не найден $tool. Установите: brew install ${tool/ffprobe/ffmpeg}"
+  command -v $tool >/dev/null || fail "$(L "Не найден $tool. Установите: brew install ${tool/ffprobe/ffmpeg}" "$tool not found. Install: brew install ${tool/ffprobe/ffmpeg}")"
 done
-node_ok || fail "Нужен Node.js 20.19+ или 22.12+, установлен $(node --version 2>/dev/null). Обновите: brew upgrade node"
-cd "$REPO" || fail "Папка проекта не найдена: $REPO"
+node_ok || fail "$(L "Нужен Node.js 20.19+ или 22.12+, установлен $(node --version 2>/dev/null). Обновите: brew upgrade node" "Node.js 20.19+ or 22.12+ is needed, $(node --version 2>/dev/null) is installed. Update: brew upgrade node")"
+cd "$REPO" || fail "$(L "Папка проекта не найдена: $REPO" "The project folder is not found: $REPO")"
 
 # ---- 3. Dependencies, only when lockfiles changed.
 py_fp=$(fingerprint pyproject.toml uv.lock)
 if [[ ! -x .venv/bin/python ]] || changed python "$py_fp"; then
   print "uv sync"
-  uv sync --frozen || fail "uv sync не удался. Лог: $LOGS/launcher.log"
+  uv sync --frozen || fail "$(L "uv sync не удался. Лог: $LOGS/launcher.log" "uv sync failed. Log: $LOGS/launcher.log")"
   print -r -- "$py_fp" > "$STATE/python"
 fi
 node_fp=$(fingerprint frontend/package-lock.json)
 if [[ ! -x frontend/node_modules/.bin/vite ]] || changed node "$node_fp"; then
   print "npm ci"
-  npm --prefix frontend ci --no-audit --no-fund || fail "npm ci не удался. Лог: $LOGS/launcher.log"
+  npm --prefix frontend ci --no-audit --no-fund || fail "$(L "npm ci не удался. Лог: $LOGS/launcher.log" "npm ci failed. Log: $LOGS/launcher.log")"
   print -r -- "$node_fp" > "$STATE/node"
 fi
 
@@ -147,8 +157,8 @@ print "starting ui :$UI_PORT"
 (cd frontend && nohup node_modules/.bin/vite --host 127.0.0.1 --port $UI_PORT --strictPort \
   >>"$LOGS/frontend.log" 2>&1 </dev/null & print -r -- $! > "$APP_HOME/frontend.pid")
 
-wait_http "$API/api/health" $api_pid || fail "API не запустился. Лог: $LOGS/server.log"
-wait_http "$UI/" || fail "Интерфейс не запустился за 90 с. Лог: $LOGS/frontend.log"
+wait_http "$API/api/health" $api_pid || fail "$(L "API не запустился. Лог: $LOGS/server.log" "The API did not start. Log: $LOGS/server.log")"
+wait_http "$UI/" || fail "$(L "Интерфейс не запустился за 90 с. Лог: $LOGS/frontend.log" "The interface did not start within 90 s. Log: $LOGS/frontend.log")"
 
 # ---- 6. App window.
 pgrep -f -- "--user-data-dir=$PROFILE" >/dev/null || open_window
