@@ -5,9 +5,11 @@ AI facade: resolves provider + key + model from settings in one place.
 
 from pydantic import BaseModel
 
+import backend.core.ai.providers.anthropic  # noqa: F401,E402
 import backend.core.ai.providers.deepseek  # noqa: F401,E402
 import backend.core.ai.providers.gemini  # noqa: F401,E402
 import backend.core.ai.providers.local  # noqa: F401,E402
+import backend.core.ai.providers.openai  # noqa: F401,E402
 from backend.core.ai.base import CHARS_PER_TOKEN, MIN_CONTEXT_TOKENS, BaseAIProvider
 from backend.core.ai.meta import AIMeta
 
@@ -53,12 +55,21 @@ class AI:
         return tr("ai.local_no_model") if category == "local" else tr("ai.no_key", provider=category)
 
     @staticmethod
+    def models(category: str, cls: type[BaseAIProvider]) -> list[str]:
+        """The models offered in Settings: ChatGPT's come from the account (/v1/models), the rest are fixed lists."""
+        if category == "openai" and (key := SettingsService.api_key("openai")):
+            from backend.core.ai.providers.openai import list_models
+
+            return list_models(key)
+        return cls.supported_models
+
+    @staticmethod
     def providers() -> dict[str, ProviderInfo]:
         return {
             cat: ProviderInfo(
                 category=cat,
                 default_model=cls.default_model,
-                supported_models=cls.supported_models,
+                supported_models=AI.models(cat, cls),
                 can_transcribe_audio=cls.can_transcribe_audio,
                 configured=AI.configured(cat),
                 min_context_tokens=MIN_CONTEXT_TOKENS,

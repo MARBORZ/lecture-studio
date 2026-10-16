@@ -11,7 +11,7 @@ import { FALLBACK_DEFAULTS, PipelineOptionsFields } from '@/features/jobs/Pipeli
 import { QueueLimitCard } from '@/features/jobs/QueueLimitCard'
 import { KeyField } from '@/features/system/KeyField'
 import { DownloaderCard } from '@/features/videos/DownloaderCard'
-import { useProviderOptions } from '@/features/system/KeyNotice'
+import { CLOUD_PROVIDERS, PROVIDER_NAME, useProviderOptions } from '@/features/system/KeyNotice'
 import { LocalModelCard } from '@/features/system/LocalModelCard'
 import { cn } from '@/lib/cn'
 import { collapse } from '@/lib/motion'
@@ -184,28 +184,32 @@ export function AISettingsSection() {
         title={t('settings.keys')}
         description={t('settings.keysHint')}
         fold="ai.keys"
-        summary={(['deepseek', 'gemini'] as const).map((p) => `${p === 'deepseek' ? 'DeepSeek' : 'Gemini'}: ${ai[`${p}_key`].source === 'none' ? t('settings.summary.noKey') : ai[`${p}_key`].hint || t('settings.summary.keySet')}`).join(' · ')}
+        summary={CLOUD_PROVIDERS.map((p) => `${PROVIDER_NAME[p]}: ${ai[`${p}_key`].source === 'none' ? t('settings.summary.noKey') : ai[`${p}_key`].hint || t('settings.summary.keySet')}`).join(' · ')}
       >
         <div className="flex flex-col gap-6">
-          <KeyField provider="deepseek" />
-          <KeyField provider="gemini" />
+          {CLOUD_PROVIDERS.map((p) => <KeyField key={p} provider={p} />)}
         </div>
       </Card>
       <LocalModelCard />
       <ComputeCard />
-      <Card title={t('settings.models')} fold="ai.models" summary={`${ai.deepseek_model} · ${ai.gemini_model} · Whisper ${ai.whisper_model}`}>
+      <Card title={t('settings.models')} fold="ai.models" summary={`${CLOUD_PROVIDERS.map((p) => ai[`${p}_model`]).join(' · ')} · Whisper ${ai.whisper_model}`}>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="DeepSeek">
-            <Select value={ai.deepseek_model} onChange={(v) => patch({ deepseek_model: v })} options={models('deepseek').length ? models('deepseek') : [{ value: ai.deepseek_model, label: ai.deepseek_model }]} />
-          </Field>
-          <Field label="Gemini">
-            <Select value={ai.gemini_model} onChange={(v) => patch({ gemini_model: v })} options={models('gemini').length ? models('gemini') : [{ value: ai.gemini_model, label: ai.gemini_model }]} />
-          </Field>
+          {CLOUD_PROVIDERS.map((p) => {
+            const current = ai[`${p}_model`]
+            const list = models(p)
+            // a model typed into settings.json (or no longer offered) stays selectable
+            const options = list.some((o) => o.value === current) ? list : [{ value: current, label: current }, ...list]
+            return (
+              <Field key={p} label={PROVIDER_NAME[p]}>
+                <Select value={current} onChange={(v) => patch({ [`${p}_model`]: v })} options={options} />
+              </Field>
+            )
+          })}
           <Field label={t('settings.whisperModel')}>
             <Select value={ai.whisper_model} onChange={(v) => patch({ whisper_model: v })} options={['large-v3-turbo', 'large-v3', 'medium', 'small'].map((m) => ({ value: m, label: m }))} />
           </Field>
           <Field label={t('settings.assistantProvider')}>
-            <Segmented value={ai.assistant_provider} onChange={(v) => patch({ assistant_provider: v })} options={providerOptions} />
+            <Select value={ai.assistant_provider} onChange={(v) => patch({ assistant_provider: v })} options={providerOptions} />
           </Field>
         </div>
       </Card>
@@ -214,10 +218,7 @@ export function AISettingsSection() {
   )
 }
 
-const CONTEXT_PROVIDERS = [
-  { id: 'deepseek', label: 'DeepSeek' },
-  { id: 'gemini', label: 'Gemini' },
-] as const
+const CONTEXT_PROVIDERS = CLOUD_PROVIDERS.map((id) => ({ id, label: PROVIDER_NAME[id] }))
 const CHARS_PER_PAGE = 1800 // a typewritten page
 
 /** The assistant's window per provider, in tokens, within the model's limit. Saved on release, like the text size. */

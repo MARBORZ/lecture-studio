@@ -1,13 +1,13 @@
 import { KeyRound, PlugZap } from 'lucide-react'
 import { useState } from 'react'
 import { api } from '@/api/client'
-import type { AIProvider } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { Button, Input } from '@/components/ui'
+import { KEY_TITLE, type CloudProvider } from './KeyNotice'
 
 /** API key input with source/hint, Save, Test, Reset. Used in Settings -> AI and in the first-run tutorial. */
-export function KeyField({ provider }: { provider: Exclude<AIProvider, 'local'> }) {
+export function KeyField({ provider }: { provider: CloudProvider }) {
   const { t, settings, patchSettings, toast } = useUI()
   const status = settings!.ai[`${provider}_key`]
   const [value, setValue] = useState('')
@@ -33,7 +33,7 @@ export function KeyField({ provider }: { provider: Exclude<AIProvider, 'local'> 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-[13.5px] font-medium">{provider === 'deepseek' ? 'DeepSeek' : 'Google Gemini'}</span>
+        <span className="text-[13.5px] font-medium">{KEY_TITLE[provider]}</span>
         <span className="flex items-center gap-1.5 text-[12px] text-muted">
           <Icon as={KeyRound} size={13} />
           {t(`settings.keySource.${status.source}`)}

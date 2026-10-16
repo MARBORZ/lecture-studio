@@ -18,10 +18,10 @@ API: `http://127.0.0.1:3000`, and the same server on `:5173`, where the app wind
 | GET / PATCH | `/api/settings` | settings (keys are masked, with their source: settings / env / none); `ai.context_tokens` is merged per provider (`null` = default), `422` outside the model's limits; `pipeline.output_language` (also in job options) is the audit language: `interface` (default) / `recording` / `ru` / `en`; `queue_limit` 1–100 |
 | POST | `/api/settings/hotkeys/check` | can an action take a combination: `problem` = `format` / `too_many` (over three keys) / `reserved` (system, browser, text input) / `conflict` (`other` = the action that has it). Saved with `PATCH /api/settings` `{"hotkeys": {id: combo \| "" (off) \| null (default)}}` (`422` with the same codes); the view lists every action with scope, default and current combination |
 | POST | `/api/settings/local/check` | is a local model server answering at `base_url` ("" = the saved one): `kind` `ollama` / `openai`, its models with `context_tokens` where the server tells it, or an `error` to show |
-| POST | `/api/settings/test-key` | test a key with one tiny model request |
+| POST | `/api/settings/test-key` | test a key (or the local model) with one tiny model request. Keys: `settings.ai.<provider>_api_key`, `.env` fallback `DEEPSEEK_API_KEY` / `GEMINI_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` |
 | GET | `/api/settings/prompts` | AI instruction blocks: default, current, modified |
 | PUT / DELETE | `/api/settings/prompts/{key}` | save a custom block text / reset to default |
-| GET | `/api/settings/providers` | AI providers and models, context window limits in tokens (min, max, default) and `chars_per_token` |
+| GET | `/api/settings/providers` | AI providers (`deepseek`, `gemini`, `openai` = ChatGPT, `anthropic` = Claude, `local`) and their models (ChatGPT's from the account when a key is set), context window limits in tokens (min, max, default) and `chars_per_token` |
 | GET | `/api/settings/compute` | what local transcription runs on: `cuda` / `apple` / `cpu`, GPU name, threads, cores; on the CPU the reason (user, no_gpu, old_gpu, old_driver, torch_cpu, apple_unavailable, gpu_failed). The preference itself is `settings.compute` (`device`: auto/gpu/cpu, `cpu_threads`: 0 = all cores) |
 | POST | `/api/settings/check-path` | check a folder (exists, writable, contains a library) |
 | POST | `/api/settings/data-dir` | switch the data folder: `attach` or `move`; refused while busy |

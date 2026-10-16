@@ -28,7 +28,7 @@ from backend.utils.fs import read_json, to_path, write_json
 
 DB_FILENAME = "notebook_db.json"
 
-ENV_KEYS = {"deepseek": "DEEPSEEK_API_KEY", "gemini": "GEMINI_API_KEY"}
+ENV_KEYS = {"deepseek": "DEEPSEEK_API_KEY", "gemini": "GEMINI_API_KEY", "openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
 
 
 @dataclass(frozen=True)
@@ -278,8 +278,12 @@ class SettingsService:
             ai=AISettingsView(
                 deepseek_key=cls._key_status("deepseek"),
                 gemini_key=cls._key_status("gemini"),
+                openai_key=cls._key_status("openai"),
+                anthropic_key=cls._key_status("anthropic"),
                 deepseek_model=s.ai.deepseek_model,
                 gemini_model=s.ai.gemini_model,
+                openai_model=s.ai.openai_model,
+                anthropic_model=s.ai.anthropic_model,
                 whisper_model=s.ai.whisper_model,
                 local_base_url=s.ai.local_base_url,
                 local_model=s.ai.local_model,

@@ -39,7 +39,7 @@ and a video; no transcript → audit from video or none) and translates pre-1.4 
 | BuildCleanAudioStep | audio | spans (or the whole file) with 5 ms micro-fades → MP3, `time_map.json`; with an original video no MP3, an identity `time_map` |
 | BuildVideoStep | video | `clean`: the same spans → `trim/atrim` + `concat`; `compressed`: the whole video; both H.264 (x264 / NVENC), `+faststart`. `original`: nothing encoded — a path stays where it is (Eco), an upload moves into the lesson (`Lesson.original_file`) |
 | TranscribeStep | transcribe | Whisper (local) or Gemini (audio to the cloud) → `segments.json`; audio from `JobContext.speech_audio()` |
-| GenerateAuditStep | audit | DeepSeek/Gemini from the `[MM:SS]` transcript, or Gemini from the video (an optimized proxy + the transcript of each part; parts of 45 min as offsets in one upload); a failed video audit falls back to the transcript; during processing an AI failure is only a warning |
+| GenerateAuditStep | audit | DeepSeek/Gemini/ChatGPT/Claude/the local model from the `[MM:SS]` transcript, or Gemini from the video (an optimized proxy + the transcript of each part; parts of 45 min as offsets in one upload); a failed video audit falls back to the transcript; during processing an AI failure is only a warning |
 | SaveLessonStep | save | store the lesson (with `cut_silence`, `original_file`, `original_kind`), optional export |
 
 Media of a lesson is resolved in one place, `Library.media_file(lesson, kind)`: the lesson's own MP3/MP4, else the
@@ -96,12 +96,12 @@ audit timecodes to the clean timeline; the original audit is kept as `lesson_aud
   them, so no custom text can make timecodes unclickable. Users override blocks in Settings → Instructions; overrides
   live in `settings.json: prompts`, untouched blocks use the defaults. Overrides of the two old structure blocks
   (`audit.structure_timed` / `_plain`) move into `audit.structure` once at startup (`prompts.migrate_overrides`).
-- Audit provider: DeepSeek mode → DeepSeek, Gemini → Gemini, local → the local model, "Whisper only" → the provider chosen
+- Audit provider: the one chosen (DeepSeek, Gemini, ChatGPT = `openai`, Claude = `anthropic`, the local model); an audit from the video is Gemini's only; "Whisper only" → the provider chosen
   in Settings → AI. `AI.configured()` says whether one is ready (a key, or a chosen local model).
 - **Our own context window** (`services/context_window.py`). Chat APIs are stateless: every question re-sends everything.
   One request = system prompt + session summary and recent messages (≤ 25% of the window) + the files attached to this
   question, read by id from disk (≤ 20%) + sources (audit + transcript, the rest, split between lessons) + the question. Window per provider,
-  in tokens, set in Settings → AI (`settings.ai.context_tokens`; default DeepSeek 64k, Gemini 400k, local 8k; from 8k up to the
+  in tokens, set in Settings → AI (`settings.ai.context_tokens`; default DeepSeek 64k, Gemini 400k, ChatGPT 128k, Claude 200k, local 8k; from 8k up to the
   model's `max_context_tokens`: 128k, 1M; the server rejects values outside, a hand-edited file is clamped,
   `AI.context_tokens`). The budget counts characters: `CHARS_PER_TOKEN` = 3 (core/ai/base.py, a low estimate for Russian,
   timecodes and code), and 1/8 of the window stays free for the answer. When the verbatim history outgrows its share, everything but
@@ -133,12 +133,16 @@ audit timecodes to the clean timeline; the original audit is kept as `lesson_aud
   where the server says, their context length (`/api/show`, LM Studio `/api/v0/models`). A server that does not answer
   fails at once with "start Ollama or LM Studio" (`ai.local_down`), no retries; `<think>` blocks of reasoning models are
   dropped.
-- **Retries** (`core/ai/retry.py`): every cloud call (Gemini text and transcription, DeepSeek) goes through `with_retry`.
+- **Retries** (`core/ai/retry.py`): every cloud call (Gemini text and transcription, DeepSeek, ChatGPT, Claude) goes through `with_retry`; Anthropic's 529 (overloaded) counts as temporary like 503.
   503/429/5xx, timeouts and dropped connections are retried 5 times over ~1 minute (cancellable); other errors fail at
   once; exhausted retries raise `AIUnavailable` with a plain explanation.
 - **Transcription inside processing is soft**, like the audit: if it fails, the lesson is saved with its clean audio and
   video and a warning; `POST /api/lessons/{id}/transcribe` (`TRANSCRIBE_STEPS`) redoes only recognition (+ audit).
-- Providers (`DeepSeekProvider`, `GeminiProvider`, `LocalProvider`) implement transport only. Registration via the `AIMeta` metaclass.
+- Providers (`DeepSeekProvider`, `GeminiProvider`, `OpenAIProvider`, `AnthropicProvider`, `LocalProvider`) implement
+  transport only. ChatGPT: Chat Completions (`max_completion_tokens`; reasoning models gpt-5*/o* get no temperature),
+  the account's chat models from `/v1/models` (cached an hour) or a short default list. Claude: the Messages API
+  (`x-api-key`, `anthropic-version`, `system` as its own field). Both take images in the assistant, like Gemini. The UI
+  lists the cloud providers from one array (`CLOUD_PROVIDERS` in `features/system/KeyNotice.tsx`), then the local model. Registration via the `AIMeta` metaclass.
 - Default audit style: slide notes, one line per point, no softening, "Wrong: …" / "Simplification: …" said plainly.
   Settings → Instructions lists the blocks collapsed, titled by key (`prompt.<key>.title` / `.hint` in the UI dictionaries);
   a user's own (possibly Russian) block text is sent as written.

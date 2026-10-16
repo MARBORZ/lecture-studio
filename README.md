@@ -28,7 +28,7 @@ It was built for one person's programming courses and is shared as is: no roadma
 
 - **Cuts the silence.** Pauses go from the sound and the video at the same frames, so both stay in sync.
 - **Transcribes.** Whisper on your own GPU or CPU, or Gemini in the cloud (sound only).
-- **Writes the notes.** DeepSeek, Gemini or a local model (Ollama, LM Studio) turns the transcript into short notes with `[MM:SS]` timecodes you can
+- **Writes the notes.** DeepSeek, Gemini, ChatGPT, Claude or a local model (Ollama, LM Studio) turns the transcript into short notes with `[MM:SS]` timecodes you can
   click, in the language you choose.
 - **Answers with citations.** Ask one lesson or a whole course; answers link to the exact moment ("Lesson 2 · 04:15").
 - **Finds lectures on YouTube.** Search and watch in the **Videos** tab, or paste a link; one click downloads it
@@ -49,7 +49,7 @@ its interface is already built, so Node.js is not needed.
 Setup installs what is missing (uv, FFmpeg, Node.js to build the interface; Homebrew on a Mac), takes 5–15 minutes and puts
 **Lecture Studio** on your Desktop. It speaks Russian on a Russian system and English everywhere else.
 
-Then open the app, paste a **DeepSeek** and/or **Gemini** API key in **Settings → AI**, and drop a recording into the **Studio**.
+Then open the app, paste an API key of **DeepSeek**, **Gemini**, **ChatGPT** (OpenAI) or **Claude** (Anthropic) in **Settings → AI**, and drop a recording into the **Studio**.
 
 **Fully local and free:** install [Ollama](https://ollama.com), run `ollama pull qwen3:8b` (or any model you like), then
 pick it in **Settings → AI → Local model**. Whisper transcribes on your machine, the local model writes the notes and
