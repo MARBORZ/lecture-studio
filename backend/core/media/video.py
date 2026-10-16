@@ -1,13 +1,21 @@
 """
 Jump-cut video: the same speech spans as the audio, cut in one filtergraph and
-compressed with H.264 CRF (+faststart for instant seeking in the browser).
+compressed with H.264 (+faststart for instant seeking in the browser).
+
+Encoders:
+  x264  — libx264 CRF on the CPU: the default, and the fallback.
+  nvenc — h264_nvenc on an NVIDIA GPU (constant quality, spatial/temporal adaptive quantization to keep small text
+          readable). Several times faster on Windows laptops; files somewhat larger at the same quality.
+          Any NVENC failure (old driver, busy GPU, missing in this FFmpeg build) re-encodes with x264.
+The Apple GPU encoder (h264_videotoolbox) is deliberately not used: measured on an M-series Mac it was not faster than
+x264 and gave 6-9x larger files at the same SSIM on screen recordings.
 """
 
 import logging
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Literal
 
-from backend.core.media.base import BaseMediaProcessor, PathLike, ffprobe_json, probe_duration, run_ffmpeg, savings_percent
+from backend.core.media.base import BaseMediaProcessor, PathLike, ffprobe_json, has_encoder, probe_duration, run_ffmpeg, savings_percent
 from backend.utils.fs import file_size_mb
 
 logger = logging.getLogger(__name__)
@@ -35,24 +43,48 @@ def probe_video(path: PathLike) -> float | None:
     return None
 
 
+Encoder = Literal["x264", "nvenc"]
+
+
+def pick_encoder(gpu_backend: str) -> Encoder:
+    """NVENC when the compute plan runs on CUDA and this FFmpeg has it; x264 otherwise."""
+    return "nvenc" if gpu_backend == "cuda" and has_encoder("h264_nvenc") else "x264"
+
+
 class VideoProcessor(BaseMediaProcessor):
-    def __init__(self, crf: int = 26, resolution: str = "1080p", preset: str = "fast"):
+    def __init__(self, crf: int = 26, resolution: str = "1080p", preset: str = "fast", encoder: Encoder = "x264"):
         self.crf = crf
         self.resolution = resolution
         self.preset = preset
+        self.encoder: Encoder = encoder
 
-    def _encode_args(self) -> list:
-        return [
-            "-c:v", "libx264", "-crf", str(self.crf), "-preset", self.preset, "-pix_fmt", "yuv420p",
-            "-movflags", "+faststart", "-c:a", "aac", "-b:a", "128k",
-        ]
+    def _encode_args(self, encoder: Encoder | None = None) -> list:
+        common = ["-pix_fmt", "yuv420p", "-movflags", "+faststart", "-c:a", "aac", "-b:a", "128k"]
+        if (encoder or self.encoder) == "nvenc":
+            # constant quality (cq ~ the CRF number), no bitrate cap; AQ spends bits on fine detail such as code text
+            return [
+                "-c:v", "h264_nvenc", "-preset", "p5", "-tune", "hq", "-rc", "vbr", "-cq", str(self.crf), "-b:v", "0",
+                "-spatial-aq", "1", "-temporal-aq", "1", *common,
+            ]
+        return ["-c:v", "libx264", "-crf", str(self.crf), "-preset", self.preset, *common]
 
     def process(self, input_path: PathLike, output_path: PathLike, spans: Sequence[Any], **kwargs: Any) -> dict[str, Any]:
+        """Encode with the chosen encoder; NVENC failures fall back to x264. Stats say which one made the file."""
+        try:
+            stats = self._process(input_path, output_path, spans, self.encoder)
+        except RuntimeError as e:
+            if self.encoder == "x264":
+                raise
+            logger.warning("NVENC failed, re-encoding with x264: %s", e)
+            stats = self._process(input_path, output_path, spans, "x264")
+        return stats
+
+    def _process(self, input_path: PathLike, output_path: PathLike, spans: Sequence[Any], encoder: Encoder) -> dict[str, Any]:
         valid = self.normalize_spans(spans)
         scale = _SCALE.get(self.resolution)
 
         if not valid:
-            cmd = ["ffmpeg", "-y", "-i", str(input_path)] + (["-vf", scale] if scale else []) + self._encode_args() + [str(output_path)]
+            cmd = ["ffmpeg", "-y", "-i", str(input_path)] + (["-vf", scale] if scale else []) + self._encode_args(encoder) + [str(output_path)]
             run_ffmpeg(cmd, "video compression")
         else:
             parts, concat = [], []
@@ -67,8 +99,8 @@ class VideoProcessor(BaseMediaProcessor):
             graph = "; ".join(parts) + "; " + "".join(concat) + f"concat=n={len(valid)}:v=1:a=1[catv][cata]"
             graph += f"; [catv]{scale or 'null'}[outv]; [cata]aformat=channel_layouts=mono|stereo[outa]"
             cmd = ["ffmpeg", "-y", "-i", str(input_path), "-filter_complex", graph, "-map", "[outv]", "-map", "[outa]"]
-            logger.info("Jump-cut: %d spans, CRF %s, %s", len(valid), self.crf, self.resolution)
-            run_ffmpeg(cmd + self._encode_args() + [str(output_path)], "video jump-cut")
+            logger.info("Jump-cut: %d spans, %s quality %s, %s", len(valid), encoder, self.crf, self.resolution)
+            run_ffmpeg(cmd + self._encode_args(encoder) + [str(output_path)], "video jump-cut")
 
         orig_mb, clean_mb = file_size_mb(input_path), file_size_mb(output_path)
         return {
@@ -76,4 +108,5 @@ class VideoProcessor(BaseMediaProcessor):
             "clean_size_mb": clean_mb,
             "saved_percent": savings_percent(orig_mb, clean_mb),
             "duration_sec": probe_duration(output_path),
+            "encoder": encoder,
         }

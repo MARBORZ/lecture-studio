@@ -137,9 +137,15 @@ class BuildCleanVideoStep(PipelineStep):
         return ctx.options.clean_video and ctx.has_video_source
 
     def execute(self, ctx, progress):
-        progress(0, f"Монтаж видео (CRF {ctx.options.video_crf}, {ctx.options.video_resolution})")
+        from backend.core import compute
+        from backend.core.media.video import pick_encoder
+
+        c = SettingsService.get().compute
+        encoder = pick_encoder(compute.plan(c.device, c.cpu_threads).backend)
+        label = "NVENC, видеокарта" if encoder == "nvenc" else "x264, процессор"
+        progress(0, f"Монтаж видео ({label}, качество {ctx.options.video_crf}, {ctx.options.video_resolution})")
         try:
-            res = VideoProcessor(ctx.options.video_crf, ctx.options.video_resolution).process(
+            res = VideoProcessor(ctx.options.video_crf, ctx.options.video_resolution, encoder=encoder).process(
                 ctx.media_path, ctx.lesson_dir / Artifacts.VIDEO, ctx.spans
             )
         except Exception as e:
@@ -150,6 +156,7 @@ class BuildCleanVideoStep(PipelineStep):
         ctx.stats.orig_video_size_mb = res["orig_size_mb"]
         ctx.stats.clean_video_size_mb = res["clean_size_mb"]
         ctx.stats.video_saved_percent = res["saved_percent"]
+        ctx.stats.video_encoder = res["encoder"]
         ctx.stats.av_drift_sec = round(res["duration_sec"] - ctx.clean_duration, 3)
         if abs(ctx.stats.av_drift_sec) > 0.5:
             ctx.warning = f"Расхождение длительности видео и аудио: {ctx.stats.av_drift_sec:+.2f} с"

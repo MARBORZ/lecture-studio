@@ -128,6 +128,9 @@ Local speech recognition runs on the GPU when there is a usable one, several tim
 - **Settings → AI → Where speech recognition runs:** Auto / GPU / CPU and the number of CPU threads (all cores by
   default), with a line saying what the next job will use and, on the CPU, why. A GPU that fails at runtime hands the job
   to the CPU instead of failing it.
+- **Video encoding** follows the same plan: on an NVIDIA GPU the jump-cut video is encoded with NVENC (much faster than
+  x264 on a laptop CPU; files somewhat larger at the same quality), falling back to x264 on any NVENC error. On a Mac it
+  stays x264: the Apple hardware encoder was measured slower than x264 with 6–9× larger files on screen recordings.
 
 ## Known limitations
 
@@ -135,6 +138,9 @@ Local speech recognition runs on the GPU when there is a usable one, several tim
 - Requires Node.js 22 or newer (`engines` in `frontend/package.json`).
 - Self-update needs a clean app folder: local code edits block it (discard them: `git checkout -- .`; a local commit
   blocks it too). If git reports "dubious ownership", the update dialog shows the `git config --global --add safe.directory` command.
+- **Windows, updating from 1.2.0 or older:** the update is restarted by the old version's code, which can fail silently
+  there. If the update screen does not change for a minute, close the window and start Lecture Studio from the shortcut —
+  it finishes the update. From 1.2.1 on, the restart goes through the shortcut's own path.
 - One processing job at a time (Whisper and FFmpeg saturate the machine anyway); others wait in a queue.
 - The default AI instructions are written in Russian; the audit is written in the lecture's language.
   Change them in Settings → Instructions.

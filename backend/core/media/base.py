@@ -23,6 +23,15 @@ def ffmpeg_available() -> bool:
     return bool(shutil.which("ffmpeg") and shutil.which("ffprobe"))
 
 
+@lru_cache(maxsize=8)
+def has_encoder(name: str) -> bool:
+    """Whether this FFmpeg build has an encoder (e.g. h264_nvenc: present in Gyan/BtbN builds, absent in some others)."""
+    if not ffmpeg_available():
+        return False
+    proc = subprocess.run(["ffmpeg", "-hide_banner", "-encoders"], capture_output=True, text=True, encoding="utf-8", errors="replace")
+    return any(line.split()[1:2] == [name] for line in proc.stdout.splitlines() if line.strip())
+
+
 def verify_ffmpeg() -> None:
     if not ffmpeg_available():
         raise RuntimeError("FFmpeg/FFprobe не найдены в PATH. Установите: brew install ffmpeg")

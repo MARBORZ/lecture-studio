@@ -1316,6 +1316,11 @@ export interface components {
              */
             video_saved_percent: number;
             /**
+             * Video Encoder
+             * @default
+             */
+            video_encoder: string;
+            /**
              * Av Drift Sec
              * @default 0
              */

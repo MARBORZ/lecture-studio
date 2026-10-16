@@ -140,6 +140,9 @@ refuses while busy), starts the remover directly when nothing runs, and refuses 
 - **Compute** (`core/compute.py`): `probe()` — what the machine has (NVIDIA CUDA through torch, the Apple GPU through MLX,
   cores via `utils/proc.py`, the Windows launcher's `state/compute.json`); `plan(preference, cpu_threads)` — `cuda` / `apple` /
   `cpu` with threads and, for the CPU, the reason. Any local model asks the same plan.
+- **Video encoder** (`core/media/video.py:pick_encoder`): `nvenc` (h264_nvenc, constant quality `-cq` = the CRF number,
+  spatial/temporal AQ for text) when the compute plan is `cuda` and the FFmpeg build has it, else `x264`. NVENC errors
+  re-encode with x264; `JobStats.video_encoder` records which one made the file. VideoToolbox is not used (measured worse).
 - **Engines** (`core/transcription/engines.py`): one interface, `FasterWhisperEngine` (CUDA float16 / CPU int8, N threads;
   on Windows `torch/lib` is added to the DLL path for cuBLAS/cuDNN) and `MlxWhisperEngine` (Apple GPU, 5-minute windows for
   progress and cancel). A new engine is a subclass in `ENGINES`. `whisper.transcribe(plan=…)` runs the plan's engine; a GPU

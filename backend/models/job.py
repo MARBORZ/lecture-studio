@@ -37,6 +37,7 @@ class JobStats(BaseModel):
     orig_video_size_mb: float = 0.0
     clean_video_size_mb: float = 0.0
     video_saved_percent: float = 0.0
+    video_encoder: str = ""  # x264 | nvenc
     av_drift_sec: float = 0.0
 
 
