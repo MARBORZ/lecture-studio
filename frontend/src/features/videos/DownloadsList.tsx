@@ -1,6 +1,6 @@
 import { ArrowRight, FileVideo, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { api } from '@/api/client'
 import type { DownloadedVideo } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
@@ -88,7 +88,7 @@ export function UnusedDownloads() {
     <section className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="label-caps">{t('studio.unusedDownloads', { n: data.total })}</h3>
-        <a href="/videos?tab=downloads" className="text-[12px] text-muted hover:text-fg">{t('studio.allDownloads')}</a>
+        <Link to="/videos?tab=downloads" className="text-[12px] text-muted hover:text-fg">{t('studio.allDownloads')}</Link>
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
         {data.items.map((d) => (

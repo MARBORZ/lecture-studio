@@ -1,5 +1,6 @@
 import { Link2, MonitorPlay, Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { api } from '@/api/client'
 import type { VideoItem } from '@/api/types'
 import { useJobs, useUI } from '@/app/AppProvider'
@@ -26,7 +27,10 @@ export function VideosPage() {
   const [asked, setAsked] = useState({ q: '', page: 1, more: true })
   const [loadingMore, setLoadingMore] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
-  const [tab, setTab] = useState<'search' | 'downloads'>(() => (new URLSearchParams(window.location.search).get('tab') === 'downloads' ? 'downloads' : 'search'))
+  // the tab lives in the URL (?tab=downloads): a link from the Studio opens it, back/forward keep it
+  const [params, setParams] = useSearchParams()
+  const tab: 'search' | 'downloads' = params.get('tab') === 'downloads' ? 'downloads' : 'search'
+  const setTab = (v: 'search' | 'downloads') => setParams(v === 'search' ? {} : { tab: v }, { replace: true })
   const [opening, setOpening] = useState(false)
   const downloads = jobs.filter((j) => j.kind === 'download')
 
