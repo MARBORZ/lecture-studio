@@ -7,7 +7,7 @@ import { useJobs, useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { Appear } from '@/components/motion'
 import { Button, Card, EmptyState, Field, Input, Page, PageHeader, Progress, Segmented, Select, Switch } from '@/components/ui'
-import { FALLBACK_DEFAULTS, PipelineOptionsFields } from '@/features/jobs/PipelineOptionsFields'
+import { FALLBACK_DEFAULTS, PipelineOptionsFields, resultLine } from '@/features/jobs/PipelineOptionsFields'
 import { JobList, type StudioHandoff } from '@/features/jobs/JobList'
 import { KeyNotice, PROVIDER_NAME } from '@/features/system/KeyNotice'
 import { cn } from '@/lib/cn'
@@ -227,15 +227,6 @@ export function StudioPage() {
       </div>
     </Page>
   )
-}
-
-function resultLine(o: Opts, t: ReturnType<typeof useUI>['t']): string {
-  const parts = [o.video === 'original' ? t('studio.res.original') : o.cut_silence ? t('studio.res.audio') : t('studio.res.audioFull')]
-  if (o.video === 'clean') parts.push(t('studio.res.video'))
-  if (o.video === 'compressed') parts.push(t('studio.res.videoCompressed'))
-  if (o.transcriber !== 'none') parts.push(t('studio.res.transcript'))
-  if (o.audit !== 'none') parts.push(o.audit_source === 'video' ? t('studio.res.auditVideo') : t('studio.res.audit'))
-  return parts.join(' · ')
 }
 
 /** "Pauses cut · Whisper · audit DeepSeek" — what each step will do. */
