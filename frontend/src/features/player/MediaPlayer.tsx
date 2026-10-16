@@ -201,6 +201,8 @@ export function MediaPlayer() {
   const videoUrl = usePlayer((s) => s.videoUrl)
   const display = usePlayer((s) => s.display)
   const focusKey = useHotkeyLabel('lesson.focus')
+  const mode = usePlayer((s) => (s.mode === 'video' && s.videoUrl ? 'video' : 'audio'))
+  const title = usePlayer((s) => s.title)
 
   // hotkeys belong to the page only while the video is on the page; a window binds its own
   usePlayerHotkeys(window, display === 'inline')
@@ -219,7 +221,21 @@ export function MediaPlayer() {
   return (
     <div ref={boxRef} className={cn('flex flex-col gap-3', fullscreen && 'h-full bg-bg p-6')}>
       {display === 'inline' ? (
-        <PlayerSurface className={fullscreen ? 'min-h-0 flex-1' : 'aspect-video rounded-xl border border-line'} />
+        <>
+          <PlayerSurface className={fullscreen ? 'min-h-0 flex-1' : 'aspect-video rounded-xl border border-line'} />
+          {/* sound only: a box of the same size takes the video's place, so the controls stay where they were */}
+          {mode === 'audio' && (
+            <button
+              type="button"
+              onClick={() => player.toggle()}
+              aria-label={title}
+              className="flex aspect-video w-full flex-col items-center justify-center gap-3 rounded-xl border border-line bg-surface text-muted transition-colors hover:text-soft"
+            >
+              <Icon as={AudioLines} size={28} />
+              <span className="max-w-[80%] truncate text-[13px]">{title}</span>
+            </button>
+          )}
+        </>
       ) : (
         <div className="flex aspect-video flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-line-strong text-center">
           <Icon as={PictureInPicture2} size={22} className="text-muted" />

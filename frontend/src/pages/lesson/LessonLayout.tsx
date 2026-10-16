@@ -172,9 +172,10 @@ export function LessonLayout() {
           style={{ ['--player-w' as string]: `${playerWidth}%` }}
           // @container: paddings and the player bar follow this column's width (the splitter changes it), not the window's.
           // Container queries reach descendants only, so the paddings live on the inner wrapper.
-          className="@container shrink-0 lg:w-[var(--player-w)] lg:overflow-y-auto"
+          className={cn('@container shrink-0 lg:w-[var(--player-w)] lg:overflow-y-auto', focusMode && 'flex flex-col')}
         >
-          <div className="flex flex-col gap-5 p-4 @md:p-6 @2xl:p-8">
+          {/* focus mode: only the player is left, centred in the column instead of pinned to its top */}
+          <div className={cn('flex flex-col gap-5 p-4 @md:p-6 @2xl:p-8', focusMode && 'min-h-full justify-center')}>
           {lesson ? <MediaPlayer /> : <SkeletonPlayer />}
           {lesson && <AskFromMoment lessonId={lesson.id} segments={lesson.segments ?? []} />}
           <AnimatePresence initial={false}>
