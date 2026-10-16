@@ -22,6 +22,7 @@ dependencies = [
     "google-genai>=1.0",
     "pypdf>=5.0",
     "mlx-whisper>=0.4 ; platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "yt-dlp>=2025.1",
 ]
 
 [project.optional-dependencies]

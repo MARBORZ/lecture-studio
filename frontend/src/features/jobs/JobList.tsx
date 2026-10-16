@@ -11,6 +11,12 @@ import { cn } from '@/lib/cn'
 import { formatDuration } from '@/lib/format'
 import { collapse, fade } from '@/lib/motion'
 
+/** What a finished download hands to the Studio (router state): the file on disk and the lesson title. */
+export interface StudioHandoff {
+  path: string
+  title: string
+}
+
 /** Finished jobs shown before "show all". */
 const RECENT = 3
 
@@ -100,6 +106,15 @@ function JobRow({ job }: { job: Job }) {
             disabled={job.cancel_requested}
             onClick={() => api.cancelJob(job.id).catch((e) => toast(e.message, 'error'))}
           />
+        ) : job.status === 'completed' && job.kind === 'download' && job.media_path ? (
+          <Link
+            to="/studio"
+            state={{ path: job.media_path, title: job.title } satisfies StudioHandoff}
+            className="flex h-7 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-fg hover:bg-hover"
+          >
+            {t('videos.toStudio')}
+            <Icon as={ArrowRight} size={14} />
+          </Link>
         ) : job.status === 'completed' && job.lesson_id ? (
           <Link to={`/lessons/${job.lesson_id}/notes`} title={t('studio.openLesson')} aria-label={t('studio.openLesson')} className="flex size-7 items-center justify-center rounded-md text-soft hover:bg-hover hover:text-fg">
             <Icon as={ArrowRight} size={15} />

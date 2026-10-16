@@ -41,6 +41,10 @@ API: `http://127.0.0.1:3000`, and the same server on `:5173`, where the app wind
 | PUT | `/api/uploads/{filename}` | streamed upload into `temp/` (body = file bytes) |
 | POST | `/api/jobs` | start: `{options, upload_id?}` or `options.local_path`; `400` at once for unreadable media or no sound track; `429` when the queue is full (`settings.queue_limit`, also for `/audit` and `/transcribe`) |
 | GET | `/api/jobs`, `/api/jobs/{id}` | jobs |
+| GET | `/api/videos/search?q` | YouTube search through yt-dlp (20 results: id, title, channel, duration, views, thumbnail) |
+| GET | `/api/videos/info?url` | one video by link or id: title, channel, date, description |
+| POST | `/api/videos/download` | download a video (up to 1080p) as a queued, cancellable job; the file goes to `downloads/` for the Studio |
+| GET / POST | `/api/videos/downloader`, `/api/videos/downloader/update` | yt-dlp version / update it in place |
 | GET | `/api/jobs/stream` | SSE: the full job list on every change |
 | POST | `/api/jobs/{id}/cancel` | cancel |
 | GET | `/api/assistant/{project\|lesson}/{id}?session&provider&sources` | the session (active by default), the session list, session files, context usage for the next question |

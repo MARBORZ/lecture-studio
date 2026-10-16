@@ -11,8 +11,8 @@ from backend.models.project import INBOX_ID
 from backend.settings.schema import PipelineDefaults
 
 JobStatus = Literal["pending", "processing", "completed", "error", "cancelled"]
-JobKind = Literal["process", "audit"]
-Stage = Literal["queued", "extract", "vad", "audio", "video", "transcribe", "audit", "save", "done"]
+JobKind = Literal["process", "audit", "download"]
+Stage = Literal["queued", "download", "extract", "vad", "audio", "video", "transcribe", "audit", "save", "done"]
 
 ACTIVE_STATUSES = ("pending", "processing")
 
@@ -54,6 +54,7 @@ class Job(BaseModel):
     warning: str | None = None
     stats: JobStats | None = None
     lesson_id: str | None = None
+    media_path: str | None = None  # a download: the saved file, for the Studio
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
     finished_at: str | None = None
     cancel_requested: bool = False

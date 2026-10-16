@@ -61,6 +61,15 @@ def terminate(pids: Iterable[int], timeout: float = 3.0) -> None:
             pass
 
 
+def terminate_tree(pid: int, timeout: float = 3.0) -> None:
+    """A process with everything it started (yt-dlp and its ffmpeg)."""
+    try:
+        children = {c.pid for c in psutil.Process(pid).children(recursive=True)}
+    except psutil.Error:
+        children = set()
+    terminate({pid, *children}, timeout)
+
+
 def stop_self() -> None:
     """Ask uvicorn (this process) for a graceful shutdown so lifespan cleanup runs."""
     if sys.platform == "win32":

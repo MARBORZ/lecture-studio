@@ -4,6 +4,7 @@ import { DiaryPage } from '@/pages/DiaryPage'
 import { LibraryPage } from '@/pages/LibraryPage'
 import { NotebookChatPage } from '@/pages/NotebookChatPage'
 import { NotFound, RouteError } from '@/pages/NotFound'
+import { VideosPage } from '@/pages/VideosPage'
 import { StudioPage } from '@/pages/StudioPage'
 import { LessonLayout } from '@/pages/lesson/LessonLayout'
 import { LessonAssistant, LessonFiles, LessonNotes, LessonTranscript } from '@/pages/lesson/tabs'
@@ -38,6 +39,7 @@ export const router = createBrowserRouter([
         ],
       },
       { path: 'studio', element: <StudioPage /> },
+      { path: 'videos', element: <VideosPage /> },
       { path: 'diary', element: <DiaryPage /> },
       { path: 'diary/:category', element: <DiaryPage /> },
       {

@@ -204,6 +204,18 @@ and the `tsconfig`s (git clones, GitHub ZIPs, every update); `setups/macos/build
 from the same HEAD it packs, marked `frontend/dist/.prebuilt`. With that marker Setup and the launcher skip Node.js
 entirely. Development keeps Vite (`npm run dev`) with its proxy to 3000.
 
+## Videos
+
+`services/videos.py` + `routes/videos.py`, the page is `pages/VideosPage.tsx` (sidebar → Videos). Only YouTube for
+now. Everything goes through yt-dlp on this computer (a Python dependency in `uv.lock`), run as `python -m yt_dlp` in a
+child process: an updated yt-dlp is used at once, a cancel stops it and its ffmpeg, progress is read line by line.
+Search is yt-dlp's `ytsearch20` (no Google keys); thumbnails and the embedded player (`youtube-nocookie.com`) load in
+the browser straight from YouTube, the server only searches and downloads. A download is a job of its own (kind
+`download`, stage `download`) in the common queue and its limit, on its own worker (network, not CPU), into
+`paths().downloads`; the Studio then makes a lesson of the file like of any file on disk, with the title filled in.
+The first download asks once to confirm the rights notice (kept in settings). YouTube breaks yt-dlp often: Settings →
+Processing shows its version and updates it in place.
+
 ## Feedback
 
 `services/feedback.py` + `routes/feedback.py`, the form is `features/feedback/Feedback.tsx` (sidebar). A report is a

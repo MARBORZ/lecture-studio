@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 
 from backend.api.frontend import FrontendRoute
 from backend.api.guard import LOCAL_HOSTS, LocalOriginWrites
-from backend.api.routes import assistant, diary, feedback, jobs, lessons, projects, settings, system
+from backend.api.routes import assistant, diary, feedback, jobs, lessons, projects, settings, system, videos
 from backend.config import APP_NAME, APP_VERSION, FRONTEND_ORIGINS, PID_FILE
 from backend.core.media import ffmpeg_available
 from backend.services import updates
@@ -75,7 +75,7 @@ def create_app() -> FastAPI:
     app.add_middleware(LocalOriginWrites)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=LOCAL_HOSTS)  # added last = runs first
 
-    for module in (system, settings, projects, lessons, jobs, assistant, diary, feedback):
+    for module in (system, settings, projects, lessons, jobs, assistant, diary, feedback, videos):
         app.include_router(module.router)
     app.router.routes.append(FrontendRoute())  # last: every API route and /docs come first
 
