@@ -1,6 +1,7 @@
 // Readable long-form notes: measured line length, clear hierarchy, quiet tables and code.
 
 .md {
+  overflow-wrap: anywhere; /* long words and links break inside the column (code blocks scroll instead) */
   --md-measure: 72ch;
   color: var(--color-soft);
   font-size: calc(15px * var(--text-scale)); // Settings → Interface → Text size; everything inside is em-based
