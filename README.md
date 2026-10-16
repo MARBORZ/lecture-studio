@@ -41,7 +41,10 @@ It was built for one person's programming courses and is shared as is: no roadma
 2. Open **`setups`**, then your system: **`macos`** or **`windows`**.
 3. Run **Setup** (`Setup.cmd` on Windows). On a Mac, the first time: right-click → Open, the app is not notarized.
 
-Setup installs what is missing (uv, Node.js, FFmpeg; Homebrew on a Mac), takes 5–15 minutes and puts
+On a Mac you can also take **Lecture-Studio-Setup.zip** from [Releases](https://github.com/MARBORZ/lecture-studio/releases):
+its interface is already built, so Node.js is not needed.
+
+Setup installs what is missing (uv, FFmpeg, Node.js to build the interface; Homebrew on a Mac), takes 5–15 minutes and puts
 **Lecture Studio** on your Desktop. It speaks Russian on a Russian system and English everywhere else.
 
 Then open the app, paste a **DeepSeek** and/or **Gemini** API key in **Settings → AI**, and drop a recording into the **Studio**.

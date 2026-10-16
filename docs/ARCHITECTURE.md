@@ -150,9 +150,11 @@ untracked files are never touched. Then:
 
 1. the API writes `state/update.json` (`from_sha`, versions) and runs `git merge --ff-only vX.Y.Z`;
 2. it starts the launcher detached in update mode (`start.zsh update`, `start.ps1 -Mode update`) and gets stopped by it;
-3. the launcher syncs dependencies if lock files changed and starts everything, keeping the app window;
-4. if the API or UI does not come up (a dead API process fails at once), it runs `git reset --keep <from_sha>`
-   and starts again in rollback mode;
+3. the launcher syncs dependencies if lock files changed, rebuilds the interface if its sources changed and starts the
+   server, keeping the app window;
+4. if a dependency sync or the interface build fails, or the server does not come up (a dead process fails at once), it
+   runs `git reset --keep <from_sha>` and starts again in rollback mode. The build goes to `frontend/dist.next` and
+   replaces `dist` only when it succeeded, so the rollback pass finds the previous interface in place;
 5. the starting API compares `update.json` with its version and reports the outcome; the launcher deletes the file.
 
 6. if the launcher never starts (antivirus, policy), the old server is still alive 15 s later and `launcher.log` was not
@@ -160,7 +162,8 @@ untracked files are never touched. Then:
 
 On Windows the launcher is started like the shortcut, `wscript start.vbs update` (and `rollback`): a hidden detached
 `powershell.exe` spawned by Python is the pattern Defender kills silently. The installer and the launcher judge `npm ci`
-by its result (`node_modules\vite` exists), not by its exit code, which `cmd /c npm` reports wrongly on Windows.
+and `npm run build` by their result (`node_modules\vite`, `dist.next\index.html` exist), not by the exit code, which
+`cmd /c npm` reports wrongly on Windows.
 Both check Node.js against the range Vite 8 accepts (`^20.19.0 || >=22.12.0`; `Update-Node` in `common.ps1`, `node_ok` in
 the macOS scripts, `tests/test_node_check.py`): the installers upgrade an older one once, the Windows launcher too
 (`winget upgrade`), the macOS launcher says `brew upgrade node`.
@@ -170,6 +173,23 @@ Installs without `.git` (the release zip) are told about a new release and get a
 Which release is newer is decided by the version number only; the tag date (`released_at`, `current_released_at`) is
 shown next to it. All subprocess output is decoded as UTF-8 explicitly (an architecture test enforces it): with the
 locale default Windows read git and ffprobe output as cp1252.
+
+## Serving the interface
+
+One server process (`backend/serve.py`) listens on two ports with the same app: **5173** is the app window's origin
+(the built UI from `frontend/dist` plus `/api`), **3000** is the API for the launchers, the stop scripts and
+`npm run dev`. The UI port is the one Vite used to serve, on purpose: localStorage (player positions, bookmarks, theme,
+sidebar state) belongs to the origin, so installs that ran the Vite UI keep all of it, with no migration.
+
+`api/frontend.py` answers every GET outside `/api`: a file of `dist` (`/assets/*` hashed, `immutable`; others
+`no-cache`), a missing file is 404, any other path gets `index.html` (`no-cache`) for the React router. Unknown `/api/…`
+stays the API's JSON 404. The Host and Origin guards (`api/guard.py`) sit in front of both. `.js`/`.css`/`.svg` types
+are registered explicitly: Windows can map `.js` to `text/plain` in the registry, and browsers refuse such module scripts.
+
+Who builds `dist`: the launcher, by fingerprint of `frontend/src`, `public`, `index.html`, `package*.json`, `vite.config.ts`
+and the `tsconfig`s (git clones, GitHub ZIPs, every update); `setups/macos/build-setup.zsh` for the release Setup.zip,
+from the same HEAD it packs, marked `frontend/dist/.prebuilt`. With that marker Setup and the launcher skip Node.js
+entirely. Development keeps Vite (`npm run dev`) with its proxy to 3000.
 
 ## Feedback
 
