@@ -24,7 +24,7 @@ export function VideosPage() {
   const [results, setResults] = useState<VideoItem[] | null>(null)
   const [searching, setSearching] = useState(false)
   // more results: the next page is asked for when the end of the grid comes into view (or by the button)
-  const [asked, setAsked] = useState({ q: '', page: 1, more: true })
+  const [asked, setAsked] = useState({ q: '', page: 1, more: true, failed: false })
   const [loadingMore, setLoadingMore] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
   // the tab lives in the URL (?tab=downloads): a link from the Studio opens it, back/forward keep it
@@ -43,7 +43,7 @@ export function VideosPage() {
     try {
       const first = await api.searchVideos(q, 1)
       setResults(first)
-      setAsked({ q, page: 1, more: first.length > 0 })
+      setAsked({ q, page: 1, more: first.length > 0, failed: false })
     } catch (e) {
       toast((e as Error).message, 'error')
     } finally {
@@ -51,8 +51,8 @@ export function VideosPage() {
     }
   }
 
-  const loadMore = async () => {
-    if (loadingMore || !asked.more || !asked.q) return
+  const loadMore = async (retry = false) => {
+    if (loadingMore || !asked.more || (asked.failed && !retry) || !asked.q) return
     setLoadingMore(true)
     try {
       const next = await api.searchVideos(asked.q, asked.page + 1)
@@ -60,10 +60,10 @@ export function VideosPage() {
         const seen = new Set((r ?? []).map((v) => v.id))
         return [...(r ?? []), ...next.filter((v) => !seen.has(v.id))]
       })
-      setAsked((a) => ({ ...a, page: a.page + 1, more: next.length > 0 }))
+      setAsked((a) => ({ ...a, page: a.page + 1, more: next.length > 0, failed: false }))
     } catch (e) {
       toast((e as Error).message, 'error')
-      setAsked((a) => ({ ...a, more: false }))
+      setAsked((a) => ({ ...a, failed: true })) // no endless retries by scrolling: the button below asks again
     } finally {
       setLoadingMore(false)
     }
@@ -153,10 +153,15 @@ export function VideosPage() {
               {results.map((v) => <VideoCard key={v.id} video={v} onOpen={() => open(v)} />)}
             </div>
             <div ref={endRef} className="flex justify-center">
-              {asked.more ? (
-                <Button variant="ghost" loading={loadingMore} onClick={() => void loadMore()}>{t('videos.more')}</Button>
-              ) : (
+              {/* the next page loads by itself near the end: this only says so (or offers a retry after a failure) */}
+              {asked.failed ? (
+                <Button variant="ghost" onClick={() => void loadMore(true)}>{t('videos.retryMore')}</Button>
+              ) : loadingMore ? (
+                <span className="animate-pulse-soft text-[12.5px] text-muted">{t('videos.loadingMore')}</span>
+              ) : !asked.more ? (
                 <span className="text-[12px] text-dim">{t('videos.noMore')}</span>
+              ) : (
+                <span className="h-6" />
               )}
             </div>
           </div>
