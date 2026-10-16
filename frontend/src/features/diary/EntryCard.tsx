@@ -1,16 +1,19 @@
-import { Check, ChevronRight, FolderInput, Trash2 } from 'lucide-react'
+import { Check, ChevronDown, FolderInput, Trash2 } from 'lucide-react'
 import { memo, useEffect, useRef, useState } from 'react'
 import { api } from '@/api/client'
 import type { DiaryCategory, DiaryEntry } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
+import { AnimatePresence, m } from '@/components/motion'
 import { IconButton, MenuItem, Popover } from '@/components/ui'
 import { MarkdownView } from '@/features/markdown/MarkdownView'
 import { cn } from '@/lib/cn'
 import { formatDateTime } from '@/lib/format'
+import { collapse } from '@/lib/motion'
+import { ModeSwitch, rowsFor, SplitEditor, type DiaryMode } from './modes'
 
 const AUTOSAVE_MS = 700
-const LONG_CHARS = 700 // longer entries open as a preview with "show all"
+const LONG_CHARS = 900 // longer entries open as a preview with "show all"
 
 /** The inbox category (listed first) is a folder named in Russian on disk: shown in the interface language. */
 export function useCategoryLabel(categories: DiaryCategory[]) {
@@ -19,11 +22,16 @@ export function useCategoryLabel(categories: DiaryCategory[]) {
   return (name: string) => (name === inbox ? t('diary.inbox') : name)
 }
 
-/** One diary entry: rendered Markdown; click to edit in place with autosave. */
+/**
+ * One diary entry in the diary's mode (modes.tsx), which the card can switch for itself:
+ * hybrid — rendered, a click opens the source with its live render; view — rendered only; edit — the source only.
+ * Edits save themselves a moment after typing stops, and when the editor closes.
+ */
 export const EntryCard = memo(function EntryCard({
   entry,
   categories,
   showCategory,
+  mode: diaryMode,
   onChanged,
   onRemoved,
   folded,
@@ -32,6 +40,7 @@ export const EntryCard = memo(function EntryCard({
   entry: DiaryEntry
   categories: DiaryCategory[]
   showCategory: boolean
+  mode: DiaryMode
   onChanged: (entry: DiaryEntry, oldId: string) => void
   onRemoved: (id: string) => void
   folded: boolean
@@ -39,13 +48,18 @@ export const EntryCard = memo(function EntryCard({
 }) {
   const { t, lang, toast, confirm } = useUI()
   const label = useCategoryLabel(categories)
-  const [editing, setEditing] = useState(false)
+  // the card's own mode follows the diary's until the card is switched by hand
+  const [own, setOwn] = useState<{ base: DiaryMode; mode: DiaryMode } | null>(null)
+  const mode = own && own.base === diaryMode ? own.mode : diaryMode
+  const [open, setOpen] = useState(false) // hybrid: the editor is open
+  const editing = mode === 'edit' || (mode === 'hybrid' && open)
   const [draft, setDraft] = useState(entry.text)
   const [saving, setSaving] = useState(false)
   const [full, setFull] = useState(false)
   const long = entry.text.length > LONG_CHARS
   const lastSaved = useRef(entry.text)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const cardRef = useRef<HTMLElement>(null)
 
   const save = async (text: string) => {
     if (text.trim() === lastSaved.current.trim() || !text.trim()) return
@@ -69,66 +83,84 @@ export const EntryCard = memo(function EntryCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft, editing])
 
+  const startEditing = () => {
+    setDraft(lastSaved.current)
+    setOpen(true)
+  }
   const finish = () => {
     clearTimeout(timer.current)
     void save(draft)
-    setEditing(false)
+    setOpen(false)
+  }
+  const switchMode = (next: DiaryMode) => {
+    if (editing) finish()
+    setDraft(lastSaved.current)
+    setOwn({ base: diaryMode, mode: next })
+  }
+  // the hybrid editor closes when focus leaves the card (not when it moves from the text to the render)
+  const onBlur = (e: React.FocusEvent) => {
+    if (mode === 'hybrid' && open && !cardRef.current?.contains(e.relatedTarget as Node | null)) finish()
   }
 
+  const body = folded ? null : mode === 'edit' ? (
+    <textarea
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => void save(draft)}
+      rows={rowsFor(draft, 3, 24)}
+      aria-label={t('diary.mode.edit')}
+      className="read-14 max-h-[60vh] w-full resize-none overflow-y-auto bg-transparent px-5 py-4 font-mono leading-relaxed text-fg focus:outline-none"
+    />
+  ) : editing ? (
+    <SplitEditor value={draft} onChange={setDraft} autoFocus onKeyDown={(e) => e.key === 'Escape' && finish()} />
+  ) : (
+    <div
+      role={mode === 'hybrid' ? 'button' : undefined}
+      tabIndex={mode === 'hybrid' ? 0 : undefined}
+      title={mode === 'hybrid' ? t('diary.clickToEdit') : undefined}
+      onClick={mode === 'hybrid' ? startEditing : undefined}
+      onKeyDown={mode === 'hybrid' ? (e) => e.key === 'Enter' && startEditing() : undefined}
+      className={cn('relative px-5 py-4', mode === 'hybrid' && 'cursor-text', long && !full && 'max-h-80 overflow-hidden')}
+    >
+      <MarkdownView content={entry.text} compact className="read-15" />
+      {long && !full && <span className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-surface to-transparent" />}
+    </div>
+  )
+
   return (
-    <article className={cn('group rounded-xl border bg-surface transition-colors', editing ? 'border-line-strong' : 'border-line hover:border-line-strong')}>
-      {folded && !editing ? (
-        <button type="button" onClick={() => onFold(false)} className="flex w-full items-center gap-2 px-5 py-3 text-left">
-          <Icon as={ChevronRight} size={14} className="shrink-0 text-dim" />
-          <span className="read-14 min-w-0 flex-1 truncate text-soft">{entry.title || '…'}</span>
-        </button>
-      ) : editing ? (
-        <textarea
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={finish}
-          onKeyDown={(e) => e.key === 'Escape' && finish()}
-          rows={Math.min(24, Math.max(4, draft.split('\n').length + 1))}
-          // bounded: a long entry scrolls inside the field instead of pushing the page ever deeper
-          className="max-h-[60vh] w-full resize-none overflow-y-auto rounded-xl bg-transparent px-5 py-4 font-mono read-13 leading-relaxed text-fg focus:outline-none"
-        />
-      ) : (
-        <div
-          role="button"
-          tabIndex={0}
+    <article
+      ref={cardRef}
+      onBlur={onBlur}
+      className={cn('group rounded-2xl border bg-surface transition-colors', editing ? 'border-line-strong' : 'border-line hover:border-line-strong')}
+    >
+      <header className="flex items-center gap-2 px-3 pt-2.5 pb-1">
+        <button
+          type="button"
           onClick={() => {
-            setDraft(lastSaved.current)
-            setEditing(true)
+            if (open && !folded) finish()
+            onFold(!folded)
           }}
-          onKeyDown={(e) => e.key === 'Enter' && setEditing(true)}
-          className={cn('relative cursor-text px-5 py-4', long && !full && 'max-h-72 overflow-hidden')}
+          aria-expanded={!folded}
+          aria-label={folded ? t('diary.unfold') : t('diary.fold')}
+          title={folded ? t('diary.unfold') : t('diary.fold')}
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1 text-left hover:bg-hover"
         >
-          <MarkdownView content={entry.text} compact />
-          {long && !full && <span className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-surface to-transparent" />}
-        </div>
-      )}
-      <footer className="flex items-center gap-3 border-t border-line px-5 py-2 text-[11.5px] text-dim">
-        {!editing && (
-          <button type="button" onClick={() => onFold(!folded)} aria-label={folded ? t('diary.unfold') : t('diary.fold')} title={folded ? t('diary.unfold') : t('diary.fold')} className="-ml-1 rounded p-0.5 hover:text-fg">
-            <Icon as={ChevronRight} size={13} className={cn('transition-transform duration-200', !folded && 'rotate-90')} />
-          </button>
-        )}
-        <span className="font-mono">{formatDateTime(entry.created_at, lang)}</span>
-        {long && !folded && !editing && (
-          <button type="button" onClick={() => setFull(!full)} className="hover:text-fg">{full ? t('diary.showLess') : t('diary.showAll')}</button>
-        )}
-        {showCategory && <span className="truncate">· {label(entry.category)}</span>}
-        {editing && <span className="truncate">{saving ? t('diary.saving') : t('diary.editHint')}</span>}
-        <div className="flex-1" />
-        {/* stays visible while the menu is open: the pointer may leave the card for the menu */}
-        <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
+          <Icon as={ChevronDown} size={14} className={cn('shrink-0 text-dim transition-transform duration-200', folded && '-rotate-90')} />
+          <span className="truncate text-[12.5px] text-muted">{formatDateTime(entry.created_at, lang)}</span>
+          {showCategory && <span className="shrink-0 rounded-md border border-line px-1.5 py-px text-[11.5px] text-soft">{label(entry.category)}</span>}
+          {folded && <span className="read-14 min-w-0 truncate text-soft">{entry.title || '…'}</span>}
+        </button>
+        {editing && <span className="shrink-0 text-[11.5px] text-dim">{saving ? t('diary.saving') : mode === 'edit' ? t('diary.autosave') : t('diary.editHint')}</span>}
+        {/* visible at rest but quiet; stays visible while the menu is open (the pointer may leave the card for it) */}
+        <div className="flex shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100">
+          <ModeSwitch value={mode} onChange={switchMode} />
+          <span className="mx-1 h-4 w-px bg-line" />
           {/* upwards: the next card would cover a menu opening down; a long list scrolls inside */}
           <Popover
             side="top"
             align="end"
             className="max-h-72 overflow-y-auto"
-            trigger={({ open, toggle }) => <IconButton icon={FolderInput} size="sm" label={t('diary.move')} active={open} aria-expanded={open} onClick={toggle} />}
+            trigger={({ open: menu, toggle }) => <IconButton icon={FolderInput} size="sm" label={t('diary.move')} active={menu} aria-expanded={menu} onClick={toggle} />}
           >
             {(close) =>
               categories.map((c) => {
@@ -165,7 +197,21 @@ export const EntryCard = memo(function EntryCard({
             }}
           />
         </div>
-      </footer>
+      </header>
+      <AnimatePresence initial={false}>
+        {body && (
+          <m.div key="body" variants={collapse} initial="hidden" animate="show" exit="exit" className="overflow-hidden">
+            {body}
+            {long && !editing && (
+              <div className="px-5 pb-3">
+                <button type="button" onClick={() => setFull(!full)} className="text-[12px] font-medium text-muted hover:text-fg">
+                  {full ? t('diary.showLess') : t('diary.showAll')}
+                </button>
+              </div>
+            )}
+          </m.div>
+        )}
+      </AnimatePresence>
     </article>
   )
 })
