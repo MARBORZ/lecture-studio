@@ -179,7 +179,10 @@ export const api = {
   compactSession: (kind: ThreadKind, id: string, sid: string, view: ThreadView) =>
     request<Thread>('POST', `${threadUrl(kind, id)}/sessions/${sid}/compact`, { provider: view.provider, sources: view.sources ?? null }),
   deleteSession: (kind: ThreadKind, id: string, sid: string) => request<{ ok: boolean }>('DELETE', `${threadUrl(kind, id)}/sessions/${sid}`),
-  uploadAttachment: (file: File, onProgress: (fraction: number) => void) =>
-    putFile<Attachment>(`/api/assistant/attachments/${encodeURIComponent(file.name)}`, file, onProgress),
+  /** Straight into the session's folder: kept there even if never sent. */
+  uploadAttachment: (file: File, session: string, onProgress: (fraction: number) => void) =>
+    putFile<Attachment>(`/api/assistant/attachments/${encodeURIComponent(file.name)}${qs({ session })}`, file, onProgress),
+  /** A draft chip removed: the server keeps the file if a sent message holds it. */
+  removeAttachment: (id: string, session: string) => request<{ ok: boolean }>('DELETE', `/api/assistant/attachments/${id}${qs({ session })}`),
   attachmentUrl: (id: string) => `/api/assistant/attachments/${id}/file`,
 }

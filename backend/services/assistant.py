@@ -81,7 +81,8 @@ def ask(kind: ThreadKind, thread_id: str, req: AskRequest) -> Thread:
     if context_window.needs_compaction(session, window):
         context_window.compact(provider, session, window)
 
-    new_files = [a for a in (attachment_store.get(i) for i in req.attachments) if a]
+    # this question's files: new uploads, or files of this session attached again (another session's are not found)
+    new_files = [a for a in (attachment_store.get(i, session.id) for i in req.attachments) if a]
     multi = kind == "project"
     request = context_window.build(
         provider_name=name, window=window, vision=provider.can_see_images, sources=sources, session=session,
@@ -90,6 +91,7 @@ def ask(kind: ThreadKind, thread_id: str, req: AskRequest) -> Thread:
     answer = _clean_citations(answer, sources) if multi else normalize_timecodes(answer, sources[0].clean_duration_sec or None)
 
     source_ids = [s.id for s in sources]
+    new_files = [attachment_store.adopt(a, session.id) for a in new_files]  # uploads join the session's folder
     session.messages += [
         ChatMessage(id=uuid.uuid4().hex[:10], role="user", content=question, sources=source_ids, attachments=new_files, assistant_role=req.role),
         ChatMessage(

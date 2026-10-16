@@ -1,22 +1,28 @@
 """
-Assistant chat sessions, stored in notebook_db.json under threads["<kind>:<id>"]:
+Assistant chat sessions. Each session is a folder of its own, paths().sessions/<session id>/:
 
-    {"active": "<session id>", "sessions": [ChatSession, ...]}
+    context/session.json    everything written in the session (ChatSession) and the thread it belongs to
+    local_session_src/      its files (services/attachments.py): kept from the moment they are added
 
-A thread (one lesson, one notebook) holds any number of sessions — branches like in Claude Code: a fresh session starts
-with an empty history and its own files. Older databases kept a plain list of messages per thread; it is read as one
-session and written back in the new shape on the next change.
+notebook_db.json keeps only the index: threads["<kind>:<id>"] = {"active": "<session id>", "sessions": ["<id>", ...]}.
+A thread (one lesson, one notebook) holds any number of sessions, branches like in Claude Code: a fresh session starts
+with an empty history and no files. Older databases kept the sessions themselves in the index (or a plain list of
+messages per thread): migrate() moves them out with their files at startup; reading tolerates the old shapes until then.
 """
 
+import hashlib
 import re
+import shutil
 import uuid
-from collections.abc import Iterable
 from datetime import datetime
+from pathlib import Path
 
 from backend.i18n import tr
 from backend.models.assistant import Attachment, ChatMessage, ChatSession, SessionInfo, SessionPatch, ThreadKind
 from backend.services import attachments
 from backend.services.storage import Library
+from backend.settings import paths
+from backend.utils.fs import read_json, write_json
 
 TITLE_MAX = 60
 
@@ -29,20 +35,14 @@ def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
-def _normalize(raw) -> dict:
-    """Stored value -> {"active", "sessions"}; a legacy list of messages becomes one session."""
-    if isinstance(raw, dict) and isinstance(raw.get("sessions"), list):
-        return raw
-    if isinstance(raw, list) and raw:
-        session = ChatSession(id=_new_id(), title=_title_from(raw), messages=[ChatMessage(**m) for m in raw])
-        session.created_at = session.messages[0].created_at
-        session.updated_at = session.messages[-1].created_at
-        return {"active": session.id, "sessions": [session.model_dump()]}
-    return {"active": None, "sessions": []}
-
-
 def _new_id() -> str:
     return "ses_" + uuid.uuid4().hex[:8]
+
+
+def _first_id(key: str) -> str:
+    """The id of a thread's first, not yet saved session: the same on every read, so a file pasted before the first
+    question lands in the folder of the session that question goes into."""
+    return "ses_" + hashlib.sha256(key.encode()).hexdigest()[:8]
 
 
 def _title_from(messages: list) -> str:
@@ -55,25 +55,61 @@ def _title_from(messages: list) -> str:
     return ""
 
 
-def session_files(session: ChatSession) -> list[Attachment]:
-    """Every file attached in the session, oldest first, once."""
-    seen: dict[str, Attachment] = {}
-    for m in session.messages:
-        for a in m.attachments:
-            seen.setdefault(a.id, a)
-    return list(seen.values())
-
-
 def _info(s: ChatSession) -> SessionInfo:
     return SessionInfo(id=s.id, title=s.title, created_at=s.created_at, updated_at=s.updated_at, messages=len(s.messages))
+
+
+# ---------------------------------------------------------------- storage
+
+
+def _folder(session_id: str) -> Path:
+    if not re.fullmatch(r"ses_[0-9a-f]{8}", session_id):
+        raise LookupError(tr("chat.session_not_found"))
+    return paths().sessions / session_id
+
+
+def _context_file(session_id: str) -> Path:
+    return _folder(session_id) / "context" / "session.json"
+
+
+def _read_session(session_id: str) -> ChatSession | None:
+    raw = read_json(_context_file(session_id), default=None)
+    return ChatSession(**raw) if isinstance(raw, dict) else None
+
+
+def _write_session(key: str, session: ChatSession) -> None:
+    write_json(_context_file(session.id), {"thread": key, **session.model_dump()})
+
+
+def _sessions_of(raw) -> tuple[str | None, list[ChatSession], bool]:
+    """Index value -> (active, sessions, legacy). Legacy: the sessions (or a list of messages) sit inside the index."""
+    if isinstance(raw, list):
+        if not raw:
+            return None, [], False
+        session = ChatSession(id=_new_id(), title=_title_from(raw), messages=[ChatMessage(**m) for m in raw])
+        session.created_at = session.messages[0].created_at
+        session.updated_at = session.messages[-1].created_at
+        return session.id, [session], True
+    if not isinstance(raw, dict):
+        return None, [], False
+    entries = raw.get("sessions") or []
+    if any(isinstance(e, dict) for e in entries):
+        return raw.get("active"), [ChatSession(**e) for e in entries if isinstance(e, dict)], True
+    sessions = [s for s in (_read_session(e) for e in entries if isinstance(e, str)) if s]
+    return raw.get("active"), sessions, False
+
+
+def session_files(session: ChatSession) -> list[Attachment]:
+    """Every file of the session (its folder), oldest first: what can be attached again."""
+    return attachments.of_session(session.id)
 
 
 # ---------------------------------------------------------------- reads
 
 
 def load(kind: ThreadKind, thread_id: str) -> tuple[str | None, list[ChatSession]]:
-    data = _normalize(Library.read()["threads"].get(_key(kind, thread_id)))
-    return data["active"], [ChatSession(**s) for s in data["sessions"]]
+    active, sessions, _ = _sessions_of(Library.read()["threads"].get(_key(kind, thread_id)))
+    return active, sessions
 
 
 def get(kind: ThreadKind, thread_id: str, session_id: str | None = None, create_missing: bool = False) -> tuple[ChatSession, list[SessionInfo]]:
@@ -87,22 +123,29 @@ def get(kind: ThreadKind, thread_id: str, session_id: str | None = None, create_
             raise LookupError(tr("chat.session_not_found"))
         current = ChatSession(id=session_id)
     infos = sorted((_info(s) for s in sessions), key=lambda i: i.updated_at, reverse=True)
-    return current or ChatSession(id=_new_id()), infos
+    return current or ChatSession(id=_first_id(_key(kind, thread_id))), infos
 
 
 # ---------------------------------------------------------------- writes
 
 
 def _mutate(kind: ThreadKind, thread_id: str, fn) -> object:
+    """Read the thread, let fn change it, write every session's context and the index back. A session that is gone
+    loses its folder (context and files)."""
+    key = _key(kind, thread_id)
     with Library.tx() as db:
-        data = _normalize(db["threads"].get(_key(kind, thread_id)))
-        sessions = [ChatSession(**s) for s in data["sessions"]]
+        active, sessions, _ = _sessions_of(db["threads"].get(key))
+        before = {s.id for s in sessions}
+        data = {"active": active}
         result = fn(data, sessions)
-        data["sessions"] = [s.model_dump() for s in sessions]
-        if data["sessions"]:
-            db["threads"][_key(kind, thread_id)] = data
+        for session in sessions:
+            _write_session(key, session)
+        if sessions:
+            db["threads"][key] = {"active": data["active"], "sessions": [s.id for s in sessions]}
         else:
-            db["threads"].pop(_key(kind, thread_id), None)
+            db["threads"].pop(key, None)
+    for gone in before - {s.id for s in sessions}:
+        shutil.rmtree(_folder(gone), ignore_errors=True)
     return result
 
 
@@ -156,9 +199,6 @@ def patch(kind: ThreadKind, thread_id: str, session_id: str, change: SessionPatc
             raise LookupError(tr("chat.session_not_found"))
         if change.title is not None:
             s.title = change.title.strip()
-        if change.excluded_files is not None:
-            known = {a.id for a in session_files(s)}
-            s.excluded_files = [f for f in change.excluded_files if f in known]
         return s
 
     return _mutate(kind, thread_id, fn)
@@ -171,13 +211,12 @@ def clear(kind: ThreadKind, thread_id: str, session_id: str) -> ChatSession:
         s = next((s for s in sessions if s.id == session_id), None)
         if not s:
             raise LookupError(tr("chat.session_not_found"))
-        dropped = [a.id for a in session_files(s)]
-        s.messages, s.summary, s.summarized, s.excluded_files = [], "", 0, []
+        s.messages, s.summary, s.summarized = [], "", 0
         s.updated_at = _now()
-        return s, dropped
+        return s
 
-    session, dropped = _mutate(kind, thread_id, fn)
-    attachments.delete(dropped)
+    session = _mutate(kind, thread_id, fn)
+    shutil.rmtree(attachments.session_files_dir(session_id), ignore_errors=True)
     return session
 
 
@@ -189,21 +228,53 @@ def delete(kind: ThreadKind, thread_id: str, session_id: str) -> None:
         sessions.remove(s)
         if data["active"] == session_id:
             data["active"] = max(sessions, key=lambda x: x.updated_at).id if sessions else None
-        return [a.id for a in session_files(s)]
 
-    attachments.delete(_mutate(kind, thread_id, fn))
+    _mutate(kind, thread_id, fn)
 
 
 def delete_all(kind: ThreadKind, thread_id: str) -> None:
+    _mutate(kind, thread_id, lambda data, sessions: sessions.clear())
+
+
+def remove_file(session_id: str, att_id: str) -> None:
+    """A file added to the session but never sent (its chip removed from the draft). Sent files stay with the history."""
+    att = attachments.get(att_id, session_id)
+    if not att:
+        return
+    session = _read_session(session_id)
+    if session and any(a.id == att_id for m in session.messages for a in m.attachments):
+        return
+    attachments.remove(att)
+
+
+# ---------------------------------------------------------------- migration
+
+
+def migrate() -> int:
+    """Move sessions kept inside notebook_db.json (and their files, from the shared uploads folder) into their own
+    folders. Idempotent; returns how many threads moved."""
+    if not any(_sessions_of(raw)[2] for raw in Library.read()["threads"].values()):
+        return 0  # nothing to move: no write (a fresh library stays untouched)
+    moved = 0
     with Library.tx() as db:
-        raw = db["threads"].pop(_key(kind, thread_id), None)
-    sessions = [ChatSession(**s) for s in _normalize(raw)["sessions"]]
-    attachments.delete(a.id for s in sessions for a in session_files(s))
+        for key, raw in list(db["threads"].items()):
+            active, sessions, legacy = _sessions_of(raw)
+            if not legacy:
+                continue
+            for session in sessions:
+                for m in session.messages:
+                    m.attachments = [_adopt_old(a, session.id) for a in m.attachments]
+                _write_session(key, session)
+            if sessions:
+                db["threads"][key] = {"active": active or sessions[-1].id, "sessions": [s.id for s in sessions]}
+            else:
+                db["threads"].pop(key, None)
+            moved += 1
+    return moved
 
 
-def referenced_attachments() -> Iterable[str]:
-    for raw in Library.read()["threads"].values():
-        for s in _normalize(raw)["sessions"]:
-            for m in s.get("messages", []):
-                for a in m.get("attachments", []):
-                    yield a["id"]
+def _adopt_old(att: Attachment, session_id: str) -> Attachment:
+    try:
+        return attachments.adopt(att, session_id) if (attachments.root() / att.id).is_dir() else att
+    except (OSError, ValueError):
+        return att

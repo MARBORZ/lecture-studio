@@ -23,6 +23,7 @@ class Attachment(BaseModel):
     kind: AttachmentKind
     chars: int = 0
     note: str = ""
+    session: str = ""  # the session whose local_session_src/ holds it; "" = an upload not yet in a session
 ThreadKind = Literal["project", "lesson"]
 
 
@@ -61,7 +62,6 @@ class ChatSession(BaseModel):
     messages: list[ChatMessage] = Field(default_factory=list)
     summary: str = ""  # compressed text of the first `summarized` messages
     summarized: int = 0  # leading messages folded into the summary (kept for display, not sent verbatim)
-    excluded_files: list[str] = Field(default_factory=list)  # session attachments switched off for the model
 
 
 class SessionInfo(BaseModel):
@@ -74,7 +74,6 @@ class SessionInfo(BaseModel):
 
 class SessionPatch(BaseModel):
     title: str | None = Field(default=None, max_length=80)
-    excluded_files: list[str] | None = None
 
 
 class ContextUsage(BaseModel):
@@ -106,5 +105,5 @@ class Thread(BaseModel):
     id: str
     session: ChatSession  # the active (or requested) session
     sessions: list[SessionInfo] = Field(default_factory=list)  # newest first
-    files: list[Attachment] = Field(default_factory=list)  # files of the session (sent with every question unless excluded)
+    files: list[Attachment] = Field(default_factory=list)  # files kept in the session: offered to attach again
     context: ContextUsage | None = None

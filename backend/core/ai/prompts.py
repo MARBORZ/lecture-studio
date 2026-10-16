@@ -199,9 +199,11 @@ def video_audit_prompt(transcript: str, part: int, total: int) -> str:
 # ---------- assistant (NotebookLM) ----------
 
 ASSISTANT_BASE = """\
-You are an assistant over the user's lecture library. Answer only from the sources provided.
+You are an assistant over the user's lecture library. Ground answers in the sources provided and cite them.
+When the sources do not cover the question, or the user asks for general knowledge or your own view, say so in one
+line and then answer from your own knowledge: put that part under a line "Beyond the lecture:" (in the language of the
+answer), without timecodes or citations. Never attribute to the lecture what it does not say.
 Style: slide speaker notes. Short, direct, no softening, no intros, no emoji.
-If the sources do not contain the answer, say so in one line.
 """
 
 ASSISTANT_LANGUAGE = (
@@ -210,11 +212,11 @@ ASSISTANT_LANGUAGE = (
 )
 
 CITATION_SINGLE = """\
-CITATIONS: back every fact with a timecode [MM:SS] or [HH:MM:SS] from the transcript.
+CITATIONS: back every fact taken from the sources with a timecode [MM:SS] or [HH:MM:SS] from the transcript.
 """
 
 CITATION_MULTI = """\
-CITATIONS: back every fact with a reference [[<lesson_id>@MM:SS]] (or @HH:MM:SS), where lesson_id comes from the source
+CITATIONS: back every fact taken from the sources with a reference [[<lesson_id>@MM:SS]] (or @HH:MM:SS), where lesson_id comes from the source
 heading and the time from its transcript. Example: [[less_ab12cd34@04:15]].
 """
 
@@ -262,7 +264,6 @@ CTX_SUMMARY = "SUMMARY OF THE START OF THIS SESSION:\n{summary}"
 CTX_SUMMARY_ACK = "Summary received."
 CTX_FILES = "SESSION FILES:\n\n{parts}"
 CTX_QUESTION = "{files}\n\nQUESTION:\n{question}"
-FILE_IMAGE_EARLIER = "[an image from this session: shown earlier, not attached again]"
 FILE_IMAGE_ATTACHED = "[image attached to the message]"
 FILE_IMAGE_BLIND = "[image: this model cannot see images — say so if the question is about it]"
 FILE_UNREADABLE = "[content not readable: only the name and size are available]"

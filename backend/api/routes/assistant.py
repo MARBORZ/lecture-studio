@@ -21,9 +21,13 @@ router = APIRouter(prefix="/api/assistant", tags=["assistant"])
 # Attachment routes come first: "/attachments/..." must not be read as a "/{kind}/{id}" thread.
 
 @router.put("/attachments/{filename}", response_model=Attachment)
-async def upload_attachment(filename: str, request: Request) -> Attachment:
-    """Raw streamed upload of any file; readable formats are converted to text for the model."""
-    att_id, dest = attachments.new_slot(filename)
+async def upload_attachment(filename: str, request: Request, session: str = "") -> Attachment:
+    """Raw streamed upload of any file; readable formats are converted to text for the model. With `session`, the file
+    goes straight into that session's folder (kept there even if never sent)."""
+    try:
+        att_id, dest = attachments.new_slot(filename, session)
+    except ValueError as e:
+        raise HTTPException(400, detail=str(e)) from e
     size = 0
     with JobRegistry.uploading():
         try:
@@ -39,18 +43,33 @@ async def upload_attachment(filename: str, request: Request) -> Attachment:
     if size == 0:
         remove_dir(dest.parent)
         raise HTTPException(400, detail=tr("file.empty"))
-    return await run_in_threadpool(attachments.register, att_id, dest)
+    return await run_in_threadpool(attachments.register, att_id, dest, session)
 
 
 @router.get("/attachments/{att_id}/file")
 def download_attachment(att_id: str) -> FileResponse:
     try:
-        att = attachments.get(att_id)
+        att = attachments.find(att_id)
     except ValueError as e:
         raise HTTPException(400, detail=str(e)) from e
     if not att or not attachments.file_path(att).is_file():
         raise HTTPException(404, detail=tr("attachment.not_found"))
     return FileResponse(attachments.file_path(att), media_type=att.mime, filename=att.name)
+
+
+@router.delete("/attachments/{att_id}")
+def remove_attachment(att_id: str, session: str = "") -> dict:
+    """A draft chip removed: the file goes unless a sent message holds it."""
+    try:
+        if session:
+            chats.remove_file(session, att_id)
+        else:
+            att = attachments.get(att_id)
+            if att:
+                attachments.remove(att)
+    except (ValueError, LookupError) as e:
+        raise HTTPException(400, detail=str(e)) from e
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------- threads and sessions

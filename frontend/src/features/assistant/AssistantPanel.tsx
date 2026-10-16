@@ -1,4 +1,4 @@
-import { ArrowUp, NotebookPen, Paperclip, X } from 'lucide-react'
+import { ArrowUp, NotebookPen, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import type { AIProvider, AssistantRole, Attachment, ChatMessage, ThreadKind } from '@/api/types'
@@ -10,7 +10,7 @@ import { SkeletonChat } from '@/components/skeleton'
 import { MarkdownView } from '@/features/markdown/MarkdownView'
 import { KeyNotice, pickProvider, useAiKeys } from '@/features/system/KeyNotice'
 import { cn } from '@/lib/cn'
-import { AttachmentChip, SessionFiles, useAttachments } from './attachments'
+import { AttachButton, AttachmentChip, useAttachments } from './attachments'
 import { ContextMeter, SessionBar } from './SessionBar'
 import { SelectionAsk, withQuote } from './SelectionAsk'
 import { useThread } from './useThread'
@@ -31,7 +31,9 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
   const keys = useAiKeys()
   const [provider, setProvider] = useState<AIProvider>(() => pickProvider(settings?.ai.assistant_provider ?? 'deepseek', keys))
   const chat = useThread(kind, id, provider, sources)
-  const files = useAttachments()
+  const files = useAttachments(chat.session?.id ?? '')
+  const { clear: clearDrafts } = files
+  useEffect(() => clearDrafts(), [chat.session?.id, clearDrafts]) // drafts belong to the session they were added in
   const location = useLocation()
   const navigate = useNavigate()
   const [question, setQuestion] = useState('')
@@ -156,7 +158,6 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
         <div ref={endRef} />
       </SelectionAsk>
 
-      <SessionFiles files={chat.thread?.files ?? []} excluded={chat.session?.excluded_files ?? []} onToggle={(f) => chat.toggleFile(f).catch((e: Error) => toast(e.message, 'error'))} />
 
       <form
         className="mt-2 flex flex-col gap-2 rounded-xl border border-line bg-surface p-2 focus-within:border-line-strong"
@@ -192,7 +193,13 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
               e.target.value = ''
             }}
           />
-          <IconButton icon={Paperclip} size="sm" label={t('assistant.attach')} disabled={noSources} onClick={() => fileInput.current?.click()} className="mb-0.5" />
+          <AttachButton
+            files={chat.thread?.files ?? []}
+            attached={files.ids}
+            disabled={noSources}
+            onUpload={() => fileInput.current?.click()}
+            onPick={files.addExisting}
+          />
           <textarea
             ref={inputRef}
             onPaste={(e) => {

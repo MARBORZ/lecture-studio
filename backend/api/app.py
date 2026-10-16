@@ -51,9 +51,9 @@ async def lifespan(app: FastAPI):
     imported = Library.import_untracked()
     migrated = migrate_all()
     if owner:
-        from backend.services import attachments, chats
+        from backend.services import attachments
 
-        attachments.cleanup_orphans(set(chats.referenced_attachments()))
+        attachments.cleanup_orphans()
         from backend.services import feedback as reports
 
         reports.cleanup()

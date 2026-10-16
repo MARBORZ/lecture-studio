@@ -45,10 +45,11 @@ API: `http://127.0.0.1:3000` (the UI reaches it through the Vite proxy at `:5173
 | DELETE | `/api/assistant/{project\|lesson}/{id}` | every session of the thread, with their files |
 | POST | `/api/assistant/{kind}/{id}/sessions` | new session (an untouched empty one is reused) |
 | PUT | `/api/assistant/{kind}/{id}/sessions/{sid}/active` | switch to a session |
-| PATCH / DELETE | `/api/assistant/{kind}/{id}/sessions/{sid}` | rename, switch files off `{title?, excluded_files?}` / delete with its files |
+| PATCH / DELETE | `/api/assistant/{kind}/{id}/sessions/{sid}` | rename `{title}` / delete with its folder (context and files) |
 | POST | `/api/assistant/{kind}/{id}/sessions/{sid}/clear` | empty the session: history, summary, files |
 | POST | `/api/assistant/{kind}/{id}/sessions/{sid}/compact` | fold the history into a summary now |
-| PUT | `/api/assistant/attachments/{filename}` | upload a chat attachment, any type, up to 500 MB (body = file bytes) |
+| PUT | `/api/assistant/attachments/{filename}?session` | upload a chat attachment, any type, up to 500 MB (body = file bytes), straight into the session's folder |
+| DELETE | `/api/assistant/attachments/{id}?session` | a removed draft chip: deleted unless a sent message holds it |
 | GET | `/api/assistant/attachments/{id}/file` | download an attachment |
 | POST | `/api/feedback/drafts` | open a report: `{id, limits, retry_after}` (the server times the form from here) |
 | PUT / DELETE | `/api/feedback/drafts/{id}/files/{filename}` | attach (body = file bytes; type, count and total size checked) / remove |
@@ -69,7 +70,8 @@ API: `http://127.0.0.1:3000` (the UI reaches it through the Vite proxy at `:5173
 | Lessons | `<data_dir>/output/<job_id>/` |
 | Diary | `<data_dir>/diary/<category>/*.md` |
 | Notebook covers | `<data_dir>/covers/<project_id>-<hash>.<ext>` (`Project.cover` = file name) |
-| Chat attachments | `<data_dir>/attachments/<id>/` (original file, `content.txt`, `meta.json`); unreferenced ones older than 24 h are removed on start |
+| Assistant sessions | `<data_dir>/sessions/<id>/context/session.json` and `local_session_src/<file id>/` (original file, `content.txt`, `meta.json`) |
+| Uploads without a session | `<data_dir>/attachments/<id>/`; moved into the session when sent, removed after 24 h otherwise |
 | Update hand-over | `state/update.json` in the settings home, while the launcher restarts after an update |
 | Temporary files | `<data_dir>/temp/` — cleared on every API start and stop |
 

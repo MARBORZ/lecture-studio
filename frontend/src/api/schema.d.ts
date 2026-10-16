@@ -615,7 +615,8 @@ export interface paths {
         get?: never;
         /**
          * Upload Attachment
-         * @description Raw streamed upload of any file; readable formats are converted to text for the model.
+         * @description Raw streamed upload of any file; readable formats are converted to text for the model. With `session`, the file
+         *     goes straight into that session's folder (kept there even if never sent).
          */
         put: operations["upload_attachment_api_assistant_attachments__filename__put"];
         post?: never;
@@ -637,6 +638,26 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/assistant/attachments/{att_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Attachment
+         * @description A draft chip removed: the file goes unless a sent message holds it.
+         */
+        delete: operations["remove_attachment_api_assistant_attachments__att_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -991,6 +1012,11 @@ export interface components {
              * @default
              */
             note: string;
+            /**
+             * Session
+             * @default
+             */
+            session: string;
         };
         /** AuditRequest */
         AuditRequest: {
@@ -1095,8 +1121,6 @@ export interface components {
              * @default 0
              */
             summarized: number;
-            /** Excluded Files */
-            excluded_files?: string[];
         };
         /** CompactRequest */
         CompactRequest: {
@@ -2177,8 +2201,6 @@ export interface components {
         SessionPatch: {
             /** Title */
             title?: string | null;
-            /** Excluded Files */
-            excluded_files?: string[] | null;
         };
         /** SettingsPatch */
         SettingsPatch: {
@@ -3692,7 +3714,9 @@ export interface operations {
     };
     upload_attachment_api_assistant_attachments__filename__put: {
         parameters: {
-            query?: never;
+            query?: {
+                session?: string;
+            };
             header?: never;
             path: {
                 filename: string;
@@ -3739,6 +3763,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_attachment_api_assistant_attachments__att_id__delete: {
+        parameters: {
+            query?: {
+                session?: string;
+            };
+            header?: never;
+            path: {
+                att_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

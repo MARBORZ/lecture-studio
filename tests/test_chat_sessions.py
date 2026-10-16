@@ -109,25 +109,66 @@ def test_history_is_compressed_when_it_outgrows_its_share(lesson_api, monkeypatc
     assert len(s["messages"]) == 10  # nothing is lost for reading
 
 
-def test_files_stay_in_the_session_until_switched_off(lesson_api):
-    c, fake = lesson_api
-    doc = c.put("/api/assistant/attachments/spec.md", content=b"# Spec\nparser must be strict").json()
-    t = ask(c, "что в файле?", attachments=[doc["id"]])
-    sid = t["session"]["id"]
-    assert [f["name"] for f in t["files"]] == ["spec.md"] and t["context"]["files"] > 0
+def test_session_files_live_in_the_session_folder_and_go_only_when_attached(lesson_api, data_dir):
+    import json
 
-    ask(c, "а подробнее?", session_id=sid)  # not attached again
+    c, fake = lesson_api
+    sid = c.get("/api/assistant/lesson/less_x").json()["session"]["id"]  # a fresh session, not saved yet
+    folder = data_dir / "sessions" / sid
+    # a pasted screenshot or a file is kept in the session's folder at once, before any question
+    doc = c.put(f"/api/assistant/attachments/spec.md?session={sid}", content=b"# Spec\nparser must be strict").json()
+    assert doc["session"] == sid and (folder / "local_session_src" / doc["id"] / "spec.md").is_file()
+
+    t = ask(c, "что в файле?", session_id=sid, attachments=[doc["id"]])
+    assert "parser must be strict" in fake.chats[-1][-1]["content"] and t["context"]["files"] == 0  # next question: none
+    assert [f["name"] for f in t["files"]] == ["spec.md"]  # offered to attach again
+    context = json.loads((folder / "context" / "session.json").read_text())
+    assert context["thread"] == "lesson:less_x" and context["messages"][0]["attachments"][0]["id"] == doc["id"]
+
+    ask(c, "а подробнее?", session_id=sid)  # not attached: not sent
+    assert "parser must be strict" not in fake.chats[-1][-1]["content"]
+    ask(c, "ещё раз по файлу", session_id=sid, attachments=[doc["id"]])  # attached again: no new upload
     assert "parser must be strict" in fake.chats[-1][-1]["content"]
 
-    c.patch(f"/api/assistant/lesson/less_x/sessions/{sid}", json={"excluded_files": [doc["id"]]})
-    ask(c, "без файла", session_id=sid)
+    other = c.post("/api/assistant/lesson/less_x/sessions").json()["id"]
+    ask(c, "чужой файл", session_id=other, attachments=[doc["id"]])  # another session's file is not reachable
     assert "parser must be strict" not in fake.chats[-1][-1]["content"]
 
-    # clearing the session drops its context and its files
+    # a draft chip removed: an unsent file goes, a sent one stays with the history
+    draft = c.put(f"/api/assistant/attachments/draft.txt?session={sid}", content=b"draft text").json()
+    c.delete(f"/api/assistant/attachments/{draft['id']}?session={sid}")
+    c.delete(f"/api/assistant/attachments/{doc['id']}?session={sid}")
+    names = [f["name"] for f in c.get(f"/api/assistant/lesson/less_x?session={sid}").json()["files"]]
+    assert names == ["spec.md"]
+
+    # clearing the session drops its history and its files
     c.post(f"/api/assistant/lesson/less_x/sessions/{sid}/clear")
     t = c.get(f"/api/assistant/lesson/less_x?session={sid}").json()
     assert t["session"]["messages"] == [] and t["files"] == [] and t["context"]["history"] == 0
     assert c.get(f"/api/assistant/attachments/{doc['id']}/file").status_code == 404
+    c.delete(f"/api/assistant/lesson/less_x/sessions/{sid}")
+    assert not folder.exists()
+
+
+def test_old_sessions_move_out_of_the_database(lesson_api, data_dir):
+    from backend.services import attachments, chats
+    from backend.services.storage import Library
+
+    c, fake = lesson_api
+    att_id, path = attachments.new_slot("old.md")  # an upload of the old layout: the shared folder
+    path.write_text("old file text")
+    old = attachments.register(att_id, path).model_dump()
+    message = {"id": "m1", "role": "user", "content": "старый вопрос", "attachments": [old]}
+    with Library.tx() as db:
+        db["threads"]["lesson:less_x"] = {"active": "ses_0000aaaa", "sessions": [{"id": "ses_0000aaaa", "messages": [message], "excluded_files": []}]}
+
+    assert chats.migrate() == 1 and chats.migrate() == 0
+    assert Library.read()["threads"]["lesson:less_x"] == {"active": "ses_0000aaaa", "sessions": ["ses_0000aaaa"]}
+    moved = data_dir / "sessions" / "ses_0000aaaa" / "local_session_src" / att_id / "old.md"
+    assert moved.read_text() == "old file text" and not (data_dir / "attachments" / att_id).exists()
+    t = c.get("/api/assistant/lesson/less_x").json()
+    assert t["session"]["messages"][0]["attachments"][0]["session"] == "ses_0000aaaa" and [f["name"] for f in t["files"]] == ["old.md"]
+    assert c.get(f"/api/assistant/attachments/{att_id}/file").content == b"old file text"
 
 
 def test_context_usage_reports_the_window(lesson_api):
@@ -227,3 +268,19 @@ def test_meter_shows_tokens(lesson_api):
     usage = c.get("/api/assistant/lesson/less_x").json()["context"]
     assert usage["window_tokens"] == 32_000 and usage["window"] == 32_000 * 7 // 8 * 3
     assert usage["total"] > 0 and usage["total_tokens"] == -(-usage["total"] // 3)
+
+
+def test_a_file_pasted_before_the_first_question_lands_in_its_session(lesson_api):
+    c, fake = lesson_api
+    first = c.get("/api/assistant/lesson/less_x").json()["session"]["id"]
+    assert c.get("/api/assistant/lesson/less_x?provider=gemini").json()["session"]["id"] == first  # stable until saved
+    shot = c.put(f"/api/assistant/attachments/shot.txt?session={first}", content=b"pasted before asking").json()
+    t = ask(c, "что на скриншоте?", session_id=first, attachments=[shot["id"]])
+    assert t["session"]["id"] == first and "pasted before asking" in fake.chats[-1][-1]["content"]
+
+
+def test_the_assistant_may_answer_beyond_the_lecture():
+    from backend.core.ai import prompts
+
+    system = prompts.assistant_system("qa", multi_source=False)
+    assert "Beyond the lecture:" in system and "Answer only from the sources" not in system

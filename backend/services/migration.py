@@ -71,6 +71,10 @@ def migrate_lesson_dir(lesson_dir: Path) -> dict:
 
 
 def migrate_all() -> int:
+    from backend.services import chats  # sessions out of notebook_db.json into their own folders (once)
+
+    if chats.migrate():
+        logger.info("Chat sessions moved into session folders")
     migrated = 0
     for lesson in Library.list_lessons():
         if lesson.schema_version >= SCHEMA_VERSION:

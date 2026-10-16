@@ -6,7 +6,8 @@ and keeps ANSWER_SHARE of the window free for the reply (a model's window holds 
 
     system prompt                         fixed
     session summary + recent messages     up to SHARE_HISTORY  — older turns are compressed into a summary
-    session files (text, by id from disk) up to SHARE_FILES    — attached once, sent with every question
+    files of this question                up to SHARE_FILES    — only the ones attached to it (they stay in the
+                                                                 session's folder and can be attached again)
     sources (audit + transcript)          everything that is left, split between the selected lessons
     the question                          as is
 
@@ -24,7 +25,6 @@ from backend.core.transcription import compact_transcript
 from backend.models.assistant import AssistantRole, Attachment, ChatMessage, ChatSession, ContextUsage
 from backend.models.lesson import LessonFull
 from backend.services import attachments as attachment_store
-from backend.services.chats import session_files
 
 SHARE_HISTORY = 0.25
 SHARE_FILES = 0.20
@@ -96,17 +96,8 @@ def _source_block(lesson: LessonFull, budget: int) -> tuple[str, bool]:
     return f"{head}{audit_part}{prompts.source_transcript(transcript[:rest])}", trimmed
 
 
-def files_for(session: ChatSession, new: Sequence[Attachment]) -> list[Attachment]:
-    """Session files that are switched on, then the ones attached to this question (once each)."""
-    out: dict[str, Attachment] = {a.id: a for a in session_files(session) if a.id not in session.excluded_files}
-    for a in new:
-        out[a.id] = a
-    return list(out.values())
-
-
-def _files_block(files: Sequence[Attachment], new_ids: set, vision: bool, budget: int) -> tuple[str, list]:
-    """Text of the files, read by id from disk (never re-uploaded). Images go to vision models only with the message
-    they were attached to; later questions see the name."""
+def _files_block(files: Sequence[Attachment], vision: bool, budget: int) -> tuple[str, list]:
+    """Text of this question's files, read by id from disk. Images go to vision models as images."""
     if not files:
         return "", []
     parts, images = [], []
@@ -114,9 +105,7 @@ def _files_block(files: Sequence[Attachment], new_ids: set, vision: bool, budget
     for f in files:
         head = prompts.file_head(f.name, f.mime, f.size)
         if f.kind == "image":
-            if f.id not in new_ids:
-                parts.append(f"{head}\n{prompts.FILE_IMAGE_EARLIER}")
-            elif vision:
+            if vision:
                 images.append((attachment_store.image_bytes(f), f.mime))
                 parts.append(f"{head}\n{prompts.FILE_IMAGE_ATTACHED}")
             else:
@@ -144,7 +133,7 @@ def build(
     system = prompts.assistant_system(role, multi, ui_language)
     summary_block = prompts.CTX_SUMMARY.format(summary=session.summary) if session.summary else ""
     history = [{"role": m.role, "content": m.content} for m in recent(session)]
-    files_block, images = _files_block(files_for(session, new_files), {a.id for a in new_files}, vision, int(window * SHARE_FILES))
+    files_block, images = _files_block(new_files, vision, int(window * SHARE_FILES))
     final = prompts.CTX_QUESTION.format(files=files_block, question=question) if files_block else question
 
     used = len(system) + len(summary_block) + sum(len(h["content"]) for h in history) + len(final)

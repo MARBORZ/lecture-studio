@@ -1,9 +1,15 @@
 """
 Chat attachments: any file can be attached; readable formats are turned into text for the model.
 
-  <data_dir>/attachments/<id>/<file>       the original file (downloadable from the chat)
-  <data_dir>/attachments/<id>/meta.json    Attachment
-  <data_dir>/attachments/<id>/content.txt  extracted text (when readable)
+A file belongs to its session and lives in the session's own folder, from the moment it is added (a pasted
+screenshot is kept even if the clipboard moves on), until the session is cleared or deleted:
+
+  <data_dir>/sessions/<session>/local_session_src/<id>/<file>         the original file (downloadable)
+  <data_dir>/sessions/<session>/local_session_src/<id>/meta.json      Attachment
+  <data_dir>/sessions/<session>/local_session_src/<id>/content.txt    extracted text (when readable)
+
+It goes to the model only with the message it is attached to; any later message can attach it again (no re-upload).
+An upload without a session waits in <data_dir>/attachments/<id>/ and moves into the session when sent (adopt).
 
 Extractors are registered per kind/extension (open for extension: add a function, nothing else changes).
 Images are not turned into text: they go to Gemini as images; DeepSeek cannot see them.
@@ -39,14 +45,24 @@ TEXT_EXT = {
 }
 
 
+SESSION_FILES = "local_session_src"
+
+
 def root() -> Path:
+    """Uploads not yet in a session."""
     return paths().attachments
 
 
-def new_slot(filename: str) -> tuple[str, Path]:
-    """Reserve an id and a target path for an incoming upload."""
+def session_files_dir(session_id: str) -> Path:
+    if not re.fullmatch(r"ses_[0-9a-f]{8}", session_id):
+        raise ValueError(tr("chat.session_not_found"))
+    return paths().sessions / session_id / SESSION_FILES
+
+
+def new_slot(filename: str, session_id: str = "") -> tuple[str, Path]:
+    """Reserve an id and a target path for an incoming upload: in the session's folder when it is known."""
     att_id = uuid.uuid4().hex[:12]
-    folder = root() / att_id
+    folder = (session_files_dir(session_id) if session_id else root()) / att_id
     folder.mkdir(parents=True, exist_ok=True)
     return att_id, folder / (sanitize_filename(Path(filename).name, "file") or "file")
 
@@ -119,12 +135,12 @@ def _mostly_printable(text: str) -> bool:
     return bool(sample) and sum(ch.isprintable() or ch in "\n\r\t" for ch in sample) / len(sample) > 0.95
 
 
-def register(att_id: str, path: Path) -> Attachment:
+def register(att_id: str, path: Path, session_id: str = "") -> Attachment:
     kind, text, note = _classify(path)
     if len(text) > MAX_TEXT:
         text, note = text[:MAX_TEXT], tr("attachment.truncated", k=MAX_TEXT // 1000)
     mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-    att = Attachment(id=att_id, name=path.name, size=path.stat().st_size, mime=mime, kind=kind, chars=len(text), note=note)
+    att = Attachment(id=att_id, name=path.name, size=path.stat().st_size, mime=mime, kind=kind, chars=len(text), note=note, session=session_id)
     if text:
         write_text(path.parent / "content.txt", text)
     write_json(path.parent / "meta.json", att.model_dump())
@@ -133,44 +149,82 @@ def register(att_id: str, path: Path) -> Attachment:
 
 # ---------------- access ----------------
 
-def _folder(att_id: str) -> Path:
+def _check_id(att_id: str) -> str:
     if not re.fullmatch(r"[a-f0-9]{12}", att_id):
         raise ValueError(tr("attachment.bad_id"))
-    return root() / att_id
+    return att_id
 
 
-def get(att_id: str) -> Attachment | None:
-    meta = read_json(_folder(att_id) / "meta.json", default=None)
+def _folder(att: Attachment) -> Path:
+    return (session_files_dir(att.session) if att.session else root()) / _check_id(att.id)
+
+
+def _read(folder: Path) -> Attachment | None:
+    meta = read_json(folder / "meta.json", default=None)
     return Attachment(**meta) if isinstance(meta, dict) else None
 
 
+def get(att_id: str, session_id: str = "") -> Attachment | None:
+    """An upload waiting for a session, or a file of the given session (another session's file is not found)."""
+    _check_id(att_id)
+    return _read(root() / att_id) or (_read(session_files_dir(session_id) / att_id) if session_id else None)
+
+
+def find(att_id: str) -> Attachment | None:
+    """Wherever it is (downloads from the chat history)."""
+    _check_id(att_id)
+    found = _read(root() / att_id)
+    if found:
+        return found
+    sessions = paths().sessions
+    hit = next(sessions.glob(f"ses_*/{SESSION_FILES}/{att_id}/meta.json"), None) if sessions.is_dir() else None
+    return _read(hit.parent) if hit else None
+
+
+def of_session(session_id: str) -> list[Attachment]:
+    """Every file of the session, oldest first (the folder is the source of truth, like the diary)."""
+    base = session_files_dir(session_id)
+    if not base.is_dir():
+        return []
+    folders = sorted((d for d in base.iterdir() if (d / "meta.json").is_file()), key=lambda d: (d / "meta.json").stat().st_mtime)
+    return [a for a in (_read(d) for d in folders) if a]
+
+
+def adopt(att: Attachment, session_id: str) -> Attachment:
+    """Move an upload into the session's folder (no-op for a file that is already there)."""
+    if att.session:
+        return att
+    target = session_files_dir(session_id) / att.id
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(_folder(att)), str(target))
+    moved = att.model_copy(update={"session": session_id})
+    write_json(target / "meta.json", moved.model_dump())
+    return moved
+
+
 def file_path(att: Attachment) -> Path:
-    return _folder(att.id) / att.name
+    return _folder(att) / att.name
 
 
 def text(att: Attachment) -> str:
-    return read_text(_folder(att.id) / "content.txt")
+    return read_text(_folder(att) / "content.txt")
 
 
 def image_bytes(att: Attachment) -> bytes:
     return file_path(att).read_bytes()
 
 
-def delete(ids: Iterable[str]) -> None:
-    for att_id in ids:
-        try:
-            shutil.rmtree(_folder(att_id), ignore_errors=True)
-        except ValueError:
-            pass
+def remove(att: Attachment) -> None:
+    shutil.rmtree(_folder(att), ignore_errors=True)
 
 
-def cleanup_orphans(referenced: Iterable[str]) -> int:
-    """Remove uploads that were never sent (older than a day). Runs at startup."""
-    keep, removed = set(referenced), 0
+def cleanup_orphans() -> int:
+    """Remove uploads that never reached a session (older than a day). Runs at startup."""
+    removed = 0
     if not root().is_dir():
         return 0
     for d in root().iterdir():
-        if d.is_dir() and d.name not in keep and time.time() - d.stat().st_mtime > ORPHAN_TTL:
+        if d.is_dir() and time.time() - d.stat().st_mtime > ORPHAN_TTL:
             shutil.rmtree(d, ignore_errors=True)
             removed += 1
     return removed

@@ -55,9 +55,10 @@ Motion for animation. Geist / Geist Mono fonts are bundled; no external CDNs.
 - **Assistant** (`features/assistant`, server calls only in `useThread`): **sessions** like Claude Code — a menu to switch,
   rename, delete, a new session starts with an empty history; **Clear** empties the current session (history, summary,
   files). The **context meter** shows how much of the provider's window the next question takes and of what (sources,
-  session files, history, summary, instruction), with "compress now". Files of any type are attached with the paperclip,
-  drag and drop or paste; once attached they are **session files**, sent with every next question (switch one off by
-  clicking it). Text is extracted on the server (PDF, DOCX, PPTX, XLSX, text/code); images go to Gemini as images with the
+  files of this question, history, summary, instruction), with "compress now". Files of any type are attached with the
+  paperclip, drag and drop or paste; they are kept in the session's folder at once and go to the model only with the
+  message they are attached to. The paperclip menu lists the **files of this session** to attach again (no upload).
+  Text is extracted on the server (PDF, DOCX, PPTX, XLSX, text/code); images go to Gemini as images with the
   message they were attached to. **Select text** in an answer or in the audit → "Ask about this" puts it into the input
   as a quote. Without a key for the chosen model the notice offers to switch to the model that has one.
 

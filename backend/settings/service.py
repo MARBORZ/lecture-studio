@@ -59,9 +59,14 @@ class Paths:
     def covers(self) -> Path:
         return self.data_dir / "covers"
 
+    @property
+    def sessions(self) -> Path:
+        """Assistant sessions: <id>/context/session.json and <id>/local_session_src/ (its files)."""
+        return self.data_dir / "sessions"
+
     def movable(self) -> list[Path]:
         """What "move the library" carries to a new data folder (temp is dropped)."""
-        return [self.db, self.output, self.diary, self.attachments, self.covers]
+        return [self.db, self.output, self.diary, self.attachments, self.covers, self.sessions]
 
     def lesson_dir(self, job_id: str) -> Path:
         return self.output / job_id

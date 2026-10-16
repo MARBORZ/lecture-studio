@@ -95,8 +95,8 @@ audit timecodes to the clean timeline; the original audit is kept as `lesson_aud
   The contract is always appended by the system, so a custom style cannot break clickable timecodes.
 - Audit provider: DeepSeek mode → DeepSeek, Gemini → Gemini, "Whisper only" → the provider chosen in Settings → AI.
 - **Our own context window** (`services/context_window.py`). Chat APIs are stateless: every question re-sends everything.
-  One request = system prompt + session summary and recent messages (≤ 25% of the window) + session files read by id
-  from disk (≤ 20%) + sources (audit + transcript, the rest, split between lessons) + the question. Window per provider,
+  One request = system prompt + session summary and recent messages (≤ 25% of the window) + the files attached to this
+  question, read by id from disk (≤ 20%) + sources (audit + transcript, the rest, split between lessons) + the question. Window per provider,
   in tokens, set in Settings → AI (`settings.ai.context_tokens`; default DeepSeek 64k, Gemini 400k; from 8k up to the
   model's `max_context_tokens`: 128k, 1M; the server rejects values outside, a hand-edited file is clamped,
   `AI.context_tokens`). The budget counts characters: `CHARS_PER_TOKEN` = 3 (core/ai/base.py, a low estimate for Russian,
@@ -104,7 +104,17 @@ audit timecodes to the clean timeline; the original audit is kept as `lesson_aud
   the last 4 messages is folded by the model into a "medium" summary (~6% of the window, prompt block `assistant.compact`,
   editable); folded messages stay visible, only the summary is sent. The UI reads the same numbers (`Thread.context`).
 - **Sessions** (`services/chats.py`): a thread (lesson or notebook) holds sessions — branches with their own history,
-  summary and files. Stored in `notebook_db.json` under `threads`; the old flat list of messages is read as one session.
+  summary and files. Each session is a folder, `<data_dir>/sessions/<id>/`: `context/session.json` (everything written
+  in it and its thread) and `local_session_src/` (its files, `services/attachments.py`). `notebook_db.json` keeps only
+  the index `threads["<kind>:<id>"] = {active, sessions: [ids]}`; older libraries (sessions inside the index, or a flat
+  list of messages) are moved out with their files at startup (`chats.migrate`). A file joins the session's folder the
+  moment it is added (a pasted screenshot survives the clipboard), goes to the model only with the message it is attached
+  to, and can be attached again from the paperclip; a removed draft chip deletes it unless a sent message holds it. The
+  first, unsaved session of a thread has a stable id (derived from the thread), so a file pasted before the first
+  question lands in that question's session.
+- **The assistant's sources rule** (`assistant.base`): answers are grounded in the lessons and cited; when they do not
+  cover a question, or the user asks for general knowledge, the model says so and answers from its own knowledge under
+  "Beyond the lecture:", without timecodes.
 - `BaseAIProvider.generate_audit` exists once: a long transcript is split into ~30k-character parts, each part becomes
   notes, then a final merge. Nothing is truncated.
 - **Retries** (`core/ai/retry.py`): every cloud call (Gemini text and transcription, DeepSeek) goes through `with_retry`.

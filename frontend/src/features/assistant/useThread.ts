@@ -57,13 +57,6 @@ export function useThread(kind: ThreadKind, id: string, provider: AIProvider, so
       await reload()
     },
     compact: async () => res.setData(await api.compactSession(kind, id, sid, view)),
-    toggleFile: async (fileId: string) => {
-      const off = new Set(session?.excluded_files ?? [])
-      if (off.has(fileId)) off.delete(fileId)
-      else off.add(fileId)
-      await api.patchSession(kind, id, sid, { excluded_files: [...off] })
-      await reload()
-    },
   }
 }
 
