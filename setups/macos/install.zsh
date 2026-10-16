@@ -37,6 +37,8 @@ node_ok() {
   (( (v[1] == 20 && v[2] >= 19) || (v[1] == 22 && v[2] >= 12) || v[1] > 22 ))
 }
 run() { "$@" >>"$LOG" 2>&1 }
+# A ready UI (frontend/dist/.prebuilt: Setup.zip carries it) needs no Node.js; otherwise the launcher builds it.
+prebuilt() { [[ -f "$INSTALL_DIR/frontend/dist/.prebuilt" ]] || { [[ -f "$SOURCE" ]] && tar -tzf "$SOURCE" frontend/dist/.prebuilt >/dev/null 2>&1 } }
 
 case "$STEP" in
   has-settings)
@@ -59,10 +61,11 @@ ASK
     ;;
 
   tools)
-    for f in uv node ffmpeg; do
+    tools=(uv ffmpeg); prebuilt || tools+=node
+    for f in $tools; do
       brew list --formula "$f" >/dev/null 2>&1 || command -v "$f" >/dev/null || run brew install "$f" || die "$(L "Не удалось установить $f. Лог: $LOG" "Could not install $f. Log: $LOG")"
     done
-    if ! node_ok; then
+    if ! prebuilt && ! node_ok; then
       print "node $(node --version 2>/dev/null) is older than 20.19 / 22.12" >>"$LOG"
       # Homebrew's node comes first on PATH here and in the launcher, whatever installed the old one.
       if brew list --formula node >/dev/null 2>&1; then run brew upgrade node || true; else run brew install node || true; fi
@@ -76,7 +79,7 @@ ASK
     TMP=$(mktemp -d)
     run tar -xzf "$SOURCE" -C "$TMP" || { rm -rf "$TMP"; die "$(L "Архив кода повреждён. Лог: $LOG" "The code archive is damaged. Log: $LOG")" }
     mkdir -p "$INSTALL_DIR"
-    # Replace code, keep installed environments (.venv, node_modules) so updates stay fast.
+    # Replace code (and the ready UI, frontend/dist), keep installed environments (.venv, node_modules) so updates stay fast.
     run rsync -a --delete --exclude /.venv --exclude /frontend/node_modules --exclude /workspace "$TMP/" "$INSTALL_DIR/" \
       || { rm -rf "$TMP"; die "$(L "Не удалось записать код в $INSTALL_DIR. Лог: $LOG" "Could not write the code to $INSTALL_DIR. Log: $LOG")" }
     rm -rf "$TMP"
@@ -88,6 +91,7 @@ ASK
     ;;
 
   node)
+    prebuilt && { print "ready interface: no npm" >>"$LOG"; exit 0 }
     run npm --prefix "$INSTALL_DIR/frontend" ci --no-audit --no-fund || die "$(L "Установка интерфейса не удалась. Лог: $LOG" "Installing the interface failed. Log: $LOG")"
     ;;
 

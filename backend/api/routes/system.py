@@ -95,7 +95,8 @@ def uninstall_start(req: UninstallRequest) -> UninstallResult:
 
 
 def _stop_everything() -> None:
-    """Stop all local parts: app window (dedicated browser profile only), Vite UI server, then this API server."""
+    """Stop all local parts: app window (dedicated browser profile only), a Vite UI server if one runs (older versions,
+    `npm run dev`), then this server (it also listens on the UI port; terminate() skips this process)."""
     proc.terminate(proc.pids_with_cmdline(f"--user-data-dir={CHROME_PROFILE_DIR}"))
     ui = {int(p) for p in read_text(FRONTEND_PID_FILE).split() if p.isdigit()} | proc.pids_listening(FRONTEND_PORT)
     proc.terminate(ui)

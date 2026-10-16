@@ -14,7 +14,7 @@ os_lang() {
 OS_LANG=$(os_lang)
 L() { [[ $OS_LANG == ru ]] && print -r -- "$1" || print -r -- "$2" }
 resp=$(curl -sS --max-time 5 -X POST -w '\n%{http_code}' "$API/api/system/shutdown" 2>/dev/null) || {
-  L "API не отвечает: останавливаю UI (5173), если он остался." "The API does not answer: stopping the UI (5173) if it is still running."
+  L "API не отвечает: останавливаю то, что слушает порт интерфейса (5173), если оно осталось." "The API does not answer: stopping whatever still listens on the interface port (5173)."
   pids=( $(lsof -ti tcp:5173 -sTCP:LISTEN) )
   (( ${#pids} )) && kill -TERM $pids
   exit 0

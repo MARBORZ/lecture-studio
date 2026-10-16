@@ -1,7 +1,8 @@
 #!/bin/zsh
 # Builds the applets:
 #   setups/macos/{Setup,Uninstall}.app   committed; work on the clone they sit in
-#   dist/Lecture-Studio-Setup.zip    standalone Setup for Releases; carries the code (git HEAD) inside
+#   dist/Lecture-Studio-Setup.zip    standalone Setup for Releases; carries the code (git HEAD) inside, with the UI
+#                                    already built (frontend/dist + .prebuilt): installs from it need no Node.js
 set -eu
 REPO="${0:A:h:h:h}"
 WORK=$(mktemp -d)
@@ -19,7 +20,7 @@ build() {  # build <out.app> <with_source:0|1> [script name, default Setup] [bun
     || /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string local.lecture-studio.$id" "$app/Contents/Info.plist"
   if (( $2 )); then
     cp "$REPO/setups/macos/install.zsh" "$app/Contents/Resources/install.zsh"
-    git -C "$REPO" archive --format=tar.gz -o "$app/Contents/Resources/source.tar.gz" HEAD
+    cp "$WORK/source.tar.gz" "$app/Contents/Resources/source.tar.gz"
   fi
   xattr -cr "$app"
   codesign --force --deep -s - "$app" 2>/dev/null
@@ -33,8 +34,15 @@ for name in Setup Uninstall; do
   print "Built: setups/macos/$name.app"
 done
 
-# 2. Standalone (release)
+# 2. Standalone (release): HEAD + the UI built from that same HEAD (dist is not in git).
 [[ -z "$(git -C "$REPO" status --porcelain)" ]] || print "warning: uncommitted changes are NOT in the release archive (it packs HEAD)"
+mkdir -p "$WORK/src"
+git -C "$REPO" archive HEAD | tar -x -C "$WORK/src"
+npm --prefix "$WORK/src/frontend" ci --no-audit --no-fund --prefer-offline
+npm --prefix "$WORK/src/frontend" run build
+print "built from $(git -C "$REPO" rev-parse --short HEAD)" > "$WORK/src/frontend/dist/.prebuilt"
+rm -rf "$WORK/src/frontend/node_modules"
+(cd "$WORK/src" && tar -czf "$WORK/source.tar.gz" *(D))   # paths without ./ (install.zsh looks for frontend/dist/.prebuilt)
 build "$WORK/Lecture Studio Setup.app" 1
 mkdir -p "$REPO/dist"
 rm -f "$REPO/dist/Lecture-Studio-Setup.zip"
