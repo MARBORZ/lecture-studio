@@ -8,10 +8,12 @@ from backend.core.ai import AI, ProviderInfo
 from backend.core.ai.prompts import BLOCKS
 from backend.i18n import tr
 from backend.services.jobs import JobRegistry
-from backend.settings import SettingsService
+from backend.settings import SettingsService, hotkeys
 from backend.settings.schema import (
     ComputeStatus,
     DataDirChange,
+    HotkeyCheck,
+    HotkeyCheckRequest,
     KeyTestRequest,
     KeyTestResult,
     PathCheckRequest,
@@ -37,8 +39,22 @@ def patch_settings(patch: SettingsPatch) -> SettingsView:
             AI.check_context_tokens(patch.ai.context_tokens)
         except ValueError as e:
             raise HTTPException(422, detail=str(e)) from e
-    SettingsService.patch(patch)
+    try:
+        SettingsService.patch(patch)
+    except hotkeys.HotkeyError as e:
+        p = e.problem
+        raise HTTPException(422, detail={"message": tr(f"hotkey.{p.code}"), "code": p.code, "action": p.action, "other": p.other}) from e
     return SettingsService.view()
+
+
+@router.post("/hotkeys/check", response_model=HotkeyCheck)
+def check_hotkey(req: HotkeyCheckRequest) -> HotkeyCheck:
+    """While the user records a combination: can this action take it (format, three keys, reserved, conflicts)?"""
+    problem = hotkeys.check(req.action, req.combo, SettingsService.get().hotkeys)
+    combo = hotkeys.normalize(req.combo) or req.combo
+    if problem:
+        return HotkeyCheck(ok=False, combo=combo, problem=problem.code, other=problem.other)
+    return HotkeyCheck(ok=True, combo=combo)
 
 
 @router.get("/providers", response_model=dict[str, ProviderInfo])

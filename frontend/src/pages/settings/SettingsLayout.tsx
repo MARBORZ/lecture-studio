@@ -1,4 +1,4 @@
-import { Bot, FolderTree, Languages, ScrollText, SlidersHorizontal } from 'lucide-react'
+import { Bot, FolderTree, Keyboard, Languages, ScrollText, SlidersHorizontal } from 'lucide-react'
 import { NavLink } from 'react-router'
 import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
@@ -13,6 +13,7 @@ export const SECTIONS = [
   { to: 'prompts', icon: ScrollText, key: 'settings.prompts' },
   { to: 'processing', icon: SlidersHorizontal, key: 'settings.processing' },
   { to: 'interface', icon: Languages, key: 'settings.interface' },
+  { to: 'hotkeys', icon: Keyboard, key: 'settings.hotkeys' },
 ] as const
 
 /**

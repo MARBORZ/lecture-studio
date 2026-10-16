@@ -7,6 +7,7 @@ import { NotFound, RouteError } from '@/pages/NotFound'
 import { StudioPage } from '@/pages/StudioPage'
 import { LessonLayout } from '@/pages/lesson/LessonLayout'
 import { LessonAssistant, LessonFiles, LessonNotes, LessonTranscript } from '@/pages/lesson/tabs'
+import { HotkeysSettings } from '@/features/hotkeys/HotkeysSettings'
 import { SettingsLayout } from '@/pages/settings/SettingsLayout'
 import { AISettingsSection, InterfaceSettings, PathsSettings, ProcessingSettings, PromptsSettings } from '@/pages/settings/sections'
 import { AppProvider } from './AppProvider'
@@ -49,6 +50,7 @@ export const router = createBrowserRouter([
           { path: 'prompts', element: <PromptsSettings /> },
           { path: 'processing', element: <ProcessingSettings /> },
           { path: 'interface', element: <InterfaceSettings /> },
+          { path: 'hotkeys', element: <HotkeysSettings /> },
         ],
       },
       { path: '*', element: <NotFound /> },

@@ -123,6 +123,11 @@ RU: dict[str, str] = {
     "assistant.empty_question": "Пустой вопрос",
     "assistant.empty_answer": "Пустой ответ",
     "chat.session_not_found": "Сессия не найдена",
+    # ---- hotkeys (Settings → Hotkeys)
+    "hotkey.format": "Такого сочетания клавиш нет",
+    "hotkey.too_many": "Не больше трёх клавиш в сочетании",
+    "hotkey.reserved": "Это сочетание занято системой, браузером или вводом текста",
+    "hotkey.conflict": "Это сочетание уже назначено другому действию",
     "attachment.not_found": "Вложение не найдено",
     "attachment.bad_id": "Некорректный идентификатор вложения",
     "attachment.image": "Изображение: видит только Gemini",
@@ -290,6 +295,11 @@ EN: dict[str, str] = {
     "assistant.empty_question": "Empty question",
     "assistant.empty_answer": "Empty answer",
     "chat.session_not_found": "Session not found",
+    # ---- hotkeys (Settings → Hotkeys)
+    "hotkey.format": "Not a valid key combination",
+    "hotkey.too_many": "No more than three keys in a combination",
+    "hotkey.reserved": "This combination belongs to the system, the browser or text input",
+    "hotkey.conflict": "This combination is already taken by another action",
     "attachment.not_found": "Attachment not found",
     "attachment.bad_id": "Invalid attachment id",
     "attachment.image": "Image: only Gemini sees it",

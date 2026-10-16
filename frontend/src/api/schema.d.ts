@@ -144,6 +144,26 @@ export interface paths {
         patch: operations["patch_settings_api_settings_patch"];
         trace?: never;
     };
+    "/api/settings/hotkeys/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Hotkey
+         * @description While the user records a combination: can this action take it (format, three keys, reserved, conflicts)?
+         */
+        post: operations["check_hotkey_api_settings_hotkeys_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/providers": {
         parameters: {
             query?: never;
@@ -1415,6 +1435,41 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HotkeyCheck */
+        HotkeyCheck: {
+            /** Ok */
+            ok: boolean;
+            /** Combo */
+            combo: string;
+            /** Problem */
+            problem?: ("format" | "too_many" | "reserved" | "conflict") | null;
+            /**
+             * Other
+             * @default
+             */
+            other: string;
+        };
+        /** HotkeyCheckRequest */
+        HotkeyCheckRequest: {
+            /** Action */
+            action: string;
+            /** Combo */
+            combo: string;
+        };
+        /** HotkeyView */
+        HotkeyView: {
+            /** Id */
+            id: string;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "global" | "lesson" | "player";
+            /** Default */
+            default: string;
+            /** Combo */
+            combo: string;
+        };
         /** InspectRequest */
         InspectRequest: {
             /** Path */
@@ -2223,6 +2278,10 @@ export interface components {
             compute?: components["schemas"]["ComputeSettings"] | null;
             ai?: components["schemas"]["AISettingsPatch"] | null;
             pipeline?: components["schemas"]["PipelineDefaults"] | null;
+            /** Hotkeys */
+            hotkeys?: {
+                [key: string]: string | null;
+            } | null;
         };
         /** SettingsView */
         SettingsView: {
@@ -2250,6 +2309,8 @@ export interface components {
             paths: components["schemas"]["PathsView"];
             ai: components["schemas"]["AISettingsView"];
             pipeline: components["schemas"]["PipelineDefaults"];
+            /** Hotkeys */
+            hotkeys: components["schemas"]["HotkeyView"][];
         };
         /** ShutdownResult */
         ShutdownResult: {
@@ -2692,6 +2753,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SettingsView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_hotkey_api_settings_hotkeys_check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HotkeyCheckRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HotkeyCheck"];
                 };
             };
             /** @description Validation Error */

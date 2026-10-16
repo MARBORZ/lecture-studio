@@ -1,5 +1,5 @@
 import { Clapperboard, Library, NotebookPen, PanelLeftClose, PanelLeftOpen, Plus, Settings, Unplug } from 'lucide-react'
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useState } from 'react'
 import { NavLink } from 'react-router'
 import { useJobs, useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
@@ -18,11 +18,10 @@ import type { Project } from '@/api/types'
 import { cn } from '@/lib/cn'
 import { storage } from '@/lib/format'
 import { ease } from '@/lib/motion'
-import { isHotkey, isTyping, shortcutLabel } from '@/lib/keys'
+import { useHotkey, useWithHotkey } from '@/features/hotkeys/useHotkey'
 
 const COLLAPSED = 60
 const EXPANDED = 256
-export const SHORTCUT_LABEL = shortcutLabel('B')
 
 /** Collapsed state for everything rendered inside the sidebar. */
 const CollapsedContext = createContext(false)
@@ -94,19 +93,9 @@ export function Sidebar() {
     })
   }, [])
 
-  // ⌘B / Ctrl+B anywhere (ignored only inside rich-text editors).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (isHotkey(e, 'KeyB', { mod: true }) && !isTyping(e, '[contenteditable]')) {
-        e.preventDefault()
-        toggle()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [toggle])
-
-  const toggleLabel = `${collapsed ? t('nav.expand') : t('nav.collapse')} (${SHORTCUT_LABEL})`
+  // ⌘B / Ctrl+B by default, anywhere (Settings → Hotkeys)
+  useHotkey('sidebar.toggle', toggle)
+  const toggleLabel = useWithHotkey('sidebar.toggle')(collapsed ? t('nav.expand') : t('nav.collapse'))
 
   return (
     <CollapsedContext.Provider value={collapsed}>

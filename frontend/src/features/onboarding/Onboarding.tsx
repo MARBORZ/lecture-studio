@@ -9,6 +9,7 @@ import { AnimatePresence, m } from '@/components/motion'
 import { cn } from '@/lib/cn'
 import { fade, fadeIn, fadeUp, slide } from '@/lib/motion'
 import { AssistantArt, DiaryArt, DoneArt, KeysStep, LessonArt, LibraryArt, PowerArt, SettingsArt, StudioArt, WelcomeArt } from './illustrations'
+import { useHotkeyLabel } from '@/features/hotkeys/useHotkey'
 import { isTyping } from '@/lib/keys'
 import { LogoMark } from '@/features/system/BootMark'
 import { Bootstrap } from './Bootstrap'
@@ -101,6 +102,8 @@ function LanguageScreen({ current, onChoose }: { current: UILanguage; onChoose: 
 function Walkthrough({ onClose }: { onClose?: () => void }) {
   const { t, patchSettings, toast } = useUI()
   const [[index, direction], setStep] = useState<[number, number]>([0, 1])
+  // the player's current combinations for the lesson step (Settings → Hotkeys); "—" for one turned off
+  const keys = { play: useHotkeyLabel('player.toggle') || '—', back: useHotkeyLabel('player.back') || '—', forward: useHotkeyLabel('player.forward') || '—' }
   const setIndex = useCallback((next: number | ((i: number) => number)) => {
     setStep(([i]) => {
       const n = typeof next === 'function' ? next(i) : next
@@ -189,7 +192,7 @@ function Walkthrough({ onClose }: { onClose?: () => void }) {
                     {(['b1', 'b2', 'b3'] as const).map((b, i) => (
                       <m.li key={b} variants={fadeIn} initial="hidden" animate="show" custom={0.14 + i * 0.07} className="flex gap-3 text-[14px] leading-snug text-soft">
                         <span className="mt-[2px] flex size-[18px] shrink-0 items-center justify-center rounded-full border border-line-strong"><Icon as={Check} size={10} /></span>
-                        {t(k(step.id, b))}
+                        {t(k(step.id, b), keys)}
                       </m.li>
                     ))}
                   </ul>
