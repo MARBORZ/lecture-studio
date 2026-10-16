@@ -39,7 +39,11 @@ SEARCH_RESULTS = 20
 SEARCH_TIMEOUT = 40
 INFO_TIMEOUT = 40
 # best up to 1080p as mp4 + m4a (merged by ffmpeg), falling back to whatever single file is there
-FORMAT = "bv*[height<=1080][ext=mp4]+ba[ext=m4a]/b[height<=1080][ext=mp4]/bv*[height<=1080]+ba/b[height<=1080]/b"
+# H.264 first (plays everywhere, edits fast); YouTube also serves VP9 inside mp4
+FORMAT = (
+    "bv*[height<=1080][ext=mp4][vcodec^=avc1]+ba[ext=m4a]/bv*[height<=1080][ext=mp4]+ba[ext=m4a]"
+    "/b[height<=1080][ext=mp4]/bv*[height<=1080]+ba/b[height<=1080]/b"
+)
 _ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
 _HOSTS = {
     "youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be", "www.youtu.be",
@@ -241,7 +245,7 @@ def run_download(vid: str, target: Path, job_id: str) -> Path:
     err_done = threading.Event()
     threading.Thread(target=pump, args=(p.stderr, err.append, err_done.set), daemon=True).start()
 
-    saved, shown = "", 0
+    saved, shown, started = "", 0, set()
     while True:
         if JobRegistry.is_cancel_requested(job_id):
             proc.terminate_tree(p.pid)
@@ -258,6 +262,10 @@ def run_download(vid: str, target: Path, job_id: str) -> Path:
             except ValueError:
                 continue
             sound = m.group(2) == "none"  # the separate audio stream comes after the video one
+            first = sound not in started
+            started.add(sound)
+            if first and pct >= 100:
+                continue  # a fragmented (HLS) stream opens with a bogus "100%" before its real 0–100 %
             overall = min(95, 80 + pct * 0.15 if sound else pct * 0.8)
             shown = max(shown, int(overall))  # fragmented streams re-estimate their size: the bar never goes back
             label = tr("video.progress_audio" if sound else "video.progress_video", pct=int(pct))
