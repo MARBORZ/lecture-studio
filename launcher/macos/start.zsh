@@ -164,6 +164,17 @@ if (( ! prebuilt )); then
   fi
 fi
 
+# The Desktop shortcut is built once by Setup; a new logo arrives with an update: refresh its icon in place
+# (only the .icns: rebuilding the whole bundle on the iCloud-synced Desktop leaves "Lecture Studio 2" copies).
+icon_fp=$(fingerprint assets/icon.svg)
+shortcut="$HOME/Desktop/Lecture Studio.app"
+if [[ -d "$shortcut" ]] && changed icon "$icon_fp"; then
+  print "refreshing the shortcut icon"
+  zsh launcher/macos/make-icon.zsh assets/icon.svg "$shortcut/Contents/Resources/AppIcon.icns" \
+    && codesign --force --deep -s - "$shortcut" 2>/dev/null; touch "$shortcut"
+  print -r -- "$icon_fp" > "$STATE/icon"
+fi
+
 # ---- 4. Server: the app on the UI port, the API also on the API port (writes its own server.pid).
 print "starting server :$UI_PORT + :$API_PORT"
 LS_API_PORT=$API_PORT LS_UI_PORT=$UI_PORT nohup .venv/bin/python -m backend.serve >>"$LOGS/server.log" 2>&1 </dev/null &!
