@@ -3,7 +3,7 @@
 A local, NotebookLM-style studio for recorded lectures and screencasts.
 It cuts the silence out of a recording, builds a clean jump-cut video, transcribes it, writes a blunt
 "slide-notes" audit with clickable timecodes, and lets you ask questions across your lessons with citations
-that jump to the exact moment in the video. Video never leaves your machine.
+that jump to the exact moment in the video. Video stays on your machine unless you explicitly ask a model to watch it.
 
 > **Read this first.** Lecture Studio was built to solve one specific personal task: turning long recorded
 > programming lessons into something I can study quickly. It is shared as-is, in case it is useful to someone
@@ -16,7 +16,7 @@ that jump to the exact moment in the video. Video never leaves your machine.
   cut by the same frame-aligned spans, so the clean audio and the clean video share one timeline.
 - **Jump-cut video.** FFmpeg trims and concatenates the same spans and compresses with H.264 CRF (`+faststart`
   for instant seeking). Typical OBS recordings shrink a lot while code on screen stays readable.
-- **Transcription.** Local Faster-Whisper (`large-v3-turbo`) or Google Gemini (audio only, never video).
+- **Transcription.** Local Faster-Whisper (`large-v3-turbo`) or Google Gemini (audio only).
 - **Audit.** DeepSeek or Gemini writes structured notes in a blunt, no-filler "speaker notes" style, with
   `[MM:SS]` timecodes. Long lectures are processed in parts and merged; nothing is truncated.
   The instructions are editable in **Settings → Instructions**; the timecode format stays system-owned so clicks keep working.
@@ -46,6 +46,23 @@ that jump to the exact moment in the video. Video never leaves your machine.
   Lessons and settings are never touched. Settings → Interface → Check for updates.
 - **MCP server.** AI agents (Claude Code, Claude Desktop, Cursor, Cline) can read lessons, search transcripts and
   write audits through the bundled MCP server.
+
+## Processing steps
+
+Every step is a switch, in the Studio per recording and in Settings → Processing as the default:
+
+| Step | Choices |
+|---|---|
+| Pauses | cut (Silero VAD) or keep the recording whole |
+| Video | **clean** (the same cuts as the sound), **compressed copy** (whole, H.264), **original** (the file itself, nothing re-encoded), **none** (sound only) |
+| Speech recognition | Whisper (local, GPU or CPU), Gemini (cloud, sound only), none |
+| Audit | DeepSeek, Gemini or none — from the transcript, or (Gemini) **from the video** |
+
+Presets: **Standard**, **Sound only**, and **Eco** — nothing is copied or re-encoded: the lesson plays the file where it
+lies. If that file is moved or deleted, the lesson says so and **Point to the new path** relinks it (the same recording,
+checked by length); transcript and audit are kept. Audio files (MP3, WAV, M4A…) work everywhere a video does.
+An existing lesson can drop its video and keep the sound (Files → **Delete video, keep sound**); your own Eco file is
+never deleted.
 
 ## Install
 
@@ -114,8 +131,10 @@ The data folder can be switched or moved at runtime in Settings → Paths.
 
 ## Privacy
 
-Video is processed only locally. Cloud models receive either audio (Gemini transcription, if you choose it) or text
-(transcripts for audits and the assistant). With Whisper selected and no AI audit, nothing leaves the machine.
+Video is processed only locally. Cloud models receive audio (Gemini transcription, if you choose it) or text
+(transcripts for audits and the assistant). The one exception is opt-in: **audit from video** sends Gemini a light copy
+of the video (480p, one frame per second, quiet sound — never the original file) so it can see code and slides; the
+Studio warns about the extra cost first. With Whisper selected and no AI audit, nothing leaves the machine.
 
 ## GPU and CPU
 

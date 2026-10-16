@@ -29,8 +29,11 @@ API: `http://127.0.0.1:3000` (the UI reaches it through the Vite proxy at `:5173
 | GET | `/api/lessons/{id}/media/{audio,video}` | streaming with HTTP Range (instant seeking) |
 | GET | `/api/lessons/{id}/files/{kind}` | download: audio, video, audit, srt, orig_srt, txt, clean_ts, orig_ts, segments, time_map |
 | POST | `/api/lessons/{id}/export` | export to a folder (default: from settings) |
-| POST | `/api/lessons/{id}/audit` | regenerate the audit (background job) |
-| POST | `/api/lessons/{id}/transcribe` | recognize speech again from the clean audio `{mode: whisper\|gemini}`; media is kept (background job) |
+| POST | `/api/lessons/{id}/audit` | regenerate the audit `{provider, audit_mode, source: transcript\|video}` (background job) |
+| POST | `/api/lessons/{id}/transcribe` | recognize speech again `{transcriber: whisper\|gemini}` from the lesson's audio (Eco: from the original); media is kept |
+| POST | `/api/lessons/{id}/relink` | Eco: point the lesson at its recording's new path `{path}`; refused for another recording (length) |
+| POST | `/api/lessons/{id}/drop-video` | delete the lesson's video, keep the sound (a user's own Eco file is never deleted) |
+| POST | `/api/media/inspect` | a file on disk before processing: length, size, video or sound only, whether the browser plays it as is |
 | PUT / DELETE / GET | `/api/projects/{id}/cover` | notebook cover: upload (body = image, PNG/JPEG/WebP/GIF ≤ 10 MB) / remove / the image |
 | PUT | `/api/uploads/{filename}` | streamed upload into `temp/` (body = file bytes) |
 | POST | `/api/jobs` | start: `{options, upload_id?}` or `options.local_path`; `400` at once for unreadable media or no sound track |

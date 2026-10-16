@@ -18,15 +18,26 @@ settings: read by every layer; holds paths and keys
 One background worker (`ThreadPoolExecutor(max_workers=1)`): Whisper and FFmpeg saturate the machine anyway,
 so extra jobs wait in the queue as `pending`.
 
+Options are one field per step (`PipelineDefaults`: `cut_silence`, `video`, `transcriber`, `audit`, `audit_source`, plus
+fine-tuning). A validator makes impossible combinations possible (original video → no cutting; video analysis → Gemini
+and a video; no transcript → audit from video or none) and translates pre-1.4 settings (`mode`, `clean_video`,
+`generate_audit`). The UI mirrors those rules (`features/jobs/PipelineOptionsFields.tsx:normalize`); the server decides.
+
 | Step | stage | What it does |
 |---|---|---|
 | ExtractAudioStep | extract | 16 kHz mono WAV; ffprobe reads the video FPS |
-| DetectSpeechStep | vad | Silero VAD → speech spans; **boundaries snapped to video frames** |
-| BuildCleanAudioStep | audio | concatenation with 5 ms micro-fades → MP3, `time_map.json` |
-| BuildCleanVideoStep | video | the same spans → `trim/atrim` + `concat`, H.264 CRF, `+faststart` |
-| TranscribeStep | transcribe | Whisper (local) or Gemini (audio to the cloud) → `segments.json` |
-| GenerateAuditStep | audit | audit from the `[MM:SS]` transcript; during processing an AI failure is only a warning |
-| SaveLessonStep | save | store the lesson, optional export |
+| DetectSpeechStep | vad | only with `cut_silence`: Silero VAD → speech spans, **boundaries snapped to video frames** |
+| BuildCleanAudioStep | audio | spans (or the whole file) with 5 ms micro-fades → MP3, `time_map.json`; with an original video no MP3, an identity `time_map` |
+| BuildVideoStep | video | `clean`: the same spans → `trim/atrim` + `concat`; `compressed`: the whole video; both H.264 (x264 / NVENC), `+faststart`. `original`: nothing encoded — a path stays where it is (Eco), an upload moves into the lesson (`Lesson.original_file`) |
+| TranscribeStep | transcribe | Whisper (local) or Gemini (audio to the cloud) → `segments.json`; audio from `JobContext.speech_audio()` |
+| GenerateAuditStep | audit | DeepSeek/Gemini from the `[MM:SS]` transcript, or Gemini from the video (an optimized proxy + the transcript of each part; parts of 45 min as offsets in one upload); a failed video audit falls back to the transcript; during processing an AI failure is only a warning |
+| SaveLessonStep | save | store the lesson (with `cut_silence`, `original_file`, `original_kind`), optional export |
+
+Media of a lesson is resolved in one place, `Library.media_file(lesson, kind)`: the lesson's own MP3/MP4, else the
+original recording. Player, downloads, export and MCP all use it. An Eco lesson whose file is gone reports
+`source_missing`; `POST /relink` accepts the same recording at a new path (length checked). `POST /drop-video` keeps
+the sound (a kept upload gives its sound to an MP3 first; a user's own Eco file is never deleted). Job warnings are a list
+(`JobContext.warn`), so one step cannot hide another's.
 
 `JobContext.cleanup()` runs in `finally`: the temporary WAV and the uploaded source are removed on error and on cancel too.
 Cancellation is a `JobCancelled` exception, checked between steps and inside long operations.

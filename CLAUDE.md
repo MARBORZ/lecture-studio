@@ -30,7 +30,9 @@ Spec: [docs/MCP_REFERENCE.md](docs/MCP_REFERENCE.md).
    are overridden by the user in Settings → Instructions (`settings.json: prompts`); read them via `prompts.text(key)`.
    The contract (timecode/citation format, part merging) is not editable. Default style: slide notes, no softening, no emoji.
    Providers implement transport only.
-3. **Video never goes to the cloud.** Cloud models get audio (Gemini transcription) or text only.
+3. **Video goes to the cloud only when the user picks "audit from video" (Gemini), never by default**, and then only as
+   an optimized copy (480p, 1 fps, quiet mono: `core/media/video.py:make_analysis_proxy`). Otherwise cloud models get
+   audio (Gemini transcription) or text only.
 4. **User data never goes into the repository.** Paths come from `SettingsService.paths()` (`Paths`: db, output, temp,
    diary, attachments), never built from `data_dir` elsewhere.
 5. **Frontend: one provider, no duplicate components.** `AppProvider` (`useUI` / `useLibrary` / `useJobs`); the player is an
