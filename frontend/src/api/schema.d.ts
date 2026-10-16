@@ -1147,6 +1147,8 @@ export interface components {
             local_base_url?: string | null;
             /** Local Model */
             local_model?: string | null;
+            /** Local Thinking */
+            local_thinking?: boolean | null;
             /** Assistant Provider */
             assistant_provider?: ("deepseek" | "gemini" | "openai" | "anthropic" | "local") | null;
             /** Context Tokens */
@@ -1174,6 +1176,8 @@ export interface components {
             local_base_url: string;
             /** Local Model */
             local_model: string;
+            /** Local Thinking */
+            local_thinking: boolean;
             /**
              * Assistant Provider
              * @enum {string}

@@ -566,6 +566,8 @@ export const en: Record<TKey, string> = {
   'settings.local.pullHint': 'No models yet. Download one, for example: ollama pull qwen3:8b',
   'settings.local.upTo': 'up to {n} tokens',
   'settings.local.window': 'Context window',
+  'settings.local.thinking': 'Model reasoning',
+  'settings.local.thinkingHint': 'Models like qwen3 first "think to themselves" — many times slower (12 s vs 0.2 s on a short question) and of little help for notes. Off: they answer at once.',
   'settings.local.windowHint': 'How many tokens the model gets per request. A larger window takes more memory; a long lecture goes in parts.',
   'settings.local.windowLimit': 'The model handles up to {n} tokens. A larger window takes more memory; a long lecture goes in parts.',
   'settings.contextWindow': 'Assistant context window',

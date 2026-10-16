@@ -287,6 +287,7 @@ class SettingsService:
                 whisper_model=s.ai.whisper_model,
                 local_base_url=s.ai.local_base_url,
                 local_model=s.ai.local_model,
+                local_thinking=s.ai.local_thinking,
                 assistant_provider=s.ai.assistant_provider,
                 context_tokens=s.ai.context_tokens,
             ),
