@@ -39,7 +39,7 @@ class AI:
         ai = SettingsService.get().ai
         model = model or getattr(ai, f"{category}_model", None) or cls.default_model
         if category == "local":  # no key: an address and the window the requests are sized for
-            return cls(model=model, base_url=ai.local_base_url, context_tokens=AI.context_tokens("local"))
+            return cls(model=model, base_url=ai.local_base_url, context_tokens=AI.context_tokens("local"), thinking=ai.local_thinking)
         return cls(api_key=api_key or SettingsService.api_key(category), model=model)
 
     @staticmethod

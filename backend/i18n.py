@@ -178,6 +178,11 @@ RU: dict[str, str] = {
     'Выполните в терминале: git config --global --add safe.directory "{repo}"',
     "update.none": "Нет доступного обновления",
     "update.blocked": "Обновление из приложения невозможно: {reason}",
+    # ---- MCP (services/mcp_connect.py)
+    "mcp.no_desktop": "Claude Desktop не найден на этом компьютере",
+    "mcp.no_code": "Команда claude (Claude Code) не найдена",
+    "mcp.bad_config": "Не удалось прочитать конфиг Claude: {path}",
+    "mcp.cli_failed": "Claude Code не принял настройку: {error}",
     # ---- feedback (services/feedback.py)
     "feedback.no_draft": "Форма устарела — откройте её заново",
     "feedback.bad_type": "Такой файл не принимается. Можно: {types}",
@@ -373,6 +378,11 @@ EN: dict[str, str] = {
     "update.ownership": 'Git does not trust the app folder (detected dubious ownership). Run in a terminal: git config --global --add safe.directory "{repo}"',
     "update.none": "No update available",
     "update.blocked": "The update cannot be applied from the app: {reason}",
+    # ---- MCP (services/mcp_connect.py)
+    "mcp.no_desktop": "Claude Desktop is not found on this computer",
+    "mcp.no_code": "The claude command (Claude Code) is not found",
+    "mcp.bad_config": "Could not read the Claude config: {path}",
+    "mcp.cli_failed": "Claude Code refused the setting: {error}",
     # ---- feedback (services/feedback.py)
     "feedback.no_draft": "The form has expired — open it again",
     "feedback.bad_type": "This file type is not accepted. Allowed: {types}",

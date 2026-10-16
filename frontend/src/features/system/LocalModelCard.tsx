@@ -4,7 +4,7 @@ import { api } from '@/api/client'
 import type { LocalServer } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
-import { Button, Card, Field, Input, Segmented, Select } from '@/components/ui'
+import { Button, Card, Field, Input, Segmented, Select, Switch } from '@/components/ui'
 import { formatCount } from '@/lib/format'
 import { useResource } from '@/lib/useResource'
 
@@ -100,6 +100,12 @@ export function LocalModelCard() {
             )}
           </div>
         </Field>
+        <Switch
+          checked={ai.local_thinking}
+          onChange={(v) => void patch({ ai: { local_thinking: v } })}
+          label={t('settings.local.thinking')}
+          hint={t('settings.local.thinkingHint')}
+        />
       </div>
     </Card>
   )

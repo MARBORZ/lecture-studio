@@ -126,6 +126,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/mcp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mcp Status */
+        get: operations["mcp_status_api_system_mcp_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/mcp/{client}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mcp Connect Client */
+        post: operations["mcp_connect_client_api_system_mcp__client__post"];
+        /** Mcp Disconnect Client */
+        delete: operations["mcp_disconnect_client_api_system_mcp__client__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings": {
         parameters: {
             query?: never;
@@ -1150,6 +1185,8 @@ export interface components {
             local_base_url?: string | null;
             /** Local Model */
             local_model?: string | null;
+            /** Local Thinking */
+            local_thinking?: boolean | null;
             /** Assistant Provider */
             assistant_provider?: ("deepseek" | "gemini" | "openai" | "anthropic" | "local") | null;
             /** Context Tokens */
@@ -1177,6 +1214,8 @@ export interface components {
             local_base_url: string;
             /** Local Model */
             local_model: string;
+            /** Local Thinking */
+            local_thinking: boolean;
             /**
              * Assistant Provider
              * @enum {string}
@@ -2326,6 +2365,23 @@ export interface components {
              */
             error: string;
         };
+        /** McpClient */
+        McpClient: {
+            /** Available */
+            available: boolean;
+            /** Connected */
+            connected: boolean;
+            /** Where */
+            where: string;
+        };
+        /**
+         * McpStatus
+         * @description Is this app's MCP server in the user's Claude Desktop / Claude Code (services/mcp_connect.py).
+         */
+        McpStatus: {
+            desktop: components["schemas"]["McpClient"];
+            code: components["schemas"]["McpClient"];
+        };
         /**
          * MediaInfo
          * @description What the Studio shows for a file on disk before processing (and whether Eco mode can play it as is).
@@ -3120,6 +3176,88 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UninstallResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mcp_status_api_system_mcp_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpStatus"];
+                };
+            };
+        };
+    };
+    mcp_connect_client_api_system_mcp__client__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client: "desktop" | "code";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mcp_disconnect_client_api_system_mcp__client__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client: "desktop" | "code";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["McpStatus"];
                 };
             };
             /** @description Validation Error */

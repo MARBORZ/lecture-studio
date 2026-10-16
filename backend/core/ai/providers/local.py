@@ -98,13 +98,17 @@ class LocalProvider(BaseAIProvider):
     max_context_tokens = 1_048_576  # the model's own limit is shown in Settings; the server enforces it
     default_context_tokens = 8_000
 
-    def __init__(self, api_key: str = "", model: str | None = None, base_url: str = DEFAULT_URL, context_tokens: int = 8_000):
+    def __init__(self, api_key: str = "", model: str | None = None, base_url: str = DEFAULT_URL, context_tokens: int = 8_000, thinking: bool = False):
         if not model:
             raise ValueError(tr("ai.local_no_model"))
         self.api_key = ""
         self.model = model
         self.base_url = base_url.strip().rstrip("/") or DEFAULT_URL
         self.context_tokens = context_tokens
+        # reasoning models think before answering unless told not to: Ollama "think": false, LM Studio and other
+        # OpenAI-style servers "reasoning_effort": "none" (measured: 12 s -> 0.2 s on a short question). A server that
+        # does not know the field and refuses it is asked again without it.
+        self.thinking = thinking
         self._ollama: bool | None = None
 
     def audit_window_tokens(self) -> int | None:
@@ -119,13 +123,19 @@ class LocalProvider(BaseAIProvider):
                     if self._ollama is None:
                         self._ollama = _is_ollama(client, base)
                     if self._ollama:
+                        url = f"{base}/api/chat"
                         payload: dict[str, Any] = {
                             "model": self.model, "messages": messages, "stream": False,
                             "options": {"temperature": temperature, "num_ctx": self.context_tokens},
                         }
-                        resp = client.post(f"{base}/api/chat", json=payload)
+                        quiet = {"think": False}
                     else:
-                        resp = client.post(f"{self.base_url}/chat/completions", json={"model": self.model, "messages": messages, "temperature": temperature})
+                        url = f"{self.base_url}/chat/completions"
+                        payload = {"model": self.model, "messages": messages, "temperature": temperature}
+                        quiet = {"reasoning_effort": "none"}
+                    resp = client.post(url, json=payload if self.thinking else {**payload, **quiet})
+                    if not self.thinking and resp.status_code == 400:
+                        resp = client.post(url, json=payload)  # this model or server does not take the switch
             except httpx.ConnectError as e:
                 raise _down(self.base_url) from e
             if resp.status_code >= 400:

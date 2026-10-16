@@ -94,6 +94,7 @@ class AISettings(BaseModel):
     whisper_model: str = "large-v3-turbo"
     local_base_url: str = "http://127.0.0.1:11434/v1"  # Ollama; LM Studio: http://127.0.0.1:1234/v1
     local_model: str = ""  # chosen from the server's list; "" = the local model is not set up
+    local_thinking: bool = False  # reasoning models (qwen3…) think first: many times slower, rarely better for notes
     assistant_provider: AIProviderName = "deepseek"
     context_tokens: dict[AIProviderName, int] = Field(default_factory=dict)  # assistant window, tokens; missing = default
 
@@ -162,6 +163,7 @@ class AISettingsView(BaseModel):
     whisper_model: str
     local_base_url: str
     local_model: str
+    local_thinking: bool
     assistant_provider: AIProviderName
     context_tokens: dict[AIProviderName, int]  # set by the user only; defaults and limits: /api/settings/providers
 
@@ -224,6 +226,7 @@ class AISettingsPatch(BaseModel):
     whisper_model: str | None = None
     local_base_url: str | None = None
     local_model: str | None = None
+    local_thinking: bool | None = None
     assistant_provider: AIProviderName | None = None
     context_tokens: dict[AIProviderName, int | None] | None = None  # merged; a None value = back to the default
 

@@ -19,7 +19,7 @@ class FakeServer:
     /v1/chat/completions. Every request body is kept in .seen."""
 
     def __init__(self, mode: str, reply: str = "<think>hmm</think>Ответ модели"):
-        self.mode, self.reply, self.seen = mode, reply, []
+        self.mode, self.reply, self.seen, self.strict = mode, reply, [], False
         server = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -56,6 +56,8 @@ class FakeServer:
                         return self._send(404, {"error": "model 'missing' not found"})
                     return self._send(200, {"message": {"role": "assistant", "content": server.reply}})
                 if self.path == "/v1/chat/completions" and server.mode == "openai":
+                    if server.strict and "reasoning_effort" in body:
+                        return self._send(400, {"error": "unknown field reasoning_effort"})
                     return self._send(200, {"choices": [{"message": {"content": server.reply}}]})
                 self._send(404, {"error": "not found"})
 
@@ -252,3 +254,21 @@ def test_regenerate_audit_with_the_local_model(ollama, data_dir):
         assert state["status"] == "completed", state
         assert ollama.seen[-1][0] == "/api/chat" and ollama.seen[-1][1]["options"]["num_ctx"] == 8_000
         assert "привет" in client.get("/api/lessons/less_loc").json()["lesson_audit_md"]
+
+
+def test_thinking_is_off_by_default_and_can_be_turned_on(ollama, lmstudio):
+    local.LocalProvider(model="qwen3:8b", base_url=ollama.url).generate_text("q")
+    chat = [b for path, b in ollama.seen if path == "/api/chat"][-1]
+    assert chat["think"] is False
+    local.LocalProvider(model="qwen3:8b", base_url=ollama.url, thinking=True).generate_text("q")
+    assert "think" not in [b for path, b in ollama.seen if path == "/api/chat"][-1]
+
+    local.LocalProvider(model="qwen/qwen3.5-9b", base_url=lmstudio.url).generate_text("q")
+    assert [b for path, b in lmstudio.seen if path == "/v1/chat/completions"][-1]["reasoning_effort"] == "none"
+
+
+def test_a_server_that_refuses_the_switch_is_asked_again_without_it(lmstudio):
+    lmstudio.strict = True
+    assert local.LocalProvider(model="old-model", base_url=lmstudio.url).generate_text("q") == "Ответ модели"
+    sent = [b for path, b in lmstudio.seen if path == "/v1/chat/completions"]
+    assert "reasoning_effort" in sent[-2] and "reasoning_effort" not in sent[-1]

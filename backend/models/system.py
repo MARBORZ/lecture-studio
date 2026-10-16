@@ -77,3 +77,16 @@ class UninstallRequest(BaseModel):
 class UninstallResult(BaseModel):
     ok: bool
     kept: str | None = None  # the lessons folder that stays
+
+
+class McpClient(BaseModel):
+    available: bool  # the app is installed (Desktop: its config folder; Code: the claude command)
+    connected: bool  # our server is in its config
+    where: str  # the config file
+
+
+class McpStatus(BaseModel):
+    """Is this app's MCP server in the user's Claude Desktop / Claude Code (services/mcp_connect.py)."""
+
+    desktop: McpClient
+    code: McpClient

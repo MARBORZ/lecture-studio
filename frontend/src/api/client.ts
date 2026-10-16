@@ -1,7 +1,7 @@
 import type {
   AIProvider, AskRequest, DiaryPage, DownloaderInfo, VideoInfo, VideoItem, Attachment, DiaryCategory, DiaryEntry, ExportResult, Job, JobOptions, Lesson, LessonFull, LessonPatch, LessonStatus,
   HotkeyCheck, LocalServer, PathCheckResult, PipelineDefaults, Project, PromptView, ProjectCreate, ProjectPatch, ProviderInfo, SessionInfo, SessionPatch, SettingsPatch, SettingsView, SystemStatus,
-  Thread, ThreadKind, ComputeStatus, MediaInfo, UninstallPlan, UpdateInfo, FeedbackDraft, FeedbackFile, FeedbackSend, FeedbackResult, JobPage, DownloadPage,
+  Thread, ThreadKind, ComputeStatus, MediaInfo, UninstallPlan, UpdateInfo, FeedbackDraft, FeedbackFile, FeedbackSend, FeedbackResult, JobPage, DownloadPage, McpStatus,
 } from './types'
 import { tr } from '@/i18n'
 
@@ -90,6 +90,9 @@ export const api = {
   update: (force = false, reload = false) => get<UpdateInfo>(`/api/system/update${force ? '?force=true' : reload ? '?reload=true' : ''}`),
   applyUpdate: () => request<UpdateInfo>('POST', '/api/system/update'),
   discardUpdateChanges: () => request<UpdateInfo>('POST', '/api/system/update/discard'),
+  mcpStatus: () => get<McpStatus>('/api/system/mcp'),
+  mcpConnect: (client: 'desktop' | 'code') => request<McpStatus>('POST', `/api/system/mcp/${client}`),
+  mcpDisconnect: (client: 'desktop' | 'code') => request<McpStatus>('DELETE', `/api/system/mcp/${client}`),
   uninstallPlan: () => get<UninstallPlan>('/api/system/uninstall'),
   // feedback to the developer: a draft (the server times the form), its files, then send
   feedbackDraft: () => request<FeedbackDraft>('POST', '/api/feedback/drafts'),
