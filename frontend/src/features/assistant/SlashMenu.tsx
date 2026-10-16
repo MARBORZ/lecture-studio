@@ -23,7 +23,7 @@ interface Command {
 }
 
 /**
- * "/" at the start of the input opens the command list, like Claude Code: arrows move, Enter or Tab runs, Esc closes.
+ * "/" at the start of the input opens the command list: arrows move, Enter or Tab runs, Esc closes.
  * Chat commands (/resume, /new, /compact, /clear) and the quick actions (/key, /pitfalls…) live here, so the panel
  * itself carries no row of buttons.
  */
