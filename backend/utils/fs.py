@@ -7,12 +7,16 @@ import logging
 import os
 import re
 import shutil
+import time
+import uuid
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 PathLike = str | Path
+
+_WINDOWS = os.name == "nt"
 
 
 def to_path(p: PathLike) -> Path:
@@ -40,13 +44,31 @@ def read_text(path: PathLike, default: str = "") -> str:
 
 
 def write_text(path: PathLike, content: str) -> Path:
-    """Atomic text write (tmp file + rename)."""
+    """
+    Atomic text write: this writer's own temp file, then a rename over the target. Writers never share a temp file
+    (threads, and the app and the MCP server, which are separate processes).
+    """
     p = to_path(path)
     ensure_dir(p.parent)
-    tmp = p.with_name(p.name + ".tmp")
-    tmp.write_text(content, encoding="utf-8")
-    tmp.replace(p)
+    tmp = p.with_name(f"{p.name}.{uuid.uuid4().hex[:8]}.tmp")
+    try:
+        tmp.write_text(content, encoding="utf-8")
+        _replace(tmp, p)
+    finally:
+        tmp.unlink(missing_ok=True)  # left only by a failed write or rename
     return p
+
+
+def _replace(src: Path, dst: Path, attempts: int = 20) -> None:
+    """Windows refuses the rename while another process has the target open (a read in progress): retry briefly."""
+    for i in range(attempts):
+        try:
+            src.replace(dst)
+            return
+        except PermissionError:
+            if not _WINDOWS or i == attempts - 1:
+                raise
+            time.sleep(0.025)
 
 
 def read_json(path: PathLike, default: Any = None) -> Any:
