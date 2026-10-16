@@ -2,7 +2,7 @@ import { AlertTriangle, X } from 'lucide-react'
 import { Fragment } from 'react'
 import { useJobs, useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
-import { AnimatePresence, m, RouteOutlet, SceneMotion, UserMotion } from '@/components/motion'
+import { AnimatePresence, m, RouteOutlet } from '@/components/motion'
 import { Onboarding } from '@/features/onboarding/Onboarding'
 import { FloatingPlayer } from '@/features/player/FloatingPlayer'
 import { BootScreen } from '@/features/system/BootScreen'
@@ -10,7 +10,7 @@ import { StoppedScreen } from '@/features/system/StoppedScreen'
 import { UpdatingScreen, useUpdateWatcher } from '@/features/system/Update'
 import { useUpdates } from '@/features/system/updateStore'
 import { cn } from '@/lib/cn'
-import { contentIn, ease, fadeUpFlow, focusShift, sceneOut, sidebarIn } from '@/lib/motion'
+import { contentIn, ease, fadeUpFlow, sceneOut, sidebarIn } from '@/lib/motion'
 import { Sidebar } from './Sidebar'
 
 export function AppShell() {
@@ -40,19 +40,11 @@ export function AppShell() {
         {scene === 'app' && (
           <m.div key="app" initial="hidden" animate="show" className="flex h-full w-full">
             <m.div variants={sidebarIn} className="h-full">
-              {/* Focus mode slides the sidebar away (width to 0), the content takes its place. */}
-              <SceneMotion>
-                <m.div
-                  initial={false}
-                  animate={focusMode ? { width: 0, opacity: 0 } : { width: 'auto', opacity: 1 }}
-                  transition={focusShift}
-                  className="h-full overflow-hidden"
-                >
-                  <UserMotion>
-                    <Sidebar />
-                  </UserMotion>
-                </m.div>
-              </SceneMotion>
+              {/* Focus mode takes the sidebar away in one step: the lesson page then flips its player from the old
+                  place to the new one, and a sidebar still sliding would move that target mid-flight. */}
+              <div className={focusMode ? 'h-full w-0 overflow-hidden' : 'h-full'}>
+                <Sidebar />
+              </div>
             </m.div>
             <m.main variants={contentIn} className="min-w-0 flex-1 overflow-hidden">
               <RouteOutlet depth={1} className="h-full" />

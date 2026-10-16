@@ -1,12 +1,12 @@
 import { AlertTriangle, ArrowLeft, FileText, FolderSearch, FolderOutput, Languages, MessagesSquare, Paperclip, Pencil, RefreshCw, ScrollText, Trash2, X } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router'
 import { api } from '@/api/client'
 import type { AIProvider, LessonFull, LessonStatus } from '@/api/types'
 import { KeyNotice, useProviderOptions } from '@/features/system/KeyNotice'
 import { useJobs, useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
-import { ActiveMark, AnimatePresence, m, RouteOutlet, SceneMotion, UserMotion } from '@/components/motion'
+import { ActiveMark, m, RouteOutlet, SceneMotion, UserMotion } from '@/components/motion'
 import { Button, Collapsible, EmptyState, Field, IconButton, Modal, Segmented, Splitter, Stat } from '@/components/ui'
 import { SkeletonMarkdown, SkeletonPlayer, SkeletonText } from '@/components/skeleton'
 import { ExportModal, LessonEditModal } from '@/features/library/modals'
@@ -19,7 +19,7 @@ import { MediaPlayer, type Chapter } from '@/features/player/MediaPlayer'
 import { player, usePlayer } from '@/features/player/store'
 import { cn } from '@/lib/cn'
 import { formatCount, formatDuration, storage } from '@/lib/format'
-import { focusCollapse, focusShift } from '@/lib/motion'
+import { flip, focusFade } from '@/lib/motion'
 import { extractChapters, findActiveIndex, formatTc } from '@/lib/time'
 import { useResource } from '@/lib/useResource'
 import { useHotkey } from '@/features/hotkeys/useHotkey'
@@ -68,7 +68,6 @@ export function LessonLayout() {
     return () => window.removeEventListener('keydown', onKey)
   }, [setFocusMode, modals.length])
   useEffect(() => () => setFocusMode(false), [setFocusMode])
-  const [dragging, setDragging] = useState(false) // the splitter is held: the column follows the pointer at once
   const width = WIDTH[focusMode ? 'focus' : 'normal']
   const playerWidth = widths[focusMode ? 'focus' : 'normal']
   const setPlayerWidth = (v: number) => setWidths((w) => ({ ...w, [focusMode ? 'focus' : 'normal']: v }))
@@ -112,6 +111,29 @@ export function LessonLayout() {
     openModal((close) => <RegenerateAuditModal lesson={lesson} language={language} close={close} />)
   }
 
+  // Focus mode: the page changes in one step and only the player glides from where it was to where it is now
+  const playerRef = useRef<HTMLDivElement>(null)
+  const lastRect = useRef<DOMRect | null>(null)
+  const lastFocus = useRef(focusMode)
+  useLayoutEffect(() => {
+    const el = playerRef.current
+    if (!el) return
+    if (lastFocus.current !== focusMode && lastRect.current) flip(el, lastRect.current)
+    lastFocus.current = focusMode
+    lastRect.current = el.getBoundingClientRect()
+  })
+  useEffect(() => {
+    const remember = () => {
+      if (playerRef.current) lastRect.current = playerRef.current.getBoundingClientRect()
+    }
+    window.addEventListener('resize', remember)
+    window.addEventListener('scroll', remember, true)
+    return () => {
+      window.removeEventListener('resize', remember)
+      window.removeEventListener('scroll', remember, true)
+    }
+  }, [])
+
   if (res.error) {
     return <EmptyState icon={ArrowLeft} title={t('lesson.notFound')} hint={res.error.message} action={<Link to="/library" className="text-[13px] underline">{t('error.home')}</Link>} />
   }
@@ -120,9 +142,8 @@ export function LessonLayout() {
   return (
     <div className="flex h-full flex-col">
       <SceneMotion>
-      <AnimatePresence initial={false}>
         {!focusMode && (
-          <m.div key="lesson-header" variants={focusCollapse} initial="hidden" animate="show" exit="exit" className="shrink-0 overflow-hidden">
+          <m.div key="lesson-header" variants={focusFade} initial="hidden" animate="show" className="shrink-0">
           <UserMotion>
           <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-6 py-3 lg:px-8">
             <div className="min-w-0 flex-1">
@@ -167,18 +188,15 @@ export function LessonLayout() {
           </UserMotion>
           </m.div>
         )}
-      </AnimatePresence>
       </SceneMotion>
 
       {lesson?.source_missing && !focusMode && <SourceMissing lessonId={lesson.id} onRelinked={res.reload} />}
       {lesson && !focusMode && <LanguageMismatch lesson={lesson} onRegenerate={regenerate} />}
 
       <div ref={splitRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
-        <m.aside
-          // the width glides when focus mode (or the keyboard) changes it; dragging the splitter follows the pointer at once
-          initial={false}
-          animate={{ ['--player-w' as string]: `${playerWidth}%` }}
-          transition={dragging ? { duration: 0 } : focusShift}
+        <aside
+          // the width changes in one step; on a focus switch the player itself glides (flip below)
+          style={{ ['--player-w' as string]: `${playerWidth}%` }}
           // @container: paddings and the player bar follow this column's width (the splitter changes it), not the window's.
           // Container queries reach descendants only, so the paddings live on the inner wrapper.
           className="@container flex shrink-0 flex-col lg:w-[var(--player-w)] lg:overflow-y-auto"
@@ -186,14 +204,13 @@ export function LessonLayout() {
           {/* focus mode: only the player is left, and it glides to the middle of the column: two spacers grow from
               nothing to an equal share (real layout every frame, so the video is never stretched by a transform) */}
           <div className="flex min-h-full flex-col p-4 @md:p-6 @2xl:p-8">
-          <m.div aria-hidden initial={false} animate={{ flexGrow: focusMode ? 1 : 0 }} transition={focusShift} />
+          <div aria-hidden className={focusMode ? 'grow' : ''} />
           <div className="flex flex-col gap-5">
-          {lesson ? <MediaPlayer /> : <SkeletonPlayer />}
+          <div ref={playerRef}>{lesson ? <MediaPlayer /> : <SkeletonPlayer />}</div>
           {lesson && <AskFromMoment lessonId={lesson.id} segments={lesson.segments ?? []} />}
           <SceneMotion>
-          <AnimatePresence initial={false}>
           {!focusMode && (
-          <m.div key="player-extras" variants={focusCollapse} initial="hidden" animate="show" exit="exit" className="flex shrink-0 flex-col gap-5 overflow-hidden">
+          <m.div key="player-extras" variants={focusFade} initial="hidden" animate="show" className="flex shrink-0 flex-col gap-5">
           <UserMotion>
           {lesson && (
             <div className="grid grid-cols-3 gap-3 rounded-xl border border-line px-4 py-3">
@@ -220,12 +237,11 @@ export function LessonLayout() {
           </UserMotion>
           </m.div>
           )}
-          </AnimatePresence>
           </SceneMotion>
           </div>
-          <m.div aria-hidden initial={false} animate={{ flexGrow: focusMode ? 1 : 0 }} transition={focusShift} />
+          <div aria-hidden className={focusMode ? 'grow' : ''} />
           </div>
-        </m.aside>
+        </aside>
 
         <Splitter
           containerRef={splitRef}
@@ -235,7 +251,6 @@ export function LessonLayout() {
           label={t('lesson.resize')}
           onChange={setPlayerWidth}
           onCommit={(v) => storage.set(width.key, v)}
-          onDragging={setDragging}
           onReset={() => {
             setPlayerWidth(width.initial)
             storage.set(width.key, width.initial)
