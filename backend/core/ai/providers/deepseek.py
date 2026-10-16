@@ -16,6 +16,8 @@ class DeepSeekProvider(BaseAIProvider):
     category = "deepseek"
     default_model = "deepseek-chat"
     supported_models = ["deepseek-chat", "deepseek-reasoner", "deepseek-v4-flash", "deepseek-v4-pro"]
+    max_context_tokens = 128_000
+    default_context_tokens = 64_000
 
     def _complete(self, messages: list[dict[str, str]], temperature: float, max_tokens: int = 8000) -> str:
         payload: dict[str, Any] = {"model": self.model, "messages": messages, "max_tokens": max_tokens}

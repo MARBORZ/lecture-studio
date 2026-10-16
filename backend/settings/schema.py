@@ -84,6 +84,7 @@ class AISettings(BaseModel):
     gemini_model: str = "gemini-3.5-flash"
     whisper_model: str = "large-v3-turbo"
     assistant_provider: AIProviderName = "deepseek"
+    context_tokens: dict[AIProviderName, int] = Field(default_factory=dict)  # assistant window, tokens; missing = default
 
 
 ComputePreference = Literal["auto", "gpu", "cpu"]
@@ -141,6 +142,7 @@ class AISettingsView(BaseModel):
     gemini_model: str
     whisper_model: str
     assistant_provider: AIProviderName
+    context_tokens: dict[AIProviderName, int]  # set by the user only; defaults and limits: /api/settings/providers
 
 
 class PathsView(BaseModel):
@@ -173,6 +175,7 @@ class AISettingsPatch(BaseModel):
     gemini_model: str | None = None
     whisper_model: str | None = None
     assistant_provider: AIProviderName | None = None
+    context_tokens: dict[AIProviderName, int | None] | None = None  # merged; a None value = back to the default
 
 
 class SettingsPatch(BaseModel):

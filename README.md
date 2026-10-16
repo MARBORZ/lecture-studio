@@ -25,8 +25,9 @@ that jump to the exact moment in the video. Video never leaves your machine.
   or an always-on-top window and keeps playing while you move around the app; each lesson resumes where you left it.
   Your own named marks on the timeline (M) take you back to the moments worth rewatching.
 - **Assistant sessions and a visible context window.** Chats are split into sessions you switch between, like branches.
-  A meter shows what each question sends (sources, files, history) against the model's window; long histories are
-  compressed into a summary automatically. Attach any file once — PDFs, Office documents and code are read as text,
+  A meter shows what each question sends (sources, files, history), in tokens, against the window; the window is yours to
+  set per provider in Settings → AI (a larger window costs more per question); long histories are compressed into a
+  summary automatically. Attach any file once — PDFs, Office documents and code are read as text,
   images are seen by Gemini — and it stays in the session. Select text in an answer or the audit to ask about it.
 - **Notebooks.** Lessons are grouped into notebooks (courses). A notebook chat answers from the lessons you tick,
   with citations like "Lesson 2 · 04:15" that open the lesson at that moment.

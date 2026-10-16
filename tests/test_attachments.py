@@ -63,7 +63,6 @@ def test_attachments_reach_the_model_and_are_cleaned(data_dir, monkeypatch):
 
     class Fake:
         model = "fake"
-        context_chars = 90_000
 
         def __init__(self, vision):
             self.can_see_images = vision

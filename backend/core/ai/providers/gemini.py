@@ -47,7 +47,8 @@ class GeminiProvider(BaseAIProvider):
     can_transcribe_audio = True
     can_see_images = True
     can_watch_video = True
-    context_chars = 600_000
+    max_context_tokens = 1_000_000
+    default_context_tokens = 400_000
 
     def _generate(self, contents: list, system: str, temperature: float) -> str:
         from google import genai

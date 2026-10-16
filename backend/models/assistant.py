@@ -78,10 +78,14 @@ class SessionPatch(BaseModel):
 
 
 class ContextUsage(BaseModel):
-    """What one request carries, in characters, against the provider's window (our own context window)."""
+    """What one request carries, in characters, against the provider's window (our own context window).
+    The tokens are what the user sets and sees: window_tokens is the setting, total_tokens the estimate of total."""
 
     provider: str
     window: int
+    window_tokens: int = 0
+    total_tokens: int = 0
+    chars_per_token: int = 3  # the estimate behind total_tokens (core/ai/base.py: CHARS_PER_TOKEN)
     system: int = 0
     sources: int = 0
     summary: int = 0

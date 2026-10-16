@@ -1,7 +1,7 @@
 import { Check, Cpu, FolderInput, GraduationCap, RotateCcw, Zap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { api } from '@/api/client'
-import type { ComputeSettings, PathCheckResult, PipelineDefaults, PromptView, UILanguage } from '@/api/types'
+import type { ComputeSettings, PathCheckResult, PipelineDefaults, PromptView, ProviderInfo, UILanguage } from '@/api/types'
 import { useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { Button, Card, Field, Input, Modal, Segmented, Select, Slider, Textarea } from '@/components/ui'
@@ -9,6 +9,7 @@ import { SkeletonCard } from '@/components/skeleton'
 import { FALLBACK_DEFAULTS, PipelineOptionsFields } from '@/features/jobs/PipelineOptionsFields'
 import { KeyField } from '@/features/system/KeyField'
 import { cn } from '@/lib/cn'
+import { formatCount } from '@/lib/format'
 import type { TKey } from '@/i18n'
 import { useResource } from '@/lib/useResource'
 import { UninstallCard } from '@/features/system/Uninstall'
@@ -195,7 +196,66 @@ export function AISettingsSection() {
           </Field>
         </div>
       </Card>
+      {providers.data && <ContextWindowCard providers={providers.data} />}
     </div>
+  )
+}
+
+const CONTEXT_PROVIDERS = [
+  { id: 'deepseek', label: 'DeepSeek' },
+  { id: 'gemini', label: 'Gemini' },
+] as const
+const CHARS_PER_PAGE = 1800 // a typewritten page
+
+/** The assistant's window per provider, in tokens, within the model's limit. Saved on release, like the text size. */
+function ContextWindowCard({ providers }: { providers: Record<string, ProviderInfo> }) {
+  const { t, lang, settings, patchSettings, toast } = useUI()
+  const stored = settings!.ai.context_tokens
+  const [draft, setDraft] = useState<{ id: string; tokens: number } | null>(null)
+  const save = (id: string, tokens: number | null) =>
+    patchSettings({ ai: { context_tokens: { [id]: tokens } } }).catch((e: Error) => toast(e.message, 'error'))
+  const n = (v: number) => formatCount(v, lang)
+
+  return (
+    <Card title={t('settings.contextWindow')} description={t('settings.contextWindowHint')}>
+      <div className="flex flex-col gap-6">
+        {CONTEXT_PROVIDERS.map(({ id, label }) => {
+          const p = providers[id]
+          if (!p) return null
+          const step = p.max_context_tokens > 200_000 ? 50_000 : 8_000
+          const saved = stored[id as keyof typeof stored] ?? p.default_context_tokens
+          const value = draft?.id === id ? draft.tokens : saved
+          const chars = value * p.chars_per_token
+          const presets = [...new Set([p.default_context_tokens / 2, p.default_context_tokens, p.max_context_tokens])]
+          const commit = () => {
+            if (draft?.id === id && draft.tokens !== saved) void save(id, draft.tokens)
+            setDraft(null)
+          }
+          return (
+            <div key={id} className="flex flex-col gap-2.5" onPointerUp={commit} onKeyUp={commit}>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-[13.5px] text-fg">{label}</span>
+                <span className="font-mono text-[12px] text-muted">{t('settings.contextWindow.tokens', { n: n(value) })}</span>
+              </div>
+              <Slider value={value} min={Math.max(p.min_context_tokens, step)} max={p.max_context_tokens} step={step} onChange={(tokens) => setDraft({ id, tokens })} />
+              <span className="text-[12px] text-muted">
+                {t('settings.contextWindow.size', { chars: n(chars), pages: n(Math.round(chars / CHARS_PER_PAGE)) })}
+              </span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {presets.map((v) => (
+                  <Button key={v} size="sm" variant={value === v ? 'primary' : 'secondary'} onClick={() => void save(id, v)}>
+                    {v === p.default_context_tokens ? t('settings.contextWindow.default', { n: n(v) }) : n(v)}
+                  </Button>
+                ))}
+                {stored[id as keyof typeof stored] !== undefined && (
+                  <Button size="sm" variant="ghost" icon={RotateCcw} onClick={() => void save(id, null)}>{t('settings.contextWindow.reset')}</Button>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </Card>
   )
 }
 

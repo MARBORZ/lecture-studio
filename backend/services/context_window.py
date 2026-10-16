@@ -1,6 +1,8 @@
 """
 Our own context window. The chat APIs are stateless: every question re-sends everything the model should know.
-This module decides what one request carries and how much, within the provider's window (`context_chars`):
+This module decides what one request carries and how much, within the provider's window. The user sets the window in
+tokens per provider (Settings → AI, `AI.context_tokens`); the budget here counts characters, CHARS_PER_TOKEN each,
+and keeps ANSWER_SHARE of the window free for the reply (a model's window holds the question and the answer):
 
     system prompt                         fixed
     session summary + recent messages     up to SHARE_HISTORY  — older turns are compressed into a summary
@@ -16,7 +18,8 @@ The folded messages stay in the session for reading; only the summary is sent.
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
-from backend.core.ai import AIMeta, prompts
+from backend.core.ai import AI, prompts
+from backend.core.ai.base import CHARS_PER_TOKEN
 from backend.core.transcription import compact_transcript
 from backend.models.assistant import AssistantRole, Attachment, ChatMessage, ChatSession, ContextUsage
 from backend.models.lesson import LessonFull
@@ -28,11 +31,12 @@ SHARE_FILES = 0.20
 SUMMARY_SHARE = 0.06
 KEEP_RECENT = 4
 MIN_SOURCE_CHARS = 4000
+ANSWER_SHARE = 0.125
 
 
 def window_for(provider_name: str) -> int:
-    cls = AIMeta.get_provider_class(provider_name)
-    return int(getattr(cls, "context_chars", 90_000))
+    """What one request may carry, in characters: the window from the settings minus the room for the answer."""
+    return int(AI.context_tokens(provider_name) * (1 - ANSWER_SHARE) * CHARS_PER_TOKEN)
 
 
 def recent(session: ChatSession) -> list[ChatMessage]:
@@ -159,6 +163,8 @@ def build(
     usage = ContextUsage(
         provider=provider_name,
         window=window,
+        window_tokens=AI.context_tokens(provider_name),
+        chars_per_token=CHARS_PER_TOKEN,
         system=len(system),
         sources=len(corpus),
         summary=len(summary_block),
@@ -168,4 +174,5 @@ def build(
         sources_trimmed=any(t for _, t in blocks),
     )
     usage.total = usage.system + usage.sources + usage.summary + usage.history + usage.files + len(question)
+    usage.total_tokens = -(-usage.total // CHARS_PER_TOKEN)
     return Request(messages=messages, system=system, images=images, usage=usage)
