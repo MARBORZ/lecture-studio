@@ -1,8 +1,10 @@
 <p align="center">
-  <img src="assets/icon.svg" width="112" alt="Lecture Studio">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/banner/banner-dark.gif">
+    <source media="(prefers-color-scheme: light)" srcset="assets/banner/banner-light.gif">
+    <img alt="Lecture Studio — часы лекций в материал на минуты" src="assets/banner/banner-light.gif" width="100%">
+  </picture>
 </p>
-
-<h1 align="center">Lecture Studio</h1>
 
 <p align="center">
   Часы записанных лекций — в материал, который изучается за минуты.<br>

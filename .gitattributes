@@ -8,3 +8,5 @@
 *.ico binary
 *.icns binary
 *.scpt binary
+*.png binary
+*.gif binary
