@@ -38,8 +38,8 @@ done
 [[ -z "$(git -C "$REPO" status --porcelain)" ]] || print "warning: uncommitted changes are NOT in the release archive (it packs HEAD)"
 mkdir -p "$WORK/src"
 git -C "$REPO" archive HEAD | tar -x -C "$WORK/src"
-npm --prefix "$WORK/src/frontend" ci --no-audit --no-fund --prefer-offline
-npm --prefix "$WORK/src/frontend" run build
+# from inside frontend/: `npm --prefix` from another folder fails `npm ci` ("Missing: frontend@1.0.0 from lock file")
+(cd "$WORK/src/frontend" && npm ci --no-audit --no-fund --prefer-offline && npm run build)
 print "built from $(git -C "$REPO" rev-parse --short HEAD)" > "$WORK/src/frontend/dist/.prebuilt"
 rm -rf "$WORK/src/frontend/node_modules"
 (cd "$WORK/src" && tar -czf "$WORK/source.tar.gz" *(D))   # paths without ./ (install.zsh looks for frontend/dist/.prebuilt)
