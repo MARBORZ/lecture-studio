@@ -66,9 +66,14 @@ class Paths:
         """Assistant sessions: <id>/context/session.json and <id>/local_session_src/ (its files)."""
         return self.data_dir / "sessions"
 
+    @property
+    def downloads(self) -> Path:
+        """Videos downloaded in the Videos tab (services/videos.py), before the Studio makes lessons of them."""
+        return self.data_dir / "downloads"
+
     def movable(self) -> list[Path]:
         """What "move the library" carries to a new data folder (temp is dropped)."""
-        return [self.db, self.output, self.diary, self.attachments, self.covers, self.sessions]
+        return [self.db, self.output, self.diary, self.attachments, self.covers, self.sessions, self.downloads]
 
     def lesson_dir(self, job_id: str) -> Path:
         return self.output / job_id
@@ -140,6 +145,8 @@ class SettingsService:
                 current.text_scale = patch.text_scale
             if patch.boot_animation is not None:
                 current.boot_animation = patch.boot_animation
+            if patch.video_terms_accepted is not None:
+                current.video_terms_accepted = patch.video_terms_accepted
             if patch.beta_updates is not None:
                 current.beta_updates = patch.beta_updates
             if patch.queue_limit is not None:
@@ -250,6 +257,7 @@ class SettingsService:
             theme=s.theme,
             text_scale=s.text_scale,
             boot_animation=s.boot_animation,
+            video_terms_accepted=s.video_terms_accepted,
             beta_updates=s.beta_updates,
             queue_limit=s.queue_limit,
             compute=s.compute,

@@ -1,6 +1,6 @@
 import { ArrowLeft, ArrowRight, Check, FileVideo, HardDrive, Play, Upload, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { api } from '@/api/client'
 import type { MediaInfo, PipelineDefaults } from '@/api/types'
 import { useJobs, useLibrary, useUI } from '@/app/AppProvider'
@@ -8,7 +8,7 @@ import { Icon } from '@/components/Icon'
 import { Appear } from '@/components/motion'
 import { Button, Card, EmptyState, Field, Input, Page, PageHeader, Progress, Segmented, Select, Switch } from '@/components/ui'
 import { FALLBACK_DEFAULTS, PipelineOptionsFields } from '@/features/jobs/PipelineOptionsFields'
-import { JobList } from '@/features/jobs/JobList'
+import { JobList, type StudioHandoff } from '@/features/jobs/JobList'
 import { KeyNotice, PROVIDER_NAME } from '@/features/system/KeyNotice'
 import { cn } from '@/lib/cn'
 import { formatBytes, formatDuration } from '@/lib/format'
@@ -35,6 +35,20 @@ export function StudioPage() {
   const [opts, setOpts] = useState<Opts>(FALLBACK_DEFAULTS)
   const [upload, setUpload] = useState<{ progress: number; abort: () => void } | null>(null)
   const [starting, setStarting] = useState(false)
+
+  // a finished download (Videos tab) arrives as a file on disk with its title: the wizard goes on from the lesson step
+  const location = useLocation()
+  const navigate = useNavigate()
+  const handoff = location.state as StudioHandoff | null
+  if (handoff?.path && handoff.path !== localPath) {
+    setSource('path')
+    setLocalPath(handoff.path)
+    setTitle(handoff.title)
+    setStep('lesson')
+  }
+  useEffect(() => {
+    if (handoff?.path) navigate('.', { replace: true, state: null }) // taken once: a reload starts clean
+  }, [handoff, navigate])
 
   const [defaultsFrom, setDefaultsFrom] = useState<PipelineDefaults>()
   if (settings && settings.pipeline !== defaultsFrom) {

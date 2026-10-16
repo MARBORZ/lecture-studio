@@ -10,6 +10,7 @@ import { SkeletonCard } from '@/components/skeleton'
 import { FALLBACK_DEFAULTS, PipelineOptionsFields } from '@/features/jobs/PipelineOptionsFields'
 import { QueueLimitCard } from '@/features/jobs/QueueLimitCard'
 import { KeyField } from '@/features/system/KeyField'
+import { DownloaderCard } from '@/features/videos/DownloaderCard'
 import { useProviderOptions } from '@/features/system/KeyNotice'
 import { LocalModelCard } from '@/features/system/LocalModelCard'
 import { cn } from '@/lib/cn'
@@ -285,6 +286,7 @@ export function ProcessingSettings() {
         <PipelineOptionsFields value={opts} onChange={setOpts} />
       </Card>
       <QueueLimitCard />
+      <DownloaderCard />
     </div>
   )
 }

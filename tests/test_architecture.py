@@ -79,6 +79,12 @@ def test_hotkey_actions_match_the_backend_catalog():
         assert [a for a in ACTIONS if f"'hotkey.action.{a}':" not in strings] == [], lang
 
 
+def test_youtube_only_through_the_videos_service():
+    # yt-dlp runs in one place (a child process, services/videos.py); the embedded player only in the Videos tab
+    assert offenders(BACKEND, ["*.py"], r"yt_dlp|\bytsearch", {"backend/services/videos.py"}) == []
+    assert [p for p in offenders(FRONT, ["*.ts", "*.tsx"], r"youtube(-nocookie)?\.com|ytimg\.com") if not p.startswith("frontend/src/features/videos/")] == []
+
+
 def test_monochrome_palette_only_tokens():
     assert offenders(FRONT, ["*.tsx", "*.ts"], r"#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(") == []
 

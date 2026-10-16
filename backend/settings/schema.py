@@ -126,6 +126,7 @@ class AppSettings(BaseModel):
     theme: Theme = "system"  # follows the OS by default
     text_scale: int = Field(100, ge=TEXT_SCALE_MIN, le=TEXT_SCALE_MAX)  # % of the base size of reading text
     boot_animation: bool = True  # the boot mark loops at least once (5 s) on every start; off = the app opens when ready
+    video_terms_accepted: bool = False  # the one-time "download only what you have rights to" (Videos tab)
     beta_updates: bool = False  # offer pre-releases (vX.Y.Z-beta.N) too, not only releases
     queue_limit: int = Field(QUEUE_LIMIT_DEFAULT, ge=QUEUE_LIMIT_MIN, le=QUEUE_LIMIT_MAX)  # jobs waiting + running
     compute: ComputeSettings = Field(default_factory=ComputeSettings)
@@ -192,6 +193,7 @@ class SettingsView(BaseModel):
     theme: Theme
     text_scale: int
     boot_animation: bool
+    video_terms_accepted: bool
     beta_updates: bool
     queue_limit: int
     compute: ComputeSettings
@@ -221,6 +223,7 @@ class SettingsPatch(BaseModel):
     theme: Theme | None = None
     text_scale: int | None = Field(default=None, ge=TEXT_SCALE_MIN, le=TEXT_SCALE_MAX)
     boot_animation: bool | None = None
+    video_terms_accepted: bool | None = None
     beta_updates: bool | None = None
     queue_limit: int | None = Field(default=None, ge=QUEUE_LIMIT_MIN, le=QUEUE_LIMIT_MAX)
     compute: ComputeSettings | None = None

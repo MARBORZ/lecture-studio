@@ -959,6 +959,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/videos/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search */
+        get: operations["search_api_videos_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/videos/info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Info */
+        get: operations["info_api_videos_info_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/videos/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Download
+         * @description Queued like any job (QueueFull: 429). Refused until the user accepted the one-time rights notice.
+         */
+        post: operations["download_api_videos_download_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/videos/downloader": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Downloader */
+        get: operations["downloader_api_videos_downloader_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/videos/downloader/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Update Downloader */
+        post: operations["update_downloader_api_videos_downloader_update_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1374,6 +1462,31 @@ export interface components {
             /** Category */
             category?: string | null;
         };
+        /** DownloadRequest */
+        DownloadRequest: {
+            /** Url */
+            url: string;
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+        };
+        /** DownloaderInfo */
+        DownloaderInfo: {
+            /** Version */
+            version: string;
+            /**
+             * Latest
+             * @default
+             */
+            latest: string;
+            /**
+             * Update Available
+             * @default false
+             */
+            update_available: boolean;
+        };
         /** ExportRequest */
         ExportRequest: {
             /** Target Dir */
@@ -1527,7 +1640,7 @@ export interface components {
              * @default process
              * @enum {string}
              */
-            kind: "process" | "audit";
+            kind: "process" | "audit" | "download";
             /**
              * Title
              * @default
@@ -1544,9 +1657,9 @@ export interface components {
              * @default queued
              * @enum {string}
              */
-            stage: "queued" | "extract" | "vad" | "audio" | "video" | "transcribe" | "audit" | "save" | "done";
+            stage: "queued" | "download" | "extract" | "vad" | "audio" | "video" | "transcribe" | "audit" | "save" | "done";
             /** Stages */
-            stages?: ("queued" | "extract" | "vad" | "audio" | "video" | "transcribe" | "audit" | "save" | "done")[];
+            stages?: ("queued" | "download" | "extract" | "vad" | "audio" | "video" | "transcribe" | "audit" | "save" | "done")[];
             /**
              * Progress
              * @default 0
@@ -1564,6 +1677,8 @@ export interface components {
             stats?: components["schemas"]["JobStats"] | null;
             /** Lesson Id */
             lesson_id?: string | null;
+            /** Media Path */
+            media_path?: string | null;
             /** Created At */
             created_at?: string;
             /** Finished At */
@@ -2352,6 +2467,8 @@ export interface components {
             text_scale?: number | null;
             /** Boot Animation */
             boot_animation?: boolean | null;
+            /** Video Terms Accepted */
+            video_terms_accepted?: boolean | null;
             /** Beta Updates */
             beta_updates?: boolean | null;
             /** Queue Limit */
@@ -2382,6 +2499,8 @@ export interface components {
             text_scale: number;
             /** Boot Animation */
             boot_animation: boolean;
+            /** Video Terms Accepted */
+            video_terms_accepted: boolean;
             /** Beta Updates */
             beta_updates: boolean;
             /** Queue Limit */
@@ -2597,6 +2716,77 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** VideoInfo */
+        VideoInfo: {
+            /** Id */
+            id: string;
+            /** Url */
+            url: string;
+            /** Title */
+            title: string;
+            /**
+             * Channel
+             * @default
+             */
+            channel: string;
+            /** Duration */
+            duration?: number | null;
+            /** Views */
+            views?: number | null;
+            /**
+             * Thumbnail
+             * @default
+             */
+            thumbnail: string;
+            /**
+             * Upload Date
+             * @default
+             */
+            upload_date: string;
+            /**
+             * License
+             * @default
+             */
+            license: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Age Limit
+             * @default 0
+             */
+            age_limit: number;
+            /**
+             * Is Live
+             * @default false
+             */
+            is_live: boolean;
+        };
+        /** VideoItem */
+        VideoItem: {
+            /** Id */
+            id: string;
+            /** Url */
+            url: string;
+            /** Title */
+            title: string;
+            /**
+             * Channel
+             * @default
+             */
+            channel: string;
+            /** Duration */
+            duration?: number | null;
+            /** Views */
+            views?: number | null;
+            /**
+             * Thumbnail
+             * @default
+             */
+            thumbnail: string;
         };
     };
     responses: never;
@@ -4777,6 +4967,141 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_api_videos_search_get: {
+        parameters: {
+            query: {
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    info_api_videos_info_get: {
+        parameters: {
+            query: {
+                url: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_api_videos_download_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DownloadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Job"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    downloader_api_videos_downloader_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloaderInfo"];
+                };
+            };
+        };
+    };
+    update_downloader_api_videos_downloader_update_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloaderInfo"];
                 };
             };
         };

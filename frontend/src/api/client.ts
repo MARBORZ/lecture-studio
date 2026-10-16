@@ -1,5 +1,5 @@
 import type {
-  AIProvider, AskRequest, Attachment, DiaryCategory, DiaryEntry, ExportResult, Job, JobOptions, Lesson, LessonFull, LessonPatch, LessonStatus,
+  AIProvider, AskRequest, DownloaderInfo, VideoInfo, VideoItem, Attachment, DiaryCategory, DiaryEntry, ExportResult, Job, JobOptions, Lesson, LessonFull, LessonPatch, LessonStatus,
   HotkeyCheck, LocalServer, PathCheckResult, PipelineDefaults, Project, PromptView, ProjectCreate, ProjectPatch, ProviderInfo, SessionInfo, SessionPatch, SettingsPatch, SettingsView, SystemStatus,
   Thread, ThreadKind, ComputeStatus, MediaInfo, UninstallPlan, UpdateInfo, FeedbackDraft, FeedbackFile, FeedbackSend, FeedbackResult,
 } from './types'
@@ -110,6 +110,13 @@ export const api = {
   resetPrompt: (key: string) => request<PromptView[]>('DELETE', `/api/settings/prompts/${key}`),
   testKey: (provider: AIProvider) => request<{ ok: boolean; model: string; error?: string }>('POST', '/api/settings/test-key', { provider }),
   checkPath: (path: string) => request<PathCheckResult>('POST', '/api/settings/check-path', { path }),
+
+  // videos (YouTube through yt-dlp on this computer)
+  searchVideos: (q: string) => get<VideoItem[]>(`/api/videos/search?q=${encodeURIComponent(q)}`),
+  videoInfo: (url: string) => get<VideoInfo>(`/api/videos/info?url=${encodeURIComponent(url)}`),
+  downloadVideo: (url: string, title: string) => request<Job>('POST', '/api/videos/download', { url, title }),
+  downloader: () => get<DownloaderInfo>('/api/videos/downloader'),
+  updateDownloader: () => request<DownloaderInfo>('POST', '/api/videos/downloader/update'),
   checkLocal: (base_url: string) => request<LocalServer>('POST', '/api/settings/local/check', { base_url }),
   checkHotkey: (action: string, combo: string) => request<HotkeyCheck>('POST', '/api/settings/hotkeys/check', { action, combo }),
   changeDataDir: (path: string, mode: 'attach' | 'move') => request<SettingsView>('POST', '/api/settings/data-dir', { path, mode }),

@@ -101,7 +101,7 @@ def _targets(plan: UninstallPlan, delete_lessons: bool) -> tuple[list[Path], lis
     remove_if_empty: list[Path] = []
     if delete_lessons:
         p = SettingsService.paths()
-        remove += [p.db, p.output, p.temp, p.diary, p.attachments, p.covers, p.sessions]
+        remove += [p.db, p.output, p.temp, p.diary, p.attachments, p.covers, p.sessions, p.downloads]
         remove_if_empty.append(p.data_dir)
     remove = [r.resolve() for r in remove]
     for r in [*remove, *remove_if_empty]:

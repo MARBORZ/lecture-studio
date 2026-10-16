@@ -1,4 +1,4 @@
-import { Clapperboard, Library, NotebookPen, PanelLeftClose, PanelLeftOpen, Plus, Settings, Unplug } from 'lucide-react'
+import { Clapperboard, Library, MonitorPlay, NotebookPen, PanelLeftClose, PanelLeftOpen, Plus, Settings, Unplug } from 'lucide-react'
 import { createContext, useCallback, useContext, useState } from 'react'
 import { NavLink } from 'react-router'
 import { useJobs, useLibrary, useUI } from '@/app/AppProvider'
@@ -116,6 +116,7 @@ export function Sidebar() {
         <nav className="flex flex-col gap-0.5 px-3">
           <NavItem to="/library" icon={Library} end count={lessons.length}>{t('nav.library')}</NavItem>
           <NavItem to="/studio" icon={Clapperboard}>{t('nav.studio')}</NavItem>
+          <NavItem to="/videos" icon={MonitorPlay}>{t('nav.videos')}</NavItem>
           <NavItem to="/diary" icon={NotebookPen}>{t('nav.diary')}</NavItem>
           <NavItem to="/settings" icon={Settings}>{t('nav.settings')}</NavItem>
         </nav>
