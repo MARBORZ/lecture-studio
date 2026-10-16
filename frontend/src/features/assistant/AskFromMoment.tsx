@@ -2,10 +2,9 @@ import { MessageSquarePlus, MessageSquareQuote } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import type { Segment } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
-import { AnimatePresence, m } from '@/components/motion'
 import { Button } from '@/components/ui'
 import { player, usePlayer } from '@/features/player/store'
-import { collapse } from '@/lib/motion'
+import { cn } from '@/lib/cn'
 import { formatTc } from '@/lib/time'
 import type { AskState } from './AssistantPanel'
 import { QUOTE_MAX } from './SelectionAsk'
@@ -47,20 +46,16 @@ export function AskFromMoment({ lessonId, segments }: { lessonId: string; segmen
     navigate(`/lessons/${lessonId}/assistant`, { state })
   }
 
+  // The row keeps its place: only fades and stops taking clicks, so nothing below jumps when playback resumes.
+  if (!ours || segments.length === 0) return null
   return (
-    <AnimatePresence initial={false}>
-      {show && (
-        <m.div key="ask-moment" variants={collapse} initial="hidden" animate="show" exit="exit" className="overflow-hidden">
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="secondary" icon={MessageSquareQuote} onClick={() => go(false)}>
-              {t('player.askHere')}
-            </Button>
-            <Button size="sm" variant="ghost" icon={MessageSquarePlus} onClick={() => go(true)}>
-              {t('player.askNewSession')}
-            </Button>
-          </div>
-        </m.div>
-      )}
-    </AnimatePresence>
+    <div className={cn('flex flex-wrap gap-2 transition-opacity duration-200', !show && 'pointer-events-none opacity-0')} aria-hidden={!show}>
+      <Button size="sm" variant="secondary" icon={MessageSquareQuote} tabIndex={show ? 0 : -1} onClick={() => go(false)}>
+        {t('player.askHere')}
+      </Button>
+      <Button size="sm" variant="ghost" icon={MessageSquarePlus} tabIndex={show ? 0 : -1} onClick={() => go(true)}>
+        {t('player.askNewSession')}
+      </Button>
+    </div>
   )
 }
