@@ -6,6 +6,7 @@ import { Icon } from '@/components/Icon'
 import { AnimatePresence, m } from '@/components/motion'
 import { Field, Input, Segmented, Select, Slider, Switch } from '@/components/ui'
 import { cn } from '@/lib/cn'
+import { formatCount } from '@/lib/format'
 import { collapse } from '@/lib/motion'
 
 export type Opts = Required<PipelineDefaults>
@@ -64,7 +65,7 @@ function presetOf(o: Opts): Preset {
  * (per job) and Settings → Processing (defaults). `source` adapts the Eco warning to a path on disk or an upload.
  */
 export function PipelineOptionsFields({ value, onChange, source }: { value: Opts; onChange: (v: Opts) => void; source?: 'upload' | 'path' }) {
-  const { t } = useUI()
+  const { t, lang } = useUI()
   const [fine, setFine] = useState(false)
   const set = <K extends keyof Opts>(key: K, v: Opts[K]) => onChange(normalize({ ...value, [key]: v }))
   const preset = presetOf(value)
@@ -176,7 +177,7 @@ export function PipelineOptionsFields({ value, onChange, source }: { value: Opts
             />
           </div>
         )}
-        {value.audit_source === 'video' && <Note>{t('opt.auditSource.video.cost', { tokens: VIDEO_TOKENS_PER_HOUR.toLocaleString() })}</Note>}
+        {value.audit_source === 'video' && <Note>{t('opt.auditSource.video.cost', { tokens: formatCount(VIDEO_TOKENS_PER_HOUR, lang) })}</Note>}
         {value.audit !== 'none' && (
           <Field label={t('opt.auditMode')}>
             <Segmented

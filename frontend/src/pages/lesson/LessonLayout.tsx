@@ -15,7 +15,7 @@ import { BookmarkList } from '@/features/player/bookmarks'
 import { MediaPlayer, type Chapter } from '@/features/player/MediaPlayer'
 import { player, usePlayer } from '@/features/player/store'
 import { cn } from '@/lib/cn'
-import { formatDuration, storage } from '@/lib/format'
+import { formatCount, formatDuration, storage } from '@/lib/format'
 import { collapse } from '@/lib/motion'
 import { extractChapters, findActiveIndex, formatTc } from '@/lib/time'
 import { useResource } from '@/lib/useResource'
@@ -305,7 +305,7 @@ function SourceMissing({ lessonId, onRelinked }: { lessonId: string; onRelinked:
 
 /** Regenerate the audit: model, and source — the transcript, or (Gemini) the lesson's video. */
 function RegenerateAuditModal({ lesson, close }: { lesson: LessonFull; close: () => void }) {
-  const { t, settings, toast } = useUI()
+  const { t, settings, toast, lang } = useUI()
   const [provider, setProvider] = useState<'deepseek' | 'gemini'>(settings?.ai.assistant_provider ?? 'deepseek')
   const [source, setSource] = useState<'transcript' | 'video'>(lesson.has_transcription ? 'transcript' : 'video')
   const [busy, setBusy] = useState(false)
@@ -343,7 +343,7 @@ function RegenerateAuditModal({ lesson, close }: { lesson: LessonFull; close: ()
     >
       <div className="flex flex-col gap-4">
         <Segmented value={provider} onChange={setProvider} options={[{ value: 'deepseek', label: 'DeepSeek' }, { value: 'gemini', label: 'Gemini' }]} />
-        <Field label={t('lesson.auditSource')} hint={effective === 'video' ? t('opt.auditSource.video.cost', { tokens: VIDEO_TOKENS_PER_HOUR.toLocaleString() }) : undefined}>
+        <Field label={t('lesson.auditSource')} hint={effective === 'video' ? t('opt.auditSource.video.cost', { tokens: formatCount(VIDEO_TOKENS_PER_HOUR, lang) }) : undefined}>
           <Segmented
             value={effective}
             onChange={setSource}
