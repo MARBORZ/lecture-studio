@@ -7,7 +7,7 @@ import { Icon } from '@/components/Icon'
 import { Button, Input } from '@/components/ui'
 
 /** API key input with source/hint, Save, Test, Reset. Used in Settings -> AI and in the first-run tutorial. */
-export function KeyField({ provider }: { provider: AIProvider }) {
+export function KeyField({ provider }: { provider: Exclude<AIProvider, 'local'> }) {
   const { t, settings, patchSettings, toast } = useUI()
   const status = settings!.ai[`${provider}_key`]
   const [value, setValue] = useState('')

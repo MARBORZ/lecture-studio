@@ -2,7 +2,8 @@ import { AlertTriangle, ArrowLeft, FileText, FolderSearch, FolderOutput, Languag
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router'
 import { api } from '@/api/client'
-import type { LessonFull, LessonStatus } from '@/api/types'
+import type { AIProvider, LessonFull, LessonStatus } from '@/api/types'
+import { KeyNotice, useProviderOptions } from '@/features/system/KeyNotice'
 import { useJobs, useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { ActiveMark, AnimatePresence, m, RouteOutlet } from '@/components/motion'
@@ -349,7 +350,8 @@ function LanguageMismatch({ lesson, onRegenerate }: { lesson: LessonFull; onRege
 function RegenerateAuditModal({ lesson, language: initial, close }: { lesson: LessonFull; language?: 'ru' | 'en'; close: () => void }) {
   const { t, settings, toast, lang } = useUI()
   const [language, setLanguage] = useState<'ru' | 'en'>(initial ?? (isLang(lesson.audit_language) ? lesson.audit_language : lang))
-  const [provider, setProvider] = useState<'deepseek' | 'gemini'>(settings?.ai.assistant_provider ?? 'deepseek')
+  const [provider, setProvider] = useState<AIProvider>(settings?.ai.assistant_provider ?? 'deepseek')
+  const providerOptions = useProviderOptions()
   const [source, setSource] = useState<'transcript' | 'video'>(lesson.has_transcription ? 'transcript' : 'video')
   const [busy, setBusy] = useState(false)
   const canVideo = provider === 'gemini' && Boolean(lesson.video_url)
@@ -385,7 +387,8 @@ function RegenerateAuditModal({ lesson, language: initial, close }: { lesson: Le
       }
     >
       <div className="flex flex-col gap-4">
-        <Segmented value={provider} onChange={setProvider} options={[{ value: 'deepseek', label: 'DeepSeek' }, { value: 'gemini', label: 'Gemini' }]} />
+        <Segmented value={provider} onChange={setProvider} options={providerOptions} />
+        <KeyNotice provider={provider} />
         <Field label={t('lesson.auditSource')} hint={effective === 'video' ? t('opt.auditSource.video.cost', { tokens: formatCount(VIDEO_TOKENS_PER_HOUR, lang) }) : undefined}>
           <Segmented
             value={effective}

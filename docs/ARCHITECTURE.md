@@ -93,16 +93,20 @@ audit timecodes to the clean timeline; the original audit is kept as `lesson_aud
   and the **contract** (`[MM:SS]` format, `[[lesson@MM:SS]]` citations, part/merge mechanics). Users override blocks in
   Settings → Instructions; overrides live in `settings.json: prompts`, untouched blocks use the defaults.
   The contract is always appended by the system, so a custom style cannot break clickable timecodes.
-- Audit provider: DeepSeek mode → DeepSeek, Gemini → Gemini, "Whisper only" → the provider chosen in Settings → AI.
+- Audit provider: DeepSeek mode → DeepSeek, Gemini → Gemini, local → the local model, "Whisper only" → the provider chosen
+  in Settings → AI. `AI.configured()` says whether one is ready (a key, or a chosen local model).
 - **Our own context window** (`services/context_window.py`). Chat APIs are stateless: every question re-sends everything.
   One request = system prompt + session summary and recent messages (≤ 25% of the window) + the files attached to this
   question, read by id from disk (≤ 20%) + sources (audit + transcript, the rest, split between lessons) + the question. Window per provider,
-  in tokens, set in Settings → AI (`settings.ai.context_tokens`; default DeepSeek 64k, Gemini 400k; from 8k up to the
+  in tokens, set in Settings → AI (`settings.ai.context_tokens`; default DeepSeek 64k, Gemini 400k, local 8k; from 8k up to the
   model's `max_context_tokens`: 128k, 1M; the server rejects values outside, a hand-edited file is clamped,
   `AI.context_tokens`). The budget counts characters: `CHARS_PER_TOKEN` = 3 (core/ai/base.py, a low estimate for Russian,
   timecodes and code), and 1/8 of the window stays free for the answer. When the verbatim history outgrows its share, everything but
   the last 4 messages is folded by the model into a "medium" summary (~6% of the window, prompt block `assistant.compact`,
   editable); folded messages stay visible, only the summary is sent. The UI reads the same numbers (`Thread.context`).
+  When sources are cut to fit (`sources_trimmed`, with `sources_whole` of `sources_count` lessons and `sources_share` of
+  the text), the assistant says so above the input and offers Gemini's large window: on a big course DeepSeek's 64k
+  otherwise answers "about the whole course" from a part of it.
 - **Sessions** (`services/chats.py`): a thread (lesson or notebook) holds sessions — branches with their own history,
   summary and files. Each session is a folder, `<data_dir>/sessions/<id>/`: `context/session.json` (everything written
   in it and its thread) and `local_session_src/` (its files, `services/attachments.py`). `notebook_db.json` keeps only
@@ -116,13 +120,22 @@ audit timecodes to the clean timeline; the original audit is kept as `lesson_aud
   cover a question, or the user asks for general knowledge, the model says so and answers from its own knowledge under
   "Beyond the lecture:", without timecodes.
 - `BaseAIProvider.generate_audit` exists once: a long transcript is split into ~30k-character parts, each part becomes
-  notes, then a final merge. Nothing is truncated.
+  notes, then a final merge. Nothing is truncated. A provider with a small window (`audit_window_tokens()`, the local
+  model) gets parts sized to it (a quarter of the window, at least 1k tokens, stays for the answer, 10% margin), and when
+  the parts' notes do not fit one request they are merged in rounds first (`_fit_notes`).
+- **Local model** (`providers/local.py`): Ollama or LM Studio at `settings.ai.local_base_url`, model `local_model`, no key.
+  Ollama is asked through its own `/api/chat`, the only way to set the context window per request (`options.num_ctx` =
+  the window setting; its OpenAI endpoint keeps the server default of a few thousand tokens and cuts longer prompts
+  silently); other servers through OpenAI `/v1/chat/completions`. `POST /api/settings/local/check` lists the models and,
+  where the server says, their context length (`/api/show`, LM Studio `/api/v0/models`). A server that does not answer
+  fails at once with "start Ollama or LM Studio" (`ai.local_down`), no retries; `<think>` blocks of reasoning models are
+  dropped.
 - **Retries** (`core/ai/retry.py`): every cloud call (Gemini text and transcription, DeepSeek) goes through `with_retry`.
   503/429/5xx, timeouts and dropped connections are retried 5 times over ~1 minute (cancellable); other errors fail at
   once; exhausted retries raise `AIUnavailable` with a plain explanation.
 - **Transcription inside processing is soft**, like the audit: if it fails, the lesson is saved with its clean audio and
   video and a warning; `POST /api/lessons/{id}/transcribe` (`TRANSCRIBE_STEPS`) redoes only recognition (+ audit).
-- Providers (`DeepSeekProvider`, `GeminiProvider`) implement transport only. Registration via the `AIMeta` metaclass.
+- Providers (`DeepSeekProvider`, `GeminiProvider`, `LocalProvider`) implement transport only. Registration via the `AIMeta` metaclass.
 - Default audit style: slide notes, one line per point, no softening, "Wrong: …" / "Simplification: …" said plainly.
   Settings → Instructions lists the blocks collapsed, titled by key (`prompt.<key>.title` / `.hint` in the UI dictionaries);
   a user's own (possibly Russian) block text is sent as written.

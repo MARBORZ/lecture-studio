@@ -17,6 +17,7 @@ API: `http://127.0.0.1:3000`, and the same server on `:5173`, where the app wind
 | POST | `/api/system/uninstall` | `{delete_lessons}`: start the OS uninstaller detached and stop everything; `409` when busy, when the library would go with the app folder, or on git work |
 | GET / PATCH | `/api/settings` | settings (keys are masked, with their source: settings / env / none); `ai.context_tokens` is merged per provider (`null` = default), `422` outside the model's limits; `pipeline.output_language` (also in job options) is the audit language: `interface` (default) / `recording` / `ru` / `en`; `queue_limit` 1–100 |
 | POST | `/api/settings/hotkeys/check` | can an action take a combination: `problem` = `format` / `too_many` (over three keys) / `reserved` (system, browser, text input) / `conflict` (`other` = the action that has it). Saved with `PATCH /api/settings` `{"hotkeys": {id: combo \| "" (off) \| null (default)}}` (`422` with the same codes); the view lists every action with scope, default and current combination |
+| POST | `/api/settings/local/check` | is a local model server answering at `base_url` ("" = the saved one): `kind` `ollama` / `openai`, its models with `context_tokens` where the server tells it, or an `error` to show |
 | POST | `/api/settings/test-key` | test a key with one tiny model request |
 | GET | `/api/settings/prompts` | AI instruction blocks: default, current, modified |
 | PUT / DELETE | `/api/settings/prompts/{key}` | save a custom block text / reset to default |

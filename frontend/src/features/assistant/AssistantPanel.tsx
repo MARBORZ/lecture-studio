@@ -1,14 +1,14 @@
-import { ArrowUp, NotebookPen, X } from 'lucide-react'
+import { ArrowUp, NotebookPen, TriangleAlert, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
-import type { AIProvider, AssistantRole, Attachment, ChatMessage, ThreadKind } from '@/api/types'
+import type { AIProvider, AssistantRole, Attachment, ChatMessage, ContextUsage, ThreadKind } from '@/api/types'
 import { useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { Appear } from '@/components/motion'
 import { Button, IconButton, Segmented } from '@/components/ui'
 import { SkeletonChat } from '@/components/skeleton'
 import { MarkdownView } from '@/features/markdown/MarkdownView'
-import { KeyNotice, pickProvider, useAiKeys } from '@/features/system/KeyNotice'
+import { KeyNotice, pickProvider, useAiKeys, useProviderOptions } from '@/features/system/KeyNotice'
 import { cn } from '@/lib/cn'
 import { formatTc } from '@/lib/time'
 import { AttachButton, AttachmentChip, useAttachments } from './attachments'
@@ -34,6 +34,7 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
   const { patchLesson, lessons } = useLibrary()
   const keys = useAiKeys()
   const [provider, setProvider] = useState<AIProvider>(() => pickProvider(settings?.ai.assistant_provider ?? 'deepseek', keys))
+  const providerOptions = useProviderOptions()
   const chat = useThread(kind, id, provider, sources)
   const files = useAttachments(chat.session?.id ?? '')
   const { clear: clearDrafts } = files
@@ -130,7 +131,7 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
           <SessionBar chat={chat} />
         </div>
         <ContextMeter chat={chat} />
-        <Segmented size="sm" value={provider} onChange={setProvider} options={[{ value: 'deepseek', label: 'DeepSeek' }, { value: 'gemini', label: 'Gemini' }]} />
+        <Segmented size="sm" value={provider} onChange={setProvider} options={providerOptions} />
       </div>
       <div className="flex flex-wrap items-center gap-2 pb-3">
         {ROLES.map((r) => (
@@ -173,6 +174,7 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
         <div ref={endRef} />
       </SelectionAsk>
 
+      <TrimNotice usage={chat.thread?.context} provider={provider} canGemini={keys.gemini} onGemini={() => setProvider('gemini')} />
 
       <form
         className="mt-2 flex flex-col gap-2 rounded-xl border border-line bg-surface p-2 focus-within:border-line-strong"
@@ -290,6 +292,26 @@ function Message({ message, onSave, saveLabel }: { message: ChatMessage; onSave?
           </button>
         )}
       </footer>
+    </div>
+  )
+}
+
+/**
+ * The window did not hold all the material (a large course on DeepSeek's 64k, a small local window): said above the
+ * input, with the numbers, so an answer "about the whole course" is not mistaken for one. Gemini's window is large.
+ */
+function TrimNotice({ usage, provider, canGemini, onGemini }: { usage?: ContextUsage | null; provider: AIProvider; canGemini: boolean; onGemini: () => void }) {
+  const { t } = useUI()
+  if (!usage?.sources_trimmed) return null
+  const offer = provider !== 'gemini' && canGemini
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-line-strong px-3.5 py-2.5">
+      <Icon as={TriangleAlert} size={15} className="shrink-0 text-fg" />
+      <p className="min-w-[12rem] flex-1 text-[12.5px] leading-snug text-soft">
+        {t('assistant.trimmed', { whole: usage.sources_whole, count: usage.sources_count, pct: Math.max(1, Math.round(usage.sources_share * 100)) })}{' '}
+        {t(provider === 'gemini' || !canGemini ? 'assistant.trimmedFixNoGemini' : 'assistant.trimmedFix')}
+      </p>
+      {offer && <Button size="sm" variant="secondary" onClick={onGemini}>{t('assistant.switchGemini')}</Button>}
     </div>
   )
 }

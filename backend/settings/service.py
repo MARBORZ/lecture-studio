@@ -268,6 +268,8 @@ class SettingsService:
                 deepseek_model=s.ai.deepseek_model,
                 gemini_model=s.ai.gemini_model,
                 whisper_model=s.ai.whisper_model,
+                local_base_url=s.ai.local_base_url,
+                local_model=s.ai.local_model,
                 assistant_provider=s.ai.assistant_provider,
                 context_tokens=s.ai.context_tokens,
             ),

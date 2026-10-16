@@ -10,6 +10,8 @@ import { SkeletonCard } from '@/components/skeleton'
 import { FALLBACK_DEFAULTS, PipelineOptionsFields } from '@/features/jobs/PipelineOptionsFields'
 import { QueueLimitCard } from '@/features/jobs/QueueLimitCard'
 import { KeyField } from '@/features/system/KeyField'
+import { useProviderOptions } from '@/features/system/KeyNotice'
+import { LocalModelCard } from '@/features/system/LocalModelCard'
 import { cn } from '@/lib/cn'
 import { collapse } from '@/lib/motion'
 import { formatCount } from '@/lib/format'
@@ -171,6 +173,7 @@ export function AISettingsSection() {
   const { t, settings, patchSettings, toast } = useUI()
   const providers = useResource(() => api.providers(), [])
   const ai = settings!.ai
+  const providerOptions = useProviderOptions()
   const models = (cat: string) => (providers.data?.[cat]?.supported_models ?? []).map((m) => ({ value: m, label: m }))
   const patch = (p: Record<string, string>) => patchSettings({ ai: p }).catch((e) => toast(e.message, 'error'))
 
@@ -182,6 +185,7 @@ export function AISettingsSection() {
           <KeyField provider="gemini" />
         </div>
       </Card>
+      <LocalModelCard />
       <ComputeCard />
       <Card title={t('settings.models')}>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -195,7 +199,7 @@ export function AISettingsSection() {
             <Select value={ai.whisper_model} onChange={(v) => patch({ whisper_model: v })} options={['large-v3-turbo', 'large-v3', 'medium', 'small'].map((m) => ({ value: m, label: m }))} />
           </Field>
           <Field label={t('settings.assistantProvider')}>
-            <Segmented value={ai.assistant_provider} onChange={(v) => patch({ assistant_provider: v })} options={[{ value: 'deepseek', label: 'DeepSeek' }, { value: 'gemini', label: 'Gemini' }]} />
+            <Segmented value={ai.assistant_provider} onChange={(v) => patch({ assistant_provider: v })} options={providerOptions} />
           </Field>
         </div>
       </Card>

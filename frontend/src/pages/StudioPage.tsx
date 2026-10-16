@@ -9,7 +9,7 @@ import { Appear } from '@/components/motion'
 import { Button, Card, EmptyState, Field, Input, Page, PageHeader, Progress, Segmented, Select, Switch } from '@/components/ui'
 import { FALLBACK_DEFAULTS, PipelineOptionsFields } from '@/features/jobs/PipelineOptionsFields'
 import { JobList } from '@/features/jobs/JobList'
-import { KeyNotice } from '@/features/system/KeyNotice'
+import { KeyNotice, PROVIDER_NAME } from '@/features/system/KeyNotice'
 import { cn } from '@/lib/cn'
 import { formatBytes, formatDuration } from '@/lib/format'
 
@@ -230,7 +230,7 @@ function stepsLine(o: Opts, t: ReturnType<typeof useUI>['t']): string {
     o.cut_silence ? t('studio.steps.cut') : t('studio.steps.noCut'),
     t(`opt.video.${o.video}`),
     o.transcriber === 'none' ? t('studio.steps.noText') : o.transcriber === 'gemini' ? 'Gemini' : 'Whisper',
-    o.audit === 'none' ? t('studio.steps.noAudit') : `${t('opt.step.audit')}: ${o.audit === 'gemini' ? 'Gemini' : 'DeepSeek'}`,
+    o.audit === 'none' ? t('studio.steps.noAudit') : `${t('opt.step.audit')}: ${o.audit === 'local' ? t('ai.local.short') : PROVIDER_NAME[o.audit]}`,
   ].join(' · ')
 }
 

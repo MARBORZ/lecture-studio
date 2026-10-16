@@ -8,6 +8,7 @@ import { Button, Field, Input, Segmented, Select, Slider, Switch } from '@/compo
 import { cn } from '@/lib/cn'
 import { formatCount } from '@/lib/format'
 import { collapse } from '@/lib/motion'
+import { useProviderOptions } from '@/features/system/KeyNotice'
 
 export type Opts = Required<PipelineDefaults>
 type Video = Opts['video']
@@ -67,6 +68,7 @@ function presetOf(o: Opts): Preset {
  */
 export function PipelineOptionsFields({ value, onChange, source }: { value: Opts; onChange: (v: Opts) => void; source?: 'upload' | 'path' }) {
   const { t, lang } = useUI()
+  const providerOptions = useProviderOptions()
   const [fine, setFine] = useState(false)
   const set = <K extends keyof Opts>(key: K, v: Opts[K]) => onChange(normalize({ ...value, [key]: v }))
   const preset = presetOf(value)
@@ -159,11 +161,7 @@ export function PipelineOptionsFields({ value, onChange, source }: { value: Opts
         <Segmented
           value={value.audit}
           onChange={(v) => set('audit', v)}
-          options={[
-            { value: 'deepseek', label: 'DeepSeek' },
-            { value: 'gemini', label: 'Gemini' },
-            { value: 'none', label: t('opt.none') },
-          ]}
+          options={[...providerOptions, { value: 'none', label: t('opt.none') }]}
         />
         {value.transcriber === 'none' && value.audit === 'none' && <p className="text-[12px] text-muted">{t('opt.audit.needsText')}</p>}
         {value.audit !== 'none' && (

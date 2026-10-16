@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from backend.core.ai import AI
 from backend.core.media import MediaError, check_input, encode_mp3
 from backend.core.pipeline import start_audit, start_transcription
 from backend.i18n import tr
@@ -131,8 +132,8 @@ def regenerate_audit(lesson_id: str, req: AuditRequest) -> Job:
             raise HTTPException(400, detail=tr("lesson.no_video"))
     elif not lesson.has_transcription:
         raise HTTPException(400, detail=tr("lesson.no_transcript"))
-    if not SettingsService.api_key(provider):
-        raise HTTPException(400, detail=tr("ai.no_key", provider=provider))
+    if not AI.configured(provider):
+        raise HTTPException(400, detail=AI.not_configured(provider))
     return start_audit(lesson, provider, req.audit_mode, req.source, req.language)
 
 

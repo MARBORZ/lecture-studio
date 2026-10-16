@@ -85,7 +85,8 @@ class Request:
     usage: ContextUsage | None = None
 
 
-def _source_block(lesson: LessonFull, budget: int) -> tuple[str, bool]:
+def _source_block(lesson: LessonFull, budget: int) -> tuple[str, bool, int]:
+    """(the lesson's block cut to the budget, whether it was cut, the length of the whole block)."""
     transcript = compact_transcript(lesson.segments) or lesson.clean_timestamps_text or lesson.plain_text
     audit = lesson.lesson_audit_md
     head = prompts.source_head(lesson.id, lesson.title)
@@ -93,7 +94,8 @@ def _source_block(lesson: LessonFull, budget: int) -> tuple[str, bool]:
     audit_part = prompts.source_audit(audit_cut) if audit else ""
     rest = max(2000, budget - len(head) - len(audit_part))
     trimmed = len(audit_cut) < len(audit) or len(transcript) > rest
-    return f"{head}{audit_part}{prompts.source_transcript(transcript[:rest])}", trimmed
+    whole = len(head) + (len(prompts.source_audit(audit)) if audit else 0) + len(prompts.source_transcript(transcript))
+    return f"{head}{audit_part}{prompts.source_transcript(transcript[:rest])}", trimmed, whole
 
 
 def _files_block(files: Sequence[Attachment], vision: bool, budget: int) -> tuple[str, list]:
@@ -139,7 +141,8 @@ def build(
     used = len(system) + len(summary_block) + sum(len(h["content"]) for h in history) + len(final)
     per_source = max(MIN_SOURCE_CHARS, window - used) // max(1, len(sources))
     blocks = [_source_block(s, per_source) for s in sources]
-    corpus = "\n\n".join(b for b, _ in blocks)
+    corpus = "\n\n".join(b for b, _, _ in blocks)
+    whole = sum(w for _, _, w in blocks)
 
     messages = [{"role": "user", "content": prompts.CTX_SOURCES.format(corpus=corpus)}, {"role": "assistant", "content": prompts.CTX_SOURCES_ACK}]
     if summary_block:
@@ -159,7 +162,10 @@ def build(
         history=sum(len(h["content"]) for h in history),
         files=len(files_block),
         summarized=session.summarized,
-        sources_trimmed=any(t for _, t in blocks),
+        sources_trimmed=any(t for _, t, _ in blocks),
+        sources_count=len(sources),
+        sources_whole=sum(1 for _, t, _ in blocks if not t),
+        sources_share=min(1.0, len(corpus) / whole) if whole else 1.0,
     )
     usage.total = usage.system + usage.sources + usage.summary + usage.history + usage.files + len(question)
     usage.total_tokens = -(-usage.total // CHARS_PER_TOKEN)

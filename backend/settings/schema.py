@@ -10,7 +10,7 @@ from backend.settings.hotkeys import HotkeyProblem, HotkeyScope
 
 AuditMode = Literal["srt_timecodes", "clean_summary"]
 VideoResolution = Literal["1080p", "720p", "original"]
-AIProviderName = Literal["deepseek", "gemini"]
+AIProviderName = Literal["deepseek", "gemini", "local"]  # local: Ollama / LM Studio on this computer
 UILanguage = Literal["ru", "en"]
 Theme = Literal["system", "dark", "light"]
 TEXT_SCALE_MIN, TEXT_SCALE_MAX = 80, 150
@@ -19,7 +19,7 @@ QUEUE_LIMIT_MIN, QUEUE_LIMIT_DEFAULT, QUEUE_LIMIT_MAX = 1, 10, 100  # one worker
 
 OutputLanguage = Literal["interface", "recording", "ru", "en"]  # the audit's language (core/language.py resolves it)
 Transcriber = Literal["whisper", "gemini", "none"]
-AuditProvider = Literal["deepseek", "gemini", "none"]
+AuditProvider = Literal["deepseek", "gemini", "local", "none"]
 AuditSource = Literal["transcript", "video"]  # video = Gemini watches an optimized copy (costs more, sees the screen)
 VideoOutput = Literal["clean", "compressed", "original", "none"]
 # clean      — jump-cut video (the pauses cut out like in the audio); without cut_silence it equals "compressed"
@@ -88,6 +88,8 @@ class AISettings(BaseModel):
     deepseek_model: str = "deepseek-chat"
     gemini_model: str = "gemini-3.5-flash"
     whisper_model: str = "large-v3-turbo"
+    local_base_url: str = "http://127.0.0.1:11434/v1"  # Ollama; LM Studio: http://127.0.0.1:1234/v1
+    local_model: str = ""  # chosen from the server's list; "" = the local model is not set up
     assistant_provider: AIProviderName = "deepseek"
     context_tokens: dict[AIProviderName, int] = Field(default_factory=dict)  # assistant window, tokens; missing = default
 
@@ -149,6 +151,8 @@ class AISettingsView(BaseModel):
     deepseek_model: str
     gemini_model: str
     whisper_model: str
+    local_base_url: str
+    local_model: str
     assistant_provider: AIProviderName
     context_tokens: dict[AIProviderName, int]  # set by the user only; defaults and limits: /api/settings/providers
 
@@ -204,6 +208,8 @@ class AISettingsPatch(BaseModel):
     deepseek_model: str | None = None
     gemini_model: str | None = None
     whisper_model: str | None = None
+    local_base_url: str | None = None
+    local_model: str | None = None
     assistant_provider: AIProviderName | None = None
     context_tokens: dict[AIProviderName, int | None] | None = None  # merged; a None value = back to the default
 
@@ -253,6 +259,10 @@ class PromptUpdate(BaseModel):
 
 class KeyTestRequest(BaseModel):
     provider: AIProviderName
+
+
+class LocalCheckRequest(BaseModel):
+    base_url: str = ""  # "" = the saved one
 
 
 class KeyTestResult(BaseModel):

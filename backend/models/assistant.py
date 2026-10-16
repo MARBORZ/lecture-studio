@@ -93,6 +93,9 @@ class ContextUsage(BaseModel):
     total: int = 0
     summarized: int = 0  # messages folded into the summary
     sources_trimmed: bool = False  # sources were cut to fit the window
+    sources_count: int = 0  # lessons in the request
+    sources_whole: int = 0  # of them, how many went in whole
+    sources_share: float = 1.0  # share of the material (characters) that fit, 0..1
 
 
 class CompactRequest(BaseModel):
