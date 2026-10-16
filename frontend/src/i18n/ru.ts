@@ -524,6 +524,8 @@ export const ru = {
   'settings.keyOk': 'Ключ работает',
   'settings.keyFail': 'Ключ не работает',
   'settings.keysHint': 'Хранятся только на этом Mac: ~/Library/Application Support/Lecture Studio/settings.json. Не попадают в репозиторий.',
+  'settings.summary.noKey': 'нет ключа',
+  'settings.summary.keySet': 'ключ сохранён',
   'keys.missingTitle': 'Нет API-ключа',
   'keys.missingText': 'Аудит и ассистент работают через DeepSeek, Gemini или локальную модель (Ollama). Вставьте ключ в настройках — один раз.',
   'keys.localMissing': 'Локальная модель не выбрана',

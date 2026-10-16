@@ -41,7 +41,7 @@ export function DownloaderCard() {
           : t('videos.downloaderVersion', { version: info.version })
 
   return (
-    <Card title={t('videos.downloader')} description={t('videos.downloaderHint')}>
+    <Card title={t('videos.downloader')} description={t('videos.downloaderHint')} fold="processing.downloader" summary={status}>
       <div className="flex flex-wrap items-center gap-3">
         <span className="min-w-0 flex-1 font-mono text-[12.5px] text-soft">{status}</span>
         <Button icon={RefreshCw} loading={busy} variant={info?.update_available ? 'primary' : 'secondary'} onClick={() => void update()}>

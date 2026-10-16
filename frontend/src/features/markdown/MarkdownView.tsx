@@ -14,6 +14,8 @@ function CodeBlock({ children }: { children?: ReactNode }) {
   const lang = isValidElement<{ className?: string }>(children) ? /language-(\w+)/.exec(children.props.className ?? '')?.[1] : undefined
   return (
     <div className="md-pre">
+      {/* the language and the copy button share one bar in the corner: they never overlap */}
+      <div className="absolute top-1.5 right-1.5 flex items-center gap-3">
       {lang && <span className="md-pre-lang">{lang}</span>}
       <button
         type="button"
@@ -23,10 +25,11 @@ function CodeBlock({ children }: { children?: ReactNode }) {
           setCopied(true)
           setTimeout(() => setCopied(false), 1200)
         }}
-        className="absolute top-1.5 right-1.5 flex size-7 items-center justify-center rounded-md text-dim hover:bg-hover hover:text-fg"
+        className="flex size-7 items-center justify-center rounded-md text-dim hover:bg-hover hover:text-fg"
       >
         <Icon as={copied ? Check : Copy} size={14} />
       </button>
+      </div>
       <pre ref={ref}>{children}</pre>
     </div>
   )
