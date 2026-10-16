@@ -5,7 +5,7 @@ import type { ComputeSettings, PathCheckResult, PipelineDefaults, PromptView, Pr
 import { useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { AnimatePresence, m } from '@/components/motion'
-import { Button, Card, Field, Input, Modal, Segmented, Select, Slider, Textarea } from '@/components/ui'
+import { Button, Card, Field, Input, Modal, Segmented, Select, Slider, Switch, Textarea } from '@/components/ui'
 import { SkeletonCard } from '@/components/skeleton'
 import { FALLBACK_DEFAULTS, PipelineOptionsFields } from '@/features/jobs/PipelineOptionsFields'
 import { QueueLimitCard } from '@/features/jobs/QueueLimitCard'
@@ -370,6 +370,14 @@ export function InterfaceSettings() {
         />
       </Card>
       <TextSizeCard />
+      <Card title={t('settings.bootTitle')}>
+        <Switch
+          checked={settings!.boot_animation}
+          onChange={(on) => void patchSettings({ boot_animation: on })}
+          label={t('settings.boot')}
+          hint={t('settings.bootHint')}
+        />
+      </Card>
       <Card title={t('onboarding.replay')} description={t('onboarding.replayHint')}>
         <Button icon={GraduationCap} onClick={() => setTutorialOpen(true)}>{t('onboarding.replay')}</Button>
       </Card>

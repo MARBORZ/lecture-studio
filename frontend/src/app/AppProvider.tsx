@@ -121,7 +121,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Until settings arrive (the boot screen), the language of the last visit.
   const lang: UILanguage = settings?.ui_language ?? storage.get<UILanguage>(LANG_KEY, 'ru')
   const t = useMemo(() => createT(lang), [lang])
-  useAppearance(settings?.theme, settings?.text_scale)
+  useAppearance(settings?.theme, settings?.text_scale, settings?.boot_animation)
   useEffect(() => {
     document.documentElement.lang = lang
     setLanguage(lang)

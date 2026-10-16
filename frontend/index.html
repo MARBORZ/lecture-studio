@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark light" />
     <script>
-      // Appearance before the first paint (no dark flash in the light theme): cached by lib/appearance.ts.
+      // Appearance before the first paint (no dark flash in the light theme): cached by lib/appearance.ts
+      // ({theme, scale, boot}; boot is read by BootScreen, the static mark below is the same either way).
       try {
         const a = JSON.parse(localStorage.getItem('appearance') || '{}')
         const dark = a.theme === 'dark' || (a.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)

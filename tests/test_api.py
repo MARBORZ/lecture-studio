@@ -57,3 +57,12 @@ def test_onboarding_flag(data_dir):
         assert (r["ui_language"], r["onboarding_done"]) == ("en", True)
         assert c.patch("/api/settings", json={"export_dir": ""}).json()["onboarding_done"] is True  # untouched by other patches
 
+
+
+def test_boot_animation_setting(data_dir):
+    from backend.main import app
+
+    with TestClient(app) as c:
+        assert c.get("/api/settings").json()["boot_animation"] is True  # on by default
+        assert c.patch("/api/settings", json={"boot_animation": False}).json()["boot_animation"] is False
+        assert c.patch("/api/settings", json={"theme": "dark"}).json()["boot_animation"] is False  # untouched by other patches

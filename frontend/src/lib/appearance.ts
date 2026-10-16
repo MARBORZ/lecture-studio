@@ -1,6 +1,7 @@
 /**
  * Theme and text size on <html>: data-theme="dark"|"light" and --text-scale.
- * "system" follows the OS live. The values are cached so index.html can apply them before the first paint.
+ * "system" follows the OS live. The values are cached so index.html can apply them before the first paint,
+ * together with the boot animation switch, which the boot screen needs before the settings arrive.
  */
 import { useEffect } from 'react'
 import type { SettingsView } from '@/api/types'
@@ -17,18 +18,29 @@ function apply(theme: ThemeSetting, scale: number) {
   root.style.setProperty('--text-scale', String(scale / 100))
 }
 
-export function useAppearance(theme: ThemeSetting | undefined, scale: number | undefined) {
+interface Cached {
+  theme?: ThemeSetting
+  scale?: number
+  boot?: boolean
+}
+
+/** The boot animation switch as last saved (on when nothing is cached yet). */
+export function bootAnimationCached(): boolean {
+  return storage.get<Cached>('appearance', {}).boot !== false
+}
+
+export function useAppearance(theme: ThemeSetting | undefined, scale: number | undefined, boot: boolean | undefined) {
   useEffect(() => {
     if (!theme) return
     const s = scale ?? 100
     apply(theme, s)
-    storage.set('appearance', { theme, scale: s })
+    storage.set('appearance', { theme, scale: s, boot: boot ?? true } satisfies Cached)
     if (theme !== 'system') return
     const mq = query()
     const onChange = () => apply(theme, s)
     mq.addEventListener('change', onChange)
     return () => mq.removeEventListener('change', onChange)
-  }, [theme, scale])
+  }, [theme, scale, boot])
 }
 
 /** Live preview while a slider moves (the setting is saved on release). */

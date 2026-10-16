@@ -462,6 +462,9 @@ export const en: Record<TKey, string> = {
   'settings.textSize': 'Text size',
   'settings.textSizeHint': 'For the text you read: audit, transcript, chat, notes, diary. 100% is the default.',
   'settings.textSizeSample': 'Example: a parameter is the name in the function definition, an argument is the value passed in the call [04:25].',
+  'settings.bootTitle': 'Start',
+  'settings.boot': 'Boot animation',
+  'settings.bootHint': 'The mark plays at least one full loop (5 s) on every start and reload. Off: the app opens as soon as it has loaded.',
   'settings.language': 'Interface language',
   'settings.pipelineDefaults': 'Defaults for new jobs',
 

@@ -2214,6 +2214,8 @@ export interface components {
             theme?: ("system" | "dark" | "light") | null;
             /** Text Scale */
             text_scale?: number | null;
+            /** Boot Animation */
+            boot_animation?: boolean | null;
             /** Beta Updates */
             beta_updates?: boolean | null;
             /** Queue Limit */
@@ -2238,6 +2240,8 @@ export interface components {
             theme: "system" | "dark" | "light";
             /** Text Scale */
             text_scale: number;
+            /** Boot Animation */
+            boot_animation: boolean;
             /** Beta Updates */
             beta_updates: boolean;
             /** Queue Limit */
