@@ -13,6 +13,6 @@ try {
         Write-Host $_.ErrorDetails.Message
         exit 1
     }
-    Write-Host (L 'API не отвечает: останавливаю интерфейс (5173), если он остался.' 'The API does not answer: stopping the interface (5173) if it is still running.')
+    Write-Host (L 'API не отвечает: останавливаю то, что слушает порт интерфейса (5173), если оно осталось.' 'The API does not answer: stopping whatever still listens on the interface port (5173).')
     Stop-Pids (Get-ListeningPids @($UiPort))
 }

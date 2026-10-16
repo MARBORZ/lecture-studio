@@ -1,7 +1,9 @@
 #!/bin/zsh
 # Lecture Studio — clean-slate launcher (macOS). Run by "Lecture Studio.app" on the Desktop.
-#   API: FastAPI on 127.0.0.1:3000      UI: Vite on 127.0.0.1:5173 (proxies /api -> 3000)
-# Every launch: stop old processes -> sync deps if changed -> start API + UI -> open the app window.
+#   One server (backend/serve.py): the app on 127.0.0.1:5173 (built UI + /api), the API also on 127.0.0.1:3000.
+# Every launch: stop old processes -> sync deps / rebuild the UI if changed -> start the server -> open the app window.
+# The UI is frontend/dist: shipped ready in Setup.zip (frontend/dist/.prebuilt, no Node.js needed), else built here
+# whenever its sources changed (a clone, an update, a GitHub ZIP).
 # Lesson data is never touched; temp/ is cleared by the API on startup.
 #   start.zsh            normal launch (Desktop shortcut)
 #   start.zsh update     started by the API after it moved the code to a new release (state/update.json):
@@ -38,7 +40,7 @@ dialog() { osascript -e "display dialog \"$1\" with title \"Lecture Studio\" but
 fail() {
   print "FAIL: $1"
   if [[ "$MODE" == update && -n "$from_sha" ]]; then
-    # The new release did not come up: back to the previous commit, start again (deps re-sync by fingerprint).
+    # The new release did not come up: back to the previous commit, start again (deps and UI rebuild by fingerprint).
     print "rolling back to $from_sha"
     git -C "$REPO" reset --keep "$from_sha" && exec /bin/zsh "$SELF" rollback
   fi
@@ -103,7 +105,7 @@ if [[ "$MODE" == normal ]] && sys_status=$(curl -fsS --max-time 2 "$API/api/syst
   fi
 fi
 
-# ---- 1. Stop previous instance: API, UI, app window.
+# ---- 1. Stop previous instance: server, a Vite UI of an older version, app window.
 pids=()
 for f in "$APP_HOME/server.pid" "$APP_HOME/frontend.pid"; do
   [[ -f "$f" ]] && pids+=( $(<"$f") )
@@ -125,42 +127,52 @@ fi
 [[ "$MODE" == normal ]] && pkill -TERM -f -- "--user-data-dir=$PROFILE" 2>/dev/null   # an update keeps the window: it waits and reloads
 rm -f "$APP_HOME/server.pid" "$APP_HOME/frontend.pid"
 
-# ---- 2. Toolchain.
-for tool in uv npm ffmpeg ffprobe lsof; do
+# ---- 2. Toolchain. Node.js only where the UI is built here (not for the ready UI of Setup.zip).
+cd "$REPO" || fail "$(L "Папка проекта не найдена: $REPO" "The project folder is not found: $REPO")"
+prebuilt=0; [[ -f frontend/dist/.prebuilt ]] && prebuilt=1
+tools=(uv ffmpeg ffprobe lsof); (( prebuilt )) || tools+=npm
+for tool in $tools; do
   command -v $tool >/dev/null || fail "$(L "Не найден $tool. Установите: brew install ${tool/ffprobe/ffmpeg}" "$tool not found. Install: brew install ${tool/ffprobe/ffmpeg}")"
 done
-node_ok || fail "$(L "Нужен Node.js 20.19+ или 22.12+, установлен $(node --version 2>/dev/null). Обновите: brew upgrade node" "Node.js 20.19+ or 22.12+ is needed, $(node --version 2>/dev/null) is installed. Update: brew upgrade node")"
-cd "$REPO" || fail "$(L "Папка проекта не найдена: $REPO" "The project folder is not found: $REPO")"
+(( prebuilt )) || node_ok || fail "$(L "Нужен Node.js 20.19+ или 22.12+, установлен $(node --version 2>/dev/null). Обновите: brew upgrade node" "Node.js 20.19+ or 22.12+ is needed, $(node --version 2>/dev/null) is installed. Update: brew upgrade node")"
 
-# ---- 3. Dependencies, only when lockfiles changed.
+# ---- 3. Dependencies and the UI build, only when their sources changed.
 py_fp=$(fingerprint pyproject.toml uv.lock)
 if [[ ! -x .venv/bin/python ]] || changed python "$py_fp"; then
   print "uv sync"
   uv sync --frozen || fail "$(L "uv sync не удался. Лог: $LOGS/launcher.log" "uv sync failed. Log: $LOGS/launcher.log")"
   print -r -- "$py_fp" > "$STATE/python"
 fi
-node_fp=$(fingerprint frontend/package-lock.json)
-if [[ ! -x frontend/node_modules/.bin/vite ]] || changed node "$node_fp"; then
-  print "npm ci"
-  npm --prefix frontend ci --no-audit --no-fund || fail "$(L "npm ci не удался. Лог: $LOGS/launcher.log" "npm ci failed. Log: $LOGS/launcher.log")"
-  print -r -- "$node_fp" > "$STATE/node"
+if (( ! prebuilt )); then
+  node_fp=$(fingerprint frontend/package-lock.json)
+  if [[ ! -x frontend/node_modules/.bin/vite ]] || changed node "$node_fp"; then
+    print "npm ci"
+    npm --prefix frontend ci --no-audit --no-fund || fail "$(L "npm ci не удался. Лог: $LOGS/launcher.log" "npm ci failed. Log: $LOGS/launcher.log")"
+    print -r -- "$node_fp" > "$STATE/node"
+  fi
+  # The same file list as setups/macos/build-setup.zsh and launcher/windows/start.ps1 build from.
+  ui_fp=$(fingerprint frontend/src frontend/public frontend/index.html frontend/package.json frontend/package-lock.json \
+    frontend/vite.config.ts frontend/tsconfig.json frontend/tsconfig.app.json frontend/tsconfig.node.json)
+  if [[ ! -f frontend/dist/index.html ]] || changed ui "$ui_fp"; then
+    # Into a side folder first: a failed build leaves the previous UI in place.
+    print "building the interface"
+    rm -rf frontend/dist.next
+    npm --prefix frontend run build -- --outDir dist.next --emptyOutDir \
+      && rm -rf frontend/dist && mv frontend/dist.next frontend/dist \
+      || { rm -rf frontend/dist.next; fail "$(L "Сборка интерфейса не удалась. Лог: $LOGS/launcher.log" "Building the interface failed. Log: $LOGS/launcher.log")" }
+    print -r -- "$ui_fp" > "$STATE/ui"
+  fi
 fi
 
-# ---- 4. API (writes its own server.pid).
-print "starting api :$API_PORT"
-nohup .venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port $API_PORT --timeout-graceful-shutdown 3 \
-  >>"$LOGS/server.log" 2>&1 </dev/null &!
+# ---- 4. Server: the app on the UI port, the API also on the API port (writes its own server.pid).
+print "starting server :$UI_PORT + :$API_PORT"
+LS_API_PORT=$API_PORT LS_UI_PORT=$UI_PORT nohup .venv/bin/python -m backend.serve >>"$LOGS/server.log" 2>&1 </dev/null &!
 api_pid=$!
 
-# ---- 5. UI (Vite).
-print "starting ui :$UI_PORT"
-(cd frontend && nohup node_modules/.bin/vite --host 127.0.0.1 --port $UI_PORT --strictPort \
-  >>"$LOGS/frontend.log" 2>&1 </dev/null & print -r -- $! > "$APP_HOME/frontend.pid")
+wait_http "$API/api/health" $api_pid || fail "$(L "Сервер не запустился. Лог: $LOGS/server.log" "The server did not start. Log: $LOGS/server.log")"
+wait_http "$UI/" $api_pid || fail "$(L "Интерфейс не открывается. Лог: $LOGS/server.log" "The interface does not open. Log: $LOGS/server.log")"
 
-wait_http "$API/api/health" $api_pid || fail "$(L "API не запустился. Лог: $LOGS/server.log" "The API did not start. Log: $LOGS/server.log")"
-wait_http "$UI/" || fail "$(L "Интерфейс не запустился за 90 с. Лог: $LOGS/frontend.log" "The interface did not start within 90 s. Log: $LOGS/frontend.log")"
-
-# ---- 6. App window.
+# ---- 5. App window.
 pgrep -f -- "--user-data-dir=$PROFILE" >/dev/null || open_window
 rm -f "$HANDOVER"   # the API has read it (outcome is reported once in the UI)
 print "ready"

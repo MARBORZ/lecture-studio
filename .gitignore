@@ -6,8 +6,9 @@ workspace/
 .env
 node_modules
 
-# Build output
+# Build output (frontend/dist.next: the launcher's side folder while it builds)
 frontend/dist/
+frontend/dist.next/
 
 # Caches
 __pycache__/

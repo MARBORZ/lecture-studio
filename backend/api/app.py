@@ -1,5 +1,6 @@
 """
-FastAPI application factory. Pure JSON API on :3000; the UI is served by Vite on :5173.
+FastAPI application factory: the JSON API under /api and the built UI (api/frontend.py) for every other path.
+Started by backend/serve.py on two ports (3000 and the UI port 5173); in development Vite serves the UI instead.
 """
 
 import logging
@@ -12,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 
+from backend.api.frontend import FrontendRoute
 from backend.api.guard import LOCAL_HOSTS, LocalOriginWrites
 from backend.api.routes import assistant, diary, feedback, jobs, lessons, projects, settings, system
 from backend.config import APP_NAME, APP_VERSION, FRONTEND_ORIGINS, PID_FILE
@@ -75,6 +77,7 @@ def create_app() -> FastAPI:
 
     for module in (system, settings, projects, lessons, jobs, assistant, diary, feedback):
         app.include_router(module.router)
+    app.router.routes.append(FrontendRoute())  # last: every API route and /docs come first
 
     @app.exception_handler(QueueFull)
     def queue_full(_: Request, e: QueueFull) -> JSONResponse:  # every route that starts a job

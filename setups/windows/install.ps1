@@ -55,6 +55,8 @@ $bar = New-Object System.Windows.Forms.ProgressBar -Property @{ Left = 24; Top =
 $form.Controls.AddRange(@($title, $detail, $bar))
 $form.Show()
 
+# A ready UI (frontend\dist\.prebuilt) needs no Node.js; otherwise the launcher builds it with Node on first start.
+$Prebuilt = Test-Path (Join-Path $Repo 'frontend\dist\.prebuilt')
 $steps = @(
     @{ Label = 'uv, Node.js, FFmpeg'; Run = {
         if (-not (Test-Tool 'uv')) {
@@ -62,15 +64,17 @@ $steps = @(
             if ($code -ne 0) { Fail (L 'Не удалось установить uv.' 'Could not install uv.') }
         }
         foreach ($pkg in @(@{ Tool = 'node'; Id = 'OpenJS.NodeJS.LTS' }, @{ Tool = 'ffmpeg'; Id = 'Gyan.FFmpeg' })) {
-            if (Test-Tool $pkg.Tool) { continue }
+            if ((Test-Tool $pkg.Tool) -or ($Prebuilt -and $pkg.Tool -eq 'node')) { continue }
             if (-not (Test-Tool 'winget')) { Fail (L 'Нет winget. Установите «App Installer» из Microsoft Store и запустите Setup снова.' 'winget is missing. Install "App Installer" from the Microsoft Store and run Setup again.') }
             $code = Invoke-Logged -Exe (Get-Command winget).Source -Arguments @('install', '--id', $pkg.Id, '-e', '--silent', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity') -LogFile $SetupLog -Tick $tick
             Update-Path
             if (-not (Test-Tool $pkg.Tool)) { Fail (L "Не удалось установить $($pkg.Tool) (winget код $code)." "Could not install $($pkg.Tool) (winget code $code).") }
         }
         Update-Path
-        $nodeProblem = Update-Node -LogFile $SetupLog -Tick $tick
-        if ($nodeProblem) { Fail $nodeProblem }
+        if (-not $Prebuilt) {
+            $nodeProblem = Update-Node -LogFile $SetupLog -Tick $tick
+            if ($nodeProblem) { Fail $nodeProblem }
+        }
     } },
     @{ Label = (L 'Python и модели (torch, Whisper) — самый долгий шаг' 'Python and models (torch, Whisper) — the longest step'); Run = {
         $probe = Get-ComputeProbe
@@ -80,6 +84,7 @@ $steps = @(
         if ((Invoke-Logged -Exe (Get-Command uv).Source -Arguments @('sync', '--frozen', '--extra', $probe.torch_build) -LogFile $SetupLog -Tick $tick) -ne 0) { Fail (L 'Установка Python-зависимостей не удалась.' 'Installing the Python dependencies failed.') }
     } },
     @{ Label = (L 'Интерфейс' 'Interface'); Run = {
+        if ($Prebuilt) { return }  # ready; else node_modules here, the build itself runs in the launcher (by fingerprint)
         # cmd /c npm can return a non-zero code after a successful install: judge by the result, not the exit code.
         $code = Invoke-Logged -Exe 'cmd.exe' -Arguments @('/c', 'npm', 'ci', '--no-audit', '--no-fund') -Cwd (Join-Path $Repo 'frontend') -LogFile $SetupLog -Tick $tick
         if (-not (Test-Path (Join-Path $Repo 'frontend\node_modules\vite'))) { Fail (L "Установка интерфейса не удалась (npm код $code). Лог: $SetupLog" "Installing the interface failed (npm code $code). Log: $SetupLog") }

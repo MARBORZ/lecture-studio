@@ -43,7 +43,7 @@ APP_HOME = Path(os.getenv("LECTURE_STUDIO_HOME") or _default_home()).expanduser(
 
 SETTINGS_FILE = APP_HOME / "settings.json"
 PID_FILE = APP_HOME / "server.pid"
-FRONTEND_PID_FILE = APP_HOME / "frontend.pid"
+FRONTEND_PID_FILE = APP_HOME / "frontend.pid"  # a Vite UI server of older versions: still stopped on shutdown
 LOGS_DIR = APP_HOME / "logs"
 CHROME_PROFILE_DIR = APP_HOME / "chrome-profile"
 STATE_DIR = APP_HOME / "state"  # launcher fingerprints, update hand-over (update.json)
@@ -59,11 +59,14 @@ FEEDBACK_URL = os.getenv("LECTURE_STUDIO_FEEDBACK_URL", "https://lecture-studio-
 # Default data location for a fresh install (existing installs keep whatever settings.json says).
 DEFAULT_DATA_DIR = REPO_DIR / "workspace"
 
-# Backend API on 3000; the UI is the Vite server on 5173 (proxies /api here).
-# LS_API_PORT / LS_UI_PORT: a second instance next to the running app (same names as vite.config.ts and the launcher).
+# One server process (backend/serve.py) on two ports: 5173 is the app (the built UI from frontend/dist + /api; the app
+# window's origin, where its localStorage lives), 3000 is the API for launchers, scripts and `npm run dev` (Vite proxies
+# /api here). LS_API_PORT / LS_UI_PORT: a second instance next to the running app (same names as vite.config.ts and the
+# launchers).
 HOST = "127.0.0.1"
 PORT = int(os.getenv("LS_API_PORT") or 3000)
 FRONTEND_PORT = int(os.getenv("LS_UI_PORT") or 5173)
+FRONTEND_DIST = REPO_DIR / "frontend" / "dist"  # `npm run build`; built by the launcher (git installs) or shipped in Setup.zip
 FRONTEND_ORIGINS = [f"http://127.0.0.1:{FRONTEND_PORT}", f"http://localhost:{FRONTEND_PORT}"]
 
 # .env is only a fallback source for API keys (settings.json takes precedence).

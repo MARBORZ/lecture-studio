@@ -1,6 +1,7 @@
 # API and storage
 
-API: `http://127.0.0.1:3000` (the UI reaches it through the Vite proxy at `:5173/api`). Schema: `/docs`, `/openapi.json`.
+API: `http://127.0.0.1:3000`, and the same server on `:5173`, where the app window loads the built UI and calls `/api`
+(in development the Vite proxy at its port). Schema: `/docs`, `/openapi.json`.
 
 ## Endpoints
 
@@ -8,7 +9,7 @@ API: `http://127.0.0.1:3000` (the UI reaches it through the Vite proxy at `:5173
 |---|---|---|
 | GET | `/api/health` | liveness |
 | GET | `/api/system/status` | `busy` plus reasons (jobs, uploads, exports) |
-| POST | `/api/system/shutdown` | shut down; `409` with reasons when busy. Stops the API, Vite and the app window |
+| POST | `/api/system/shutdown` | shut down; `409` with reasons when busy. Stops the server, a Vite UI if one runs, and the app window |
 | GET | `/api/system/update?force` | newest release tag vs the running version, changes, `blocked` reason, last update outcome (cached 1 h) |
 | POST | `/api/system/update` | fast-forward to the release and restart through the launcher; `409` when busy or blocked |
 | POST | `/api/system/update/discard` | put the modified tracked files (`dirty_files`, listed by the server, not the request) back to HEAD; returns a fresh check |
