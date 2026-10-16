@@ -42,9 +42,9 @@ def delete_category(name: str) -> dict:
 
 
 @router.get("/entries", response_model=DiaryPage)
-def list_entries(category: str | None = None, q: str | None = None, page: int = 1, size: int = 30) -> DiaryPage:
-    """Newest first, a page at a time (size up to 100); q searches every entry before the page is cut."""
-    return _guard(diary.page_entries, category, q, page, size)
+def list_entries(category: str | None = None, q: str | None = None, after: str | None = None, size: int = 30) -> DiaryPage:
+    """Newest first, a page at a time (size up to 100; after = the previous page's next); q searches every entry before the cut."""
+    return _guard(diary.page_entries, category, q, after, size)
 
 
 @router.post("/entries", response_model=DiaryEntry)
