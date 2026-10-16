@@ -38,10 +38,12 @@ export function useThread(kind: ThreadKind, id: string, provider: AIProvider, so
       await api.activateSession(kind, id, next)
       setSessionId(next)
     },
-    create: async () => {
+    /** A fresh session (an untouched empty one is reused); returns its id. */
+    create: async (): Promise<string> => {
       const s = await api.newSession(kind, id)
       setSessionId(s.id)
       if (s.id === sessionId) await reload()
+      return s.id
     },
     rename: async (target: string, title: string) => {
       await api.patchSession(kind, id, target, { title })

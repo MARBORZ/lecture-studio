@@ -138,6 +138,8 @@ export const en: Record<TKey, string> = {
   'player.close': 'Close player',
   'player.openLesson': 'Open the lesson',
   'player.focus': 'Focus mode (F)',
+  'player.askHere': 'Ask from this moment',
+  'player.askNewSession': 'New session from this moment',
   'player.unfocus': 'Exit focus (F or Esc)',
   'lesson.resize': 'Video width: drag, ←/→, double-click to reset',
 
@@ -188,6 +190,7 @@ export const en: Record<TKey, string> = {
   'assistant.quote': 'Ask about this',
   'assistant.quoteLabel': 'About the fragment',
   'assistant.quoteDefault': 'Explain this fragment in more detail.',
+  'assistant.sessionFrom': 'From {tc}',
   'assistant.summaryDivider': 'above — in the summary',
   'assistant.empty': 'Ask a question or pick an action',
   'assistant.sources': 'Sources',

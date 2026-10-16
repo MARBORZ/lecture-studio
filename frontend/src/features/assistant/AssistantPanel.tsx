@@ -10,6 +10,7 @@ import { SkeletonChat } from '@/components/skeleton'
 import { MarkdownView } from '@/features/markdown/MarkdownView'
 import { KeyNotice, pickProvider, useAiKeys } from '@/features/system/KeyNotice'
 import { cn } from '@/lib/cn'
+import { formatTc } from '@/lib/time'
 import { AttachButton, AttachmentChip, useAttachments } from './attachments'
 import { ContextMeter, SessionBar } from './SessionBar'
 import { SelectionAsk, withQuote } from './SelectionAsk'
@@ -17,8 +18,11 @@ import { useThread } from './useThread'
 
 const ROLES: Exclude<AssistantRole, 'qa'>[] = ['key_moments', 'pitfalls', 'code_summary', 'quiz', 'chapters']
 
-/** Router state a page passes to open the assistant with a quote (e.g. text selected in the audit). */
-export interface AskState { quote?: string }
+/**
+ * Router state a page passes to open the assistant with a quote: text selected in the audit, or a moment of the paused
+ * player (`at`, seconds) — then `newSession` starts a separate session named by that time.
+ */
+export interface AskState { quote?: string; newSession?: boolean; at?: number }
 
 /**
  * Grounded chat over lesson sources, in sessions.
@@ -37,7 +41,7 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
   const location = useLocation()
   const navigate = useNavigate()
   const [question, setQuestion] = useState('')
-  const [quote, setQuote] = useState(() => (location.state as AskState | null)?.quote ?? '')
+  const [quote, setQuote] = useState('')
   const [pending, setPending] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -46,10 +50,21 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
   const messages = chat.session?.messages ?? []
   const summarized = chat.session?.summarized ?? 0
 
-  // a quote handed over by another page is taken once
+  // a quote handed over by another page (or the player) is taken once, also while this tab is already open
+  const handed = location.state as AskState | null
   useEffect(() => {
-    if ((location.state as AskState | null)?.quote) navigate('.', { replace: true, state: null })
-  }, [location.state, navigate])
+    if (!handed?.quote) return
+    navigate('.', { replace: true, state: null })
+    const take = () => {
+      setQuote(handed.quote ?? '')
+      inputRef.current?.focus()
+    }
+    if (!handed.newSession) return take()
+    chat
+      .create()
+      .then((sid) => (handed.at === undefined ? undefined : chat.rename(sid, t('assistant.sessionFrom', { tc: formatTc(handed.at) }))))
+      .then(take, (e) => toast((e as Error).message, 'error'))
+  }, [handed]) // eslint-disable-line react-hooks/exhaustive-deps -- once per hand-over; chat changes every render
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end' })
