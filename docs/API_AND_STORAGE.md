@@ -23,7 +23,7 @@ API: `http://127.0.0.1:3000` (the UI reaches it through the Vite proxy at `:5173
 | POST | `/api/settings/check-path` | check a folder (exists, writable, contains a library) |
 | POST | `/api/settings/data-dir` | switch the data folder: `attach` or `move`; refused while busy |
 | GET / POST | `/api/projects` | notebooks |
-| PATCH / DELETE | `/api/projects/{id}` | rename / delete (lessons move to the inbox) |
+| PATCH / DELETE | `/api/projects/{id}` | rename / delete (lessons move to the inbox); the inbox's `name` / `description` are `""` until set (the UI shows them in its language) |
 | GET | `/api/lessons?project_id&status&search` | lesson list |
 | GET / PATCH / DELETE | `/api/lessons/{id}` | full lesson / partial update (`bookmarks` replaces the list of marks) / delete with files |
 | GET | `/api/lessons/{id}/media/{audio,video}` | streaming with HTTP Range (instant seeking) |
@@ -36,7 +36,7 @@ API: `http://127.0.0.1:3000` (the UI reaches it through the Vite proxy at `:5173
 | POST | `/api/media/inspect` | a file on disk before processing: length, size, video or sound only, whether the browser plays it as is |
 | PUT / DELETE / GET | `/api/projects/{id}/cover` | notebook cover: upload (body = image, PNG/JPEG/WebP/GIF ≤ 10 MB) / remove / the image |
 | PUT | `/api/uploads/{filename}` | streamed upload into `temp/` (body = file bytes) |
-| POST | `/api/jobs` | start: `{options, upload_id?}` or `options.local_path`; `400` at once for unreadable media or no sound track |
+| POST | `/api/jobs` | start: `{options, upload_id?}` or `options.local_path`; `400` at once for unreadable media or no sound track; `429` when the queue is full (`settings.queue_limit`, also for `/audit` and `/transcribe`) |
 | GET | `/api/jobs`, `/api/jobs/{id}` | jobs |
 | GET | `/api/jobs/stream` | SSE: the full job list on every change |
 | POST | `/api/jobs/{id}/cancel` | cancel |

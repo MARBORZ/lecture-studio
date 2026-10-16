@@ -12,6 +12,7 @@ from typing import Any
 from backend.core.ai import prompts
 from backend.core.ai.base import BaseAIProvider, clean_output
 from backend.core.ai.retry import with_retry
+from backend.i18n import tr
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +28,10 @@ def upload_file(client, path: str | Path, check_cancelled: Callable[[], None] = 
         if state == "ACTIVE":
             return uploaded
         if state == "FAILED":
-            raise RuntimeError(f"Gemini не принял файл {Path(path).name}")
+            raise RuntimeError(tr("ai.file_rejected", provider="Gemini", name=Path(path).name))
         check_cancelled()
         time.sleep(2)
-    raise RuntimeError(f"Gemini слишком долго обрабатывает {Path(path).name}")
+    raise RuntimeError(tr("ai.file_timeout", provider="Gemini", name=Path(path).name))
 
 
 def delete_file(client, uploaded) -> None:
@@ -89,7 +90,7 @@ class GeminiProvider(BaseAIProvider):
 
         report = on_progress or (lambda f, m: None)
         client = genai.Client(api_key=self.api_key)
-        report(0.02, "Аудит по видео: загрузка в Gemini")
+        report(0.02, tr("audit.video_upload"))
         uploaded = upload_file(client, video_path, check_cancelled)
         try:
             n = max(1, math.ceil(duration / VIDEO_PART_SEC))
@@ -98,7 +99,7 @@ class GeminiProvider(BaseAIProvider):
             notes = []
             for i, (a, b) in enumerate(spans, start=1):
                 check_cancelled()
-                report(i / (n + 1), f"Аудит по видео: часть {i}/{n}" if n > 1 else "Аудит по видео")
+                report(i / (n + 1), tr("audit.video_part", i=i, n=n) if n > 1 else tr("audit.video"))
                 meta = types.VideoMetadata(start_offset=f"{a:.0f}s", end_offset=f"{b:.0f}s") if n > 1 else None
                 video = types.Part(file_data=types.FileData(file_uri=uploaded.uri, mime_type=uploaded.mime_type), video_metadata=meta)
                 config = types.GenerateContentConfig(
@@ -115,7 +116,7 @@ class GeminiProvider(BaseAIProvider):
             if n == 1:
                 raw = notes[0]
             else:
-                report(n / (n + 1), "Аудит по видео: сборка")
+                report(n / (n + 1), tr("audit.video_merge"))
                 raw = self.generate_text("\n\n---\n\n".join(notes), prompts.merge_system(timed))
             return clean_output(raw, duration, timed)
         finally:

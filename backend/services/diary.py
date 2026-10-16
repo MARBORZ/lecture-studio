@@ -9,6 +9,7 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
+from backend.i18n import tr
 from backend.models.diary import DIARY_INBOX, DiaryCategory, DiaryEntry, DiaryEntryMeta
 from backend.settings import paths
 from backend.utils.fs import read_text, sanitize_filename, write_text
@@ -31,14 +32,14 @@ def _category_name(name: str) -> str:
     clean = re.sub(r"[\\/]+", " ", name).replace("..", " ")
     clean = re.sub(r"\s+", " ", sanitize_filename(clean, "")).strip(". ")
     if not clean:
-        raise DiaryError("Пустое имя категории")
+        raise DiaryError(tr("diary.empty_category"))
     return clean[:60]
 
 
 def _category_dir(name: str, must_exist: bool = True) -> Path:
     d = _root() / _category_name(name)
     if must_exist and not d.is_dir():
-        raise DiaryError(f"Категория не найдена: {name}")
+        raise DiaryError(tr("diary.category_not_found", name=name))
     return d
 
 
@@ -47,16 +48,16 @@ def _entry_path(entry_id: str) -> Path:
     root = _root().resolve()
     p = (root / entry_id).resolve()
     if root not in p.parents or p.suffix != ".md" or p.parent.parent != root:
-        raise DiaryError("Некорректный идентификатор записи")
+        raise DiaryError(tr("diary.bad_id"))
     if not p.is_file():
-        raise FileNotFoundError("Запись не найдена")
+        raise FileNotFoundError(tr("diary.entry_not_found"))
     return p
 
 
 def _title_and_excerpt(text: str) -> tuple[str, str]:
     lines = [l.strip() for l in text.splitlines() if l.strip()]
     if not lines:
-        return "Без названия", ""
+        return tr("diary.untitled"), ""
     title = re.sub(r"^#+\s*", "", lines[0])[:90]
     excerpt = " ".join(lines[1:])[:220]
     return title, excerpt
@@ -108,7 +109,7 @@ def create_category(name: str) -> DiaryCategory:
     with _lock:
         d = _category_dir(name, must_exist=False)
         if d.exists():
-            raise DiaryError("Такая категория уже есть")
+            raise DiaryError(tr("diary.category_exists"))
         d.mkdir(parents=True)
         return DiaryCategory(name=d.name)
 
@@ -117,10 +118,10 @@ def rename_category(old: str, new: str) -> DiaryCategory:
     with _lock:
         src = _category_dir(old)
         if src.name == DIARY_INBOX:
-            raise DiaryError("«Входящие» переименовать нельзя")
+            raise DiaryError(tr("diary.inbox_rename", name=DIARY_INBOX))
         dst = _category_dir(new, must_exist=False)
         if dst.exists():
-            raise DiaryError("Такая категория уже есть")
+            raise DiaryError(tr("diary.category_exists"))
         src.rename(dst)
         return DiaryCategory(name=dst.name, count=sum(1 for _ in dst.glob("*.md")))
 
@@ -130,7 +131,7 @@ def delete_category(name: str) -> int:
     with _lock:
         src = _category_dir(name)
         if src.name == DIARY_INBOX:
-            raise DiaryError("«Входящие» удалить нельзя")
+            raise DiaryError(tr("diary.inbox_delete", name=DIARY_INBOX))
         inbox = _root() / DIARY_INBOX
         moved = 0
         for f in src.glob("*.md"):

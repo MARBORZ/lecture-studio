@@ -16,7 +16,16 @@ settings: read by every layer; holds paths and keys
 ## Pipeline
 
 One background worker (`ThreadPoolExecutor(max_workers=1)`): Whisper and FFmpeg saturate the machine anyway,
-so extra jobs wait in the queue as `pending`.
+so extra jobs wait in the queue as `pending`. The queue holds at most `settings.queue_limit` jobs waiting and running
+(10 by default, 1–100, Settings → Processing): `JobRegistry.create` counts and inserts in one locked step and raises
+`QueueFull`, which every job-starting route answers with `429`.
+
+Texts the user reads (job stages and warnings, API errors, update and uninstall texts) come from `backend/i18n.py`:
+`tr(key, **params)` in the interface language at the moment the text is made, RU and EN with the same keys and
+parameters. Logs are not translated; prompts live in `core/ai/prompts.py`. `tests/test_architecture.py` rejects
+Cyrillic string literals elsewhere in `backend/` (docstrings and comments aside) and keys missing from either language.
+The Inbox notebook stores `""` as its name and description until the user sets them; the UI shows "Входящие" / "Inbox"
+(`AppProvider`), and older libraries' Russian defaults are read as unset.
 
 Options are one field per step (`PipelineDefaults`: `cut_silence`, `video`, `transcriber`, `audit`, `audit_source`, plus
 fine-tuning). A validator makes impossible combinations possible (original video → no cutting; video analysis → Gemini

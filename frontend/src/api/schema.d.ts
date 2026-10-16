@@ -2004,6 +2004,8 @@ export interface components {
             text_scale?: number | null;
             /** Beta Updates */
             beta_updates?: boolean | null;
+            /** Queue Limit */
+            queue_limit?: number | null;
             compute?: components["schemas"]["ComputeSettings"] | null;
             ai?: components["schemas"]["AISettingsPatch"] | null;
             pipeline?: components["schemas"]["PipelineDefaults"] | null;
@@ -2026,6 +2028,8 @@ export interface components {
             text_scale: number;
             /** Beta Updates */
             beta_updates: boolean;
+            /** Queue Limit */
+            queue_limit: number;
             compute: components["schemas"]["ComputeSettings"];
             paths: components["schemas"]["PathsView"];
             ai: components["schemas"]["AISettingsView"];

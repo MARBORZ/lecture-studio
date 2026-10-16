@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.core.media import ffmpeg_available
+from backend.i18n import tr
 
 pytestmark = pytest.mark.skipif(not ffmpeg_available(), reason="needs ffmpeg")
 
@@ -24,7 +25,7 @@ def test_video_without_sound_is_refused(data_dir, tmp_path):
     with TestClient(app) as c:
         r = c.post("/api/jobs", json={"options": {"local_path": str(clip)}})
     assert r.status_code == 400
-    assert "нет звуковой дорожки" in r.json()["detail"] and "YouTube" in r.json()["detail"]
+    assert r.json()["detail"] == tr("media.no_audio", hint=tr("media.youtube_hint"))
 
 
 def test_broken_file_is_refused(data_dir, tmp_path):
@@ -34,7 +35,7 @@ def test_broken_file_is_refused(data_dir, tmp_path):
     junk.write_bytes(b"not a video at all" * 100)
     with TestClient(app) as c:
         r = c.post("/api/jobs", json={"options": {"local_path": str(junk)}})
-    assert r.status_code == 400 and "не может прочитать" in r.json()["detail"]
+    assert r.status_code == 400 and r.json()["detail"].startswith(tr("media.unreadable", error="|").split("|")[0])
 
 
 def test_ffmpeg_failures_carry_the_reason_not_the_progress_log(tmp_path):

@@ -27,6 +27,7 @@ import urllib.request
 from typing import Literal
 
 from backend import config
+from backend.i18n import tr
 from backend.models.system import UpdateBlock, UpdateInfo, UpdateOutcome
 from backend.settings import SettingsService
 from backend.utils.fs import read_json, remove_file, write_text
@@ -95,7 +96,7 @@ def _git(*args: str, timeout: float = 30) -> str:
             repo = config.REPO_DIR.as_posix()
             raise UpdateError(
                 "ownership",
-                f'Git не доверяет папке приложения (detected dubious ownership). Выполните в терминале: git config --global --add safe.directory "{repo}"',
+                tr("update.ownership", repo=repo),
             )
         raise UpdateError("git", message)
     return res.stdout
@@ -234,9 +235,9 @@ def apply() -> UpdateInfo:
     if info.error:
         raise UpdateError("check", info.error)
     if not info.available or not info.latest:
-        raise UpdateError("none", "Нет доступного обновления")
+        raise UpdateError("none", tr("update.none"))
     if info.blocked:
-        raise UpdateError(info.blocked, f"Обновление из приложения невозможно: {info.blocked}")
+        raise UpdateError(info.blocked, tr("update.blocked", reason=info.blocked))
 
     from_sha = _git("rev-parse", "HEAD").strip()
     config.STATE_DIR.mkdir(parents=True, exist_ok=True)

@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from backend.core.media import MediaError, check_input, encode_mp3
 from backend.core.pipeline import start_audit, start_transcription
+from backend.i18n import tr
 from backend.models.job import Job, JobOptions
 from backend.models.lesson import ExportRequest, ExportResult, Lesson, LessonFull, LessonPatch, LessonStatus
 from backend.services.export import export_lesson
@@ -25,7 +26,7 @@ router = APIRouter(prefix="/api/lessons", tags=["lessons"])
 def _lesson(lesson_id: str) -> Lesson:
     lesson = Library.get_lesson(lesson_id)
     if not lesson:
-        raise HTTPException(404, detail="Урок не найден")
+        raise HTTPException(404, detail=tr("lesson.not_found"))
     return lesson
 
 
@@ -38,24 +39,24 @@ def list_lessons(project_id: str | None = None, status: LessonStatus | None = No
 def get_lesson(lesson_id: str) -> LessonFull:
     lesson = Library.get_lesson_full(lesson_id)
     if not lesson:
-        raise HTTPException(404, detail="Урок не найден")
+        raise HTTPException(404, detail=tr("lesson.not_found"))
     return lesson
 
 
 @router.patch("/{lesson_id}", response_model=Lesson)
 def patch_lesson(lesson_id: str, patch: LessonPatch) -> Lesson:
     if patch.project_id and not Library.get_project(patch.project_id):
-        raise HTTPException(400, detail="Блокнот не найден")
+        raise HTTPException(400, detail=tr("project.not_found"))
     lesson = Library.patch_lesson(lesson_id, patch)
     if not lesson:
-        raise HTTPException(404, detail="Урок не найден")
+        raise HTTPException(404, detail=tr("lesson.not_found"))
     return lesson
 
 
 @router.delete("/{lesson_id}")
 def delete_lesson(lesson_id: str, delete_files: bool = True) -> dict:
     if not Library.delete_lesson(lesson_id, delete_files):
-        raise HTTPException(404, detail="Урок не найден")
+        raise HTTPException(404, detail=tr("lesson.not_found"))
     return {"ok": True}
 
 
@@ -65,7 +66,7 @@ def stream_media(lesson_id: str, kind: Literal["audio", "video"]) -> FileRespons
     recording (Eco / kept upload) — its type is guessed from the extension."""
     path = Library.media_file(_lesson(lesson_id), kind)
     if path is None:
-        raise HTTPException(404, detail="Файл не найден")
+        raise HTTPException(404, detail=tr("file.not_found"))
     own = path.name in (Artifacts.AUDIO, Artifacts.VIDEO)
     return FileResponse(path, media_type=Artifacts.DOWNLOADS[kind][1] if own else None)
 
@@ -73,12 +74,12 @@ def stream_media(lesson_id: str, kind: Literal["audio", "video"]) -> FileRespons
 @router.get("/{lesson_id}/files/{kind}")
 def download(lesson_id: str, kind: str) -> FileResponse:
     if kind not in Artifacts.DOWNLOADS:
-        raise HTTPException(400, detail="Неизвестный тип файла")
+        raise HTTPException(400, detail=tr("file.unknown_kind"))
     lesson = _lesson(lesson_id)
     name, mime = Artifacts.DOWNLOADS[kind]
     path = Library.media_file(lesson, kind) if kind in ("audio", "video") else Library.lesson_dir(lesson) / name
     if path is None or not path.is_file():
-        raise HTTPException(404, detail="Файл ещё не создан")
+        raise HTTPException(404, detail=tr("file.not_yet"))
     own = path.name == name
     return FileResponse(path, media_type=mime if own else None, filename=f"{lesson.title}{path.suffix if kind != 'audit' else '.md'}")
 
@@ -110,9 +111,9 @@ def transcribe(lesson_id: str, req: TranscribeRequest) -> Job:
     """Recognize speech again from the lesson's clean audio (e.g. after the cloud was unavailable); media is kept."""
     lesson = _lesson(lesson_id)
     if Library.media_file(lesson, "audio") is None:
-        raise HTTPException(400, detail="Нет аудио урока (или исходный файл не найден по сохранённому пути)")
+        raise HTTPException(400, detail=tr("lesson.no_audio"))
     if req.transcriber == "gemini" and not SettingsService.api_key("gemini"):
-        raise HTTPException(400, detail="Нет API-ключа Gemini. Настройки → ИИ")
+        raise HTTPException(400, detail=tr("ai.no_key", provider="Gemini"))
     defaults = SettingsService.get().pipeline
     options = JobOptions(**{**defaults.model_dump(), "transcriber": req.transcriber, "video": "none", "project_id": lesson.project_id})
     return start_transcription(lesson, options)
@@ -124,13 +125,13 @@ def regenerate_audit(lesson_id: str, req: AuditRequest) -> Job:
     provider = req.provider or SettingsService.get().ai.assistant_provider
     if req.source == "video":
         if provider != "gemini":
-            raise HTTPException(400, detail="Аудит по видео делает только Gemini")
+            raise HTTPException(400, detail=tr("audit.video_gemini_only"))
         if Library.media_file(lesson, "video") is None:
-            raise HTTPException(400, detail="У урока нет видео")
+            raise HTTPException(400, detail=tr("lesson.no_video"))
     elif not lesson.has_transcription:
-        raise HTTPException(400, detail="У урока нет стенограммы")
+        raise HTTPException(400, detail=tr("lesson.no_transcript"))
     if not SettingsService.api_key(provider):
-        raise HTTPException(400, detail=f"Нет API-ключа {provider}. Настройки → ИИ")
+        raise HTTPException(400, detail=tr("ai.no_key", provider=provider))
     return start_audit(lesson, provider, req.audit_mode, req.source)
 
 
@@ -162,14 +163,14 @@ def relink(lesson_id: str, req: RelinkRequest) -> Lesson:
     (same length), so timecodes, transcript and audit stay right."""
     lesson = _lesson(lesson_id)
     if not lesson.original_file or not Path(lesson.original_file).is_absolute():
-        raise HTTPException(400, detail="Урок не ссылается на внешний файл")
+        raise HTTPException(400, detail=tr("lesson.not_linked"))
     path = to_path(req.path)
     if not path.is_file():
-        raise HTTPException(400, detail=f"Файл не найден: {path}")
+        raise HTTPException(400, detail=tr("file.not_found_path", path=path))
     try:
         duration = check_input(path)
     except MediaError as e:
         raise HTTPException(400, detail=str(e)) from e
     if lesson.orig_duration_sec and abs(duration - lesson.orig_duration_sec) > max(2.0, lesson.orig_duration_sec * 0.01):
-        raise HTTPException(400, detail=f"Это другая запись: {duration:.0f} с вместо {lesson.orig_duration_sec:.0f} с")
+        raise HTTPException(400, detail=tr("lesson.other_recording", got=duration, expected=lesson.orig_duration_sec))
     return Library.save_lesson(lesson.model_copy(update={"original_file": str(path.resolve())}))

@@ -7,6 +7,7 @@ Only real images are accepted (checked by their first bytes, not by the extensio
 import hashlib
 from pathlib import Path
 
+from backend.i18n import tr
 from backend.models.project import Project
 from backend.services.storage import Library
 from backend.settings import paths
@@ -31,7 +32,7 @@ def _kind(data: bytes) -> str:
     for sig, (ext, _) in _SIGNATURES.items():
         if data.startswith(sig):
             return ext
-    raise CoverError("Нужна картинка: PNG, JPEG, WebP или GIF")
+    raise CoverError(tr("cover.format"))
 
 
 def remove_files(project_id: str) -> None:
@@ -43,11 +44,11 @@ def remove_files(project_id: str) -> None:
 
 def save(project_id: str, data: bytes) -> Project:
     if not Library.get_project(project_id):
-        raise LookupError("Блокнот не найден")
+        raise LookupError(tr("project.not_found"))
     if not data:
-        raise CoverError("Пустой файл")
+        raise CoverError(tr("file.empty"))
     if len(data) > MAX_BYTES:
-        raise CoverError("Картинка больше 10 МБ")
+        raise CoverError(tr("cover.too_big"))
     name = f"{project_id}-{hashlib.sha1(data).hexdigest()[:10]}.{_kind(data)}"
     remove_files(project_id)
     paths().covers.mkdir(parents=True, exist_ok=True)
@@ -57,7 +58,7 @@ def save(project_id: str, data: bytes) -> Project:
 
 def remove(project_id: str) -> Project:
     if not Library.get_project(project_id):
-        raise LookupError("Блокнот не найден")
+        raise LookupError(tr("project.not_found"))
     remove_files(project_id)
     return Library.set_project_cover(project_id, "")
 

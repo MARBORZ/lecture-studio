@@ -5,11 +5,13 @@ AI facade: resolves provider + key + model from settings in one place.
 
 from pydantic import BaseModel
 
-# Import providers so AIMeta registers them.
 import backend.core.ai.providers.deepseek  # noqa: F401,E402
 import backend.core.ai.providers.gemini  # noqa: F401,E402
 from backend.core.ai.base import CHARS_PER_TOKEN, MIN_CONTEXT_TOKENS, BaseAIProvider
 from backend.core.ai.meta import AIMeta
+
+# Import providers so AIMeta registers them.
+from backend.i18n import tr
 from backend.settings import SettingsService
 
 
@@ -30,7 +32,7 @@ class AI:
     def get(category: str, model: str | None = None, api_key: str | None = None) -> BaseAIProvider:
         cls = AIMeta.get_provider_class(category)
         if not cls:
-            raise ValueError(f"Неизвестный провайдер ИИ: {category}. Доступны: {AIMeta.list_categories()}")
+            raise ValueError(tr("ai.unknown_provider", provider=category))
         ai = SettingsService.get().ai
         model = model or getattr(ai, f"{category}_model", None) or cls.default_model
         return cls(api_key=api_key or SettingsService.api_key(category), model=model)
@@ -57,7 +59,7 @@ class AI:
         """The assistant's window for this provider: the setting, else the default; a hand-edited value is clamped."""
         cls = AIMeta.get_provider_class(category)
         if not cls:
-            raise ValueError(f"Неизвестный провайдер ИИ: {category}")
+            raise ValueError(tr("ai.unknown_provider", provider=category))
         tokens = SettingsService.get().ai.context_tokens.get(category, cls.default_context_tokens)
         return min(max(tokens, MIN_CONTEXT_TOKENS), cls.max_context_tokens)
 
@@ -67,6 +69,7 @@ class AI:
         for category, tokens in values.items():
             cls = AIMeta.get_provider_class(category)
             if not cls:
-                raise ValueError(f"Неизвестный провайдер ИИ: {category}")
+                raise ValueError(tr("ai.unknown_provider", provider=category))
             if tokens is not None and not MIN_CONTEXT_TOKENS <= tokens <= cls.max_context_tokens:
-                raise ValueError(f"Окно {category}: от {MIN_CONTEXT_TOKENS:,} до {cls.max_context_tokens:,} токенов".replace(",", " "))
+                low, high = (f"{v:,}".replace(",", " ") for v in (MIN_CONTEXT_TOKENS, cls.max_context_tokens))
+                raise ValueError(tr("ai.window_range", provider=category, min=low, max=high))

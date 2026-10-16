@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 
 from backend.core.ai import AI, ProviderInfo
 from backend.core.ai.prompts import BLOCKS
+from backend.i18n import tr
 from backend.services.jobs import JobRegistry
 from backend.settings import SettingsService
 from backend.settings.schema import (
@@ -60,7 +61,7 @@ def list_prompts() -> list[PromptView]:
 @router.put("/prompts/{key}", response_model=list[PromptView])
 def update_prompt(key: str, req: PromptUpdate) -> list[PromptView]:
     if key not in BLOCKS:
-        raise HTTPException(404, detail="Неизвестный блок инструкций")
+        raise HTTPException(404, detail=tr("settings.unknown_prompt"))
     same_as_default = req.value.strip() == BLOCKS[key].default.strip()
     SettingsService.set_prompt(key, None if same_as_default else req.value)
     return list_prompts()
@@ -69,7 +70,7 @@ def update_prompt(key: str, req: PromptUpdate) -> list[PromptView]:
 @router.delete("/prompts/{key}", response_model=list[PromptView])
 def reset_prompt(key: str) -> list[PromptView]:
     if key not in BLOCKS:
-        raise HTTPException(404, detail="Неизвестный блок инструкций")
+        raise HTTPException(404, detail=tr("settings.unknown_prompt"))
     SettingsService.set_prompt(key, None)
     return list_prompts()
 
@@ -80,7 +81,7 @@ def test_key(req: KeyTestRequest) -> KeyTestResult:
     model = getattr(SettingsService.get().ai, f"{req.provider}_model", "")
     try:
         provider = AI.get(req.provider)
-        provider.generate_text("Ответь одним словом: ok", temperature=0.0)
+        provider.generate_text("Reply with one word: ok", temperature=0.0)
         return KeyTestResult(ok=True, model=provider.model)
     except Exception as e:
         return KeyTestResult(ok=False, model=model, error=str(e)[:300])
@@ -94,7 +95,7 @@ def check_path(req: PathCheckRequest) -> PathCheckResult:
 @router.post("/data-dir", response_model=SettingsView)
 def change_data_dir(req: DataDirChange) -> SettingsView:
     if JobRegistry.busy_reasons():
-        raise HTTPException(409, detail="Нельзя менять папку данных, пока идёт обработка, загрузка или экспорт")
+        raise HTTPException(409, detail=tr("settings.data_dir_busy"))
     try:
         SettingsService.change_data_dir(req.path, move=req.mode == "move")
     except (ValueError, OSError) as e:

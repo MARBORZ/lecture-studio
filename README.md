@@ -163,7 +163,8 @@ Local speech recognition runs on the GPU when there is a usable one, several tim
 - **Windows, updating from 1.2.0 or older:** the update is restarted by the old version's code, which can fail silently
   there. If the update screen does not change for a minute, close the window and start Lecture Studio from the shortcut —
   it finishes the update. From 1.2.1 on, the restart goes through the shortcut's own path.
-- One processing job at a time (Whisper and FFmpeg saturate the machine anyway); others wait in a queue.
+- One processing job at a time (Whisper and FFmpeg saturate the machine anyway); others wait in a queue of up to 10 jobs
+  (Settings → Processing → Job queue, 1–100).
 - The default AI instructions are written in Russian; the audit is written in the lecture's language.
   Change them in Settings → Instructions.
 - The macOS app and Setup are ad-hoc signed, not notarized.

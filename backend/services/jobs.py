@@ -10,14 +10,20 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
 
+from backend.i18n import tr
 from backend.models.job import ACTIVE_STATUSES, Job, JobKind, Stage
 from backend.models.system import BusyReason
+from backend.settings import SettingsService
 
 MAX_HISTORY = 50
 
 
 class JobCancelled(Exception):
     """Raised inside a pipeline when the user cancelled the job."""
+
+
+class QueueFull(Exception):
+    """create() refused: as many jobs wait or run as settings.queue_limit allows. The API answers 429."""
 
 
 class JobRegistry:
@@ -30,8 +36,12 @@ class JobRegistry:
 
     @classmethod
     def create(cls, kind: JobKind, title: str, stages: list[Stage]) -> Job:
-        job = Job(id=uuid.uuid4().hex[:8], kind=kind, title=title, stages=stages, message="В очереди")
+        """Queue a job; the count and the insert are one step, so parallel requests cannot overshoot the limit."""
+        limit = SettingsService.get().queue_limit
+        job = Job(id=uuid.uuid4().hex[:8], kind=kind, title=title, stages=stages, message=tr("job.queued"))
         with cls._lock:
+            if sum(1 for j in cls._jobs.values() if j.active) >= limit:
+                raise QueueFull(tr("queue.full", n=limit))
             cls._jobs[job.id] = job
             finished = [j for j in cls._jobs.values() if not j.active]
             for old in finished[: max(0, len(cls._jobs) - MAX_HISTORY)]:
@@ -69,7 +79,7 @@ class JobRegistry:
             job = cls._jobs.get(job_id)
             if not job or not job.active:
                 return False
-            cls._jobs[job_id] = job.model_copy(update={"cancel_requested": True, "message": "Отмена…"})
+            cls._jobs[job_id] = job.model_copy(update={"cancel_requested": True, "message": tr("job.cancelling")})
             return True
 
     @classmethod
@@ -111,7 +121,7 @@ class JobRegistry:
                 if j.status in ACTIVE_STATUSES
             ]
             if cls._uploads:
-                reasons.append(BusyReason(kind="upload", label=f"Загрузка файлов: {cls._uploads}"))
+                reasons.append(BusyReason(kind="upload", label=tr("busy.uploads", n=cls._uploads)))
             if cls._exports:
-                reasons.append(BusyReason(kind="export", label=f"Экспорт уроков: {cls._exports}"))
+                reasons.append(BusyReason(kind="export", label=tr("busy.exports", n=cls._exports)))
             return reasons

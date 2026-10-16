@@ -17,6 +17,7 @@ from pydantic import BaseModel
 
 from backend.core.media import MediaError, browser_playback_problem, check_input, probe_video
 from backend.core.pipeline import start_processing
+from backend.i18n import tr
 from backend.models.job import Job, JobOptions
 from backend.services.jobs import JobRegistry
 from backend.services.storage import Library
@@ -38,7 +39,7 @@ class StartJobRequest(BaseModel):
 
 def _upload_path(upload_id: str):
     if not re.fullmatch(r"[a-f0-9]{12}\.[A-Za-z0-9]{1,6}", upload_id):
-        raise HTTPException(400, detail="Некорректный upload_id")
+        raise HTTPException(400, detail=tr("upload.bad_id"))
     return paths().temp / f"upload_{upload_id}"
 
 
@@ -60,7 +61,7 @@ async def upload(filename: str, request: Request) -> UploadResult:
             raise
     if size == 0:
         remove_file(dest)
-        raise HTTPException(400, detail="Пустой файл")
+        raise HTTPException(400, detail=tr("file.empty"))
     return UploadResult(upload_id=upload_id, size=size)
 
 
@@ -89,7 +90,7 @@ class MediaInfo(BaseModel):
 def inspect_media(req: InspectRequest) -> MediaInfo:
     path = to_path(req.path)
     if not path.is_file():
-        raise HTTPException(400, detail=f"Файл не найден: {path}")
+        raise HTTPException(400, detail=tr("file.not_found_path", path=path))
     try:
         duration = check_input(path)
     except MediaError as e:
@@ -106,20 +107,20 @@ def inspect_media(req: InspectRequest) -> MediaInfo:
 def start_job(req: StartJobRequest) -> Job:
     opts = req.options
     if not Library.get_project(opts.project_id):
-        raise HTTPException(400, detail="Блокнот не найден")
+        raise HTTPException(400, detail=tr("project.not_found"))
     if req.upload_id:
         media = _upload_path(req.upload_id)
         if not media.is_file():
-            raise HTTPException(400, detail="Загруженный файл не найден")
+            raise HTTPException(400, detail=tr("upload.missing"))
         _check(media)
         return start_processing(opts, str(media), is_uploaded=True)
     if opts.local_path:
         media = to_path(opts.local_path)
         if not media.is_file():
-            raise HTTPException(400, detail=f"Файл не найден: {media}")
+            raise HTTPException(400, detail=tr("file.not_found_path", path=media))
         _check(media)
         return start_processing(opts, str(media), is_uploaded=False)
-    raise HTTPException(400, detail="Укажите файл или путь к нему")
+    raise HTTPException(400, detail=tr("job.need_file"))
 
 
 @router.get("/jobs", response_model=list[Job])
@@ -151,12 +152,12 @@ async def stream_jobs(request: Request) -> StreamingResponse:
 def get_job(job_id: str) -> Job:
     job = JobRegistry.get(job_id)
     if not job:
-        raise HTTPException(404, detail="Задача не найдена")
+        raise HTTPException(404, detail=tr("job.not_found"))
     return job
 
 
 @router.post("/jobs/{job_id}/cancel")
 def cancel_job(job_id: str) -> dict:
     if not JobRegistry.request_cancel(job_id):
-        raise HTTPException(404, detail="Активная задача не найдена")
+        raise HTTPException(404, detail=tr("job.active_not_found"))
     return {"ok": True}

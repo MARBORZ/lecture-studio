@@ -22,6 +22,7 @@ import time
 from pathlib import Path
 
 from backend import config
+from backend.i18n import tr
 from backend.models.system import UninstallPlan
 from backend.settings.service import SettingsService
 from backend.utils.fs import write_text
@@ -92,40 +93,24 @@ def _targets(plan: UninstallPlan, delete_lessons: bool) -> tuple[list[Path], lis
     remove = [r.resolve() for r in remove]
     for r in [*remove, *remove_if_empty]:
         if not _deletable(r.resolve()):
-            raise UninstallError("unsafe", f"Отказ: путь {r} нельзя удалять (корень диска или домашняя папка)")
+            raise UninstallError("unsafe", tr("uninstall.unsafe", path=r))
     return remove, [r.resolve() for r in remove_if_empty]
-
-
-def ui_english() -> bool:
-    return SettingsService.get().ui_language == "en"
 
 
 def _message(plan: UninstallPlan, delete_lessons: bool) -> str:
     """The script's last word: the app window is gone by then."""
-    en = ui_english()
-    if plan.reinstall == "git":
-        again = (
-            f"To install again: git clone {config.REPO_URL} \"{plan.app_dir}\", then run Setup in it."
-            if en
-            else f"Установить заново: git clone {config.REPO_URL} \"{plan.app_dir}\", затем запустите в ней Setup."
-        )
-    else:
-        again = "To install again, run Lecture Studio Setup." if en else "Установить заново: запустите Lecture Studio Setup."
-    if delete_lessons:
-        kept = "Lessons were deleted too." if en else "Уроки тоже удалены."
-    else:
-        kept = f"Your lessons are kept: {plan.data_dir}" if en else f"Уроки сохранены: {plan.data_dir}"
-    done = "Lecture Studio is deleted." if en else "Lecture Studio удалена."
-    return f"{done} {kept} {again}"
+    again = tr("uninstall.reinstall_git", url=config.REPO_URL, path=plan.app_dir) if plan.reinstall == "git" else tr("uninstall.reinstall_setup")
+    kept = tr("uninstall.lessons_deleted") if delete_lessons else tr("uninstall.lessons_kept", path=plan.data_dir)
+    return f"{tr('uninstall.done')} {kept} {again}"
 
 
 def start(delete_lessons: bool) -> UninstallPlan:
     """Caller holds the system busy lock and stops the server right after."""
     plan = preview()
     if plan.blocked:
-        raise UninstallError("git_work", "В папке приложения есть работа, которой нет на GitHub. Удалите папку вручную, если она не нужна.")
+        raise UninstallError("git_work", tr("uninstall.git_work"))
     if plan.lessons_inside and not delete_lessons:
-        raise UninstallError("lessons_inside", "Уроки лежат внутри папки приложения. Перенесите их в Настройки → Пути или удалите вместе с приложением.")
+        raise UninstallError("lessons_inside", tr("uninstall.lessons_inside"))
     remove, remove_if_empty = _targets(plan, delete_lessons)
 
     work = Path(tempfile.mkdtemp(prefix="lecture-studio-uninstall-"))
@@ -134,7 +119,7 @@ def start(delete_lessons: bool) -> UninstallPlan:
         f"ui_port\t{config.FRONTEND_PORT}",
         f"profile\t{config.CHROME_PROFILE_DIR}",
         f"message\t{_message(plan, delete_lessons)}",
-        f"failed\t{'Could not delete:' if ui_english() else 'Не удалось удалить:'}",
+        f"failed\t{tr('uninstall.failed')}",
     ]
     lines += [f"remove\t{p}" for p in remove] + [f"remove_if_empty\t{p}" for p in remove_if_empty]
     plan_file = work / "plan.tsv"

@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException
 
 from backend.config import APP_VERSION, CHROME_PROFILE_DIR, FRONTEND_PID_FILE, FRONTEND_PORT
 from backend.core.media import ffmpeg_available
+from backend.i18n import tr
 from backend.models.system import ShutdownResult, SystemStatus, UninstallPlan, UninstallRequest, UninstallResult, UpdateInfo
 from backend.services import uninstall, updates
 from backend.services.jobs import JobRegistry
@@ -38,7 +39,7 @@ def shutdown() -> ShutdownResult:
     with _shutdown_lock:
         reasons = JobRegistry.busy_reasons()
         if reasons:
-            raise HTTPException(409, detail={"message": "Система занята", "reasons": [r.model_dump() for r in reasons]})
+            raise HTTPException(409, detail={"message": tr("busy.system"), "reasons": [r.model_dump() for r in reasons]})
         threading.Timer(1.2, _stop_everything).start()
     return ShutdownResult(ok=True)
 
@@ -55,7 +56,7 @@ def update_apply() -> UpdateInfo:
     with _shutdown_lock:
         reasons = JobRegistry.busy_reasons()
         if reasons:
-            raise HTTPException(409, detail={"message": "Система занята", "reasons": [r.model_dump() for r in reasons]})
+            raise HTTPException(409, detail={"message": tr("busy.system"), "reasons": [r.model_dump() for r in reasons]})
         try:
             return updates.apply()
         except updates.UpdateError as e:
@@ -84,7 +85,7 @@ def uninstall_start(req: UninstallRequest) -> UninstallResult:
     with _shutdown_lock:
         reasons = JobRegistry.busy_reasons()
         if reasons:
-            raise HTTPException(409, detail={"message": "Система занята", "reasons": [r.model_dump() for r in reasons]})
+            raise HTTPException(409, detail={"message": tr("busy.system"), "reasons": [r.model_dump() for r in reasons]})
         try:
             plan = uninstall.start(req.delete_lessons)
         except uninstall.UninstallError as e:

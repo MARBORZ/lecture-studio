@@ -21,6 +21,7 @@ import urllib.request
 logging.disable(logging.CRITICAL)
 
 from backend import config  # noqa: E402
+from backend.i18n import tr  # noqa: E402
 from backend.models.system import UninstallPlan  # noqa: E402
 from backend.services import uninstall  # noqa: E402
 
@@ -28,32 +29,12 @@ API = f"http://{config.HOST}:{config.PORT}"
 
 
 def describe(plan: UninstallPlan) -> tuple[str, str]:
-    en = uninstall.ui_english()
     if plan.blocked:
-        work = "\n".join(plan.git_files[:10])
-        text = (
-            f"The app folder holds work that is not on GitHub:\n{work}\n\n"
-            f"Lecture Studio does not delete such a folder: save the work or delete {plan.app_dir} by hand."
-            if en
-            else f"В папке программы есть работа, которой нет на GitHub:\n{work}\n\n"
-            f"Lecture Studio не удаляет такую папку: сохраните работу или удалите {plan.app_dir} вручную."
-        )
-        return "blocked", text
-    removes = (
-        f"This will be removed:\n• the app and its dependencies: {plan.app_dir}\n• settings, API keys, logs: {plan.settings_dir}\n• the Desktop shortcut"
-        if en
-        else f"Будет удалено:\n• программа и зависимости: {plan.app_dir}\n• настройки, ключи API, логи: {plan.settings_dir}\n• ярлык на Рабочем столе"
-    )
+        return "blocked", tr("uninstall.blocked", work="\n".join(plan.git_files[:10]), path=plan.app_dir)
+    removes = tr("uninstall.removes", app=plan.app_dir, settings=plan.settings_dir)
     if plan.lessons_inside:
-        lessons = (
-            f"Lessons are inside a folder that goes ({plan.data_dir}) and will be deleted with it. To keep them, cancel and move them in Settings → Paths."
-            if en
-            else f"Уроки лежат внутри удаляемой папки ({plan.data_dir}) и удалятся вместе с ней. "
-            "Чтобы сохранить их, отмените и перенесите уроки в Настройки → Пути."
-        )
-        return "lessons_inside", f"{removes}\n\n{lessons}"
-    lessons = f"Lessons: {plan.data_dir}" if en else f"Уроки: {plan.data_dir}"
-    return "ok", f"{removes}\n\n{lessons}"
+        return "lessons_inside", f"{removes}\n\n{tr('uninstall.lessons_inside_dialog', path=plan.data_dir)}"
+    return "ok", f"{removes}\n\n{tr('uninstall.lessons_at', path=plan.data_dir)}"
 
 
 def _api(method: str, path: str, body: dict | None = None, timeout: float = 5) -> tuple[int, dict]:
@@ -80,7 +61,6 @@ def _running_app_dir() -> str | None:
 
 def run(delete_lessons: bool) -> str | None:
     """None when started; otherwise the reason it was refused."""
-    en = uninstall.ui_english()
     here = str(config.REPO_DIR.resolve())
     running = _running_app_dir()
     if running is None:
@@ -90,19 +70,14 @@ def run(delete_lessons: bool) -> str | None:
             return str(e)
         return None
     if running != here:
-        return (
-            f"Another copy of Lecture Studio is running ({running or 'unknown folder'}). Shut it down, then try again."
-            if en
-            else f"Запущена другая копия Lecture Studio ({running or 'папка неизвестна'}). Выключите её и повторите."
-        )
+        return tr("uninstall.other_copy", path=running or tr("uninstall.unknown_folder"))
     status, body = _api("POST", "/api/system/uninstall", {"delete_lessons": delete_lessons})
     if status == 200:
         return None
     detail = body.get("detail") if isinstance(body.get("detail"), dict) else {}
     reasons = [r.get("label", "") for r in detail.get("reasons", [])]
     if reasons:
-        busy = ", ".join(reasons)
-        return f"Processing is running: {busy}. Wait for it to finish, then try again." if en else f"Идёт обработка: {busy}. Дождитесь окончания и повторите."
+        return tr("uninstall.busy", reasons=", ".join(reasons))
     return str(detail.get("message") or body.get("detail") or f"HTTP {status}")
 
 

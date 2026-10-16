@@ -16,6 +16,7 @@ from collections.abc import Sequence
 from typing import Any, Literal
 
 from backend.core.media.base import BaseMediaProcessor, PathLike, ffprobe_json, has_encoder, probe_duration, run_ffmpeg, savings_percent
+from backend.i18n import tr
 from backend.utils.fs import file_size_mb
 
 logger = logging.getLogger(__name__)
@@ -57,13 +58,13 @@ def browser_playback_problem(path: PathLike) -> str:
         return str(e)[:120]
     container = data.get("format", {}).get("format_name", "")
     if container not in _PLAYABLE_CONTAINERS:
-        return f"контейнер {container}"
+        return tr("media.container", name=container)
     for st in data.get("streams", []):
         kind, codec = st.get("codec_type"), st.get("codec_name", "")
         if kind == "video" and codec not in _PLAYABLE_VIDEO and codec not in ("mjpeg", "png"):
-            return f"видеокодек {codec}"
+            return tr("media.video_codec", name=codec)
         if kind == "audio" and codec not in _PLAYABLE_AUDIO:
-            return f"аудиокодек {codec}"
+            return tr("media.audio_codec", name=codec)
     return ""
 
 

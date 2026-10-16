@@ -9,6 +9,16 @@ sys.path.insert(0, str(ROOT))
 
 
 @pytest.fixture(autouse=True)
+def russian_ui(monkeypatch):
+    """Server texts (backend.i18n) in Russian whatever the developer's own settings say; a test switches with
+    monkeypatch.setattr(i18n, "lang", lambda: "en"), or restores i18n.REAL_LANG to follow the settings."""
+    from backend import i18n
+
+    i18n.REAL_LANG = getattr(i18n, "REAL_LANG", i18n.lang)
+    monkeypatch.setattr(i18n, "lang", lambda: "ru")
+
+
+@pytest.fixture(autouse=True)
 def no_real_api_keys(monkeypatch):
     """Tests never see the developer's keys (.env is loaded by backend.config): no test may reach a real AI API."""
     import os

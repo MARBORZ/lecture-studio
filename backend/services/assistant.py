@@ -13,6 +13,7 @@ import uuid
 from backend.core.ai import AI, prompts
 from backend.core.ai.base import strip_emoji
 from backend.core.timeline import normalize_timecodes
+from backend.i18n import tr
 from backend.models.assistant import AskRequest, ChatMessage, Thread, ThreadKind
 from backend.models.lesson import LessonFull
 from backend.services import attachments as attachment_store
@@ -27,7 +28,7 @@ def _resolve_sources(kind: ThreadKind, thread_id: str, requested: list[str] | No
     if kind == "lesson":
         lesson = Library.get_lesson_full(thread_id)
         if not lesson:
-            raise LookupError("Урок не найден")
+            raise LookupError(tr("lesson.not_found"))
         return [lesson]
     lessons = Library.list_lessons(project_id=thread_id)
     if requested is not None:
@@ -35,7 +36,7 @@ def _resolve_sources(kind: ThreadKind, thread_id: str, requested: list[str] | No
         lessons = [l for l in lessons if l.id in wanted]
     full = [f for l in lessons if (f := Library.get_lesson_full(l.id)) and (f.segments or f.plain_text)]
     if not full:
-        raise ValueError("Нет источников с текстом. Отметьте уроки со стенограммой.")
+        raise ValueError(tr("assistant.no_sources"))
     return full
 
 
@@ -67,7 +68,7 @@ def ask(kind: ThreadKind, thread_id: str, req: AskRequest) -> Thread:
     sources = _resolve_sources(kind, thread_id, req.sources)
     question = req.question.strip() or prompts.ROLE_DEFAULT_QUESTIONS.get(req.role, "")
     if not question:
-        raise ValueError("Пустой вопрос")
+        raise ValueError(tr("assistant.empty_question"))
 
     name = _provider_name(req.provider)
     provider = AI.get(name)
@@ -89,7 +90,7 @@ def ask(kind: ThreadKind, thread_id: str, req: AskRequest) -> Thread:
     session.messages += [
         ChatMessage(id=uuid.uuid4().hex[:10], role="user", content=question, sources=source_ids, attachments=new_files, assistant_role=req.role),
         ChatMessage(
-            id=uuid.uuid4().hex[:10], role="assistant", content=answer or "Пустой ответ",
+            id=uuid.uuid4().hex[:10], role="assistant", content=answer or tr("assistant.empty_answer"),
             sources=source_ids, assistant_role=req.role, provider=name, model=provider.model,
         ),
     ]

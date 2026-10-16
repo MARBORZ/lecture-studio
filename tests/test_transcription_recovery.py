@@ -6,6 +6,8 @@ import time
 
 from fastapi.testclient import TestClient
 
+from backend.i18n import tr
+
 
 def wait(c, job_id, timeout=10):
     end = time.time() + timeout
@@ -22,13 +24,17 @@ def test_soft_transcription_failure_keeps_the_lesson(data_dir, monkeypatch):
     from backend.core.transcription import whisper
     from backend.models.job import JobOptions
 
+    failure = RuntimeError("Gemini is overloaded (503)")
+
     def boom(*a, **k):
-        raise RuntimeError("Gemini перегружен (503) — не помогли 6 попыток.")
+        raise failure
 
     monkeypatch.setattr(whisper, "transcribe", boom)
     ctx = JobContext("j1", JobOptions(mode="whisper"))
+    ctx.raw_wav.parent.mkdir(parents=True, exist_ok=True)
+    ctx.raw_wav.write_bytes(b"")  # audio is there: the recognition itself fails
     TranscribeStep().execute(ctx, lambda f, m: None)
-    assert ctx.segments == [] and "Стенограмма не создана" in ctx.warning and "Распознать речь" in ctx.warning
+    assert ctx.segments == [] and tr("step.transcript_failed", error=failure) in ctx.warning
 
 
 def test_transcribe_an_existing_lesson_again(data_dir, monkeypatch):
