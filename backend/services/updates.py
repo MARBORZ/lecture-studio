@@ -35,6 +35,7 @@ from backend.utils.fs import read_json, remove_file, write_text
 logger = logging.getLogger(__name__)
 
 CACHE_SEC = 3600
+FORCE_FLOOR_SEC = 30  # a page (re)load still reuses an answer this fresh: reload storms stay cheap
 OUTCOME_SEC = 600
 MAX_CHANGES = 40
 LAUNCHER_WAIT_SEC = 15  # the launcher writes to launcher.log at once; silence after this long = it did not start
@@ -191,10 +192,11 @@ def _info(mode: Literal["git", "zip"]) -> UpdateInfo:
     return UpdateInfo(current=config.APP_VERSION, current_prerelease=is_prerelease(config.APP_VERSION), mode=mode, url=f"{config.REPO_URL}/releases")
 
 
-def check(force: bool = False) -> UpdateInfo:
+def check(force: bool = False, reload: bool = False) -> UpdateInfo:
+    """force: always ask origin (the Check button). reload: a page (re)load asks origin unless the answer is fresh."""
     global _cache
     with _lock:
-        if not force and _cache and _cache.checked_at and time.time() - _cache.checked_at < CACHE_SEC:
+        if not force and _cache and _cache.checked_at and time.time() - _cache.checked_at < (FORCE_FLOOR_SEC if reload else CACHE_SEC):
             info = _cache.model_copy()
         else:
             try:

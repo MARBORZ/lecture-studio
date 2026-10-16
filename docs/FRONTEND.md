@@ -109,8 +109,9 @@ until the user renames it.
 The player is an external store (`features/player/store.ts`, `useSyncExternalStore`): `currentTime` updates only its
 subscribers. One `<video>` or `<audio>` element on one clean timeline; `display` = inline / window / pip.
 
-Self-update is the same kind of store (`features/system/updateStore.ts`): `info` from `/api/system/update` (checked on
-start and every 3 hours, or from Settings → Interface), and `phase` while the launcher restarts. `phase` lives in
+Self-update is the same kind of store (`features/system/updateStore.ts`): `info` from `/api/system/update` (a real check on
+every page start — app launch, Cmd+R / Ctrl+Shift+R, `?reload=true`, reusing an answer under 30 s old — then every
+3 hours, or from Settings → Interface), and `phase` while the launcher restarts. `phase` lives in
 sessionStorage because the page reloads under the restarting Vite server; `UpdatingScreen` waits for a server with a
 new pid and reloads. The outcome toast (updated / rolled back) is shown once per outcome.
 

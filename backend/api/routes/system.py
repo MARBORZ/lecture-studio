@@ -45,9 +45,9 @@ def shutdown() -> ShutdownResult:
 
 
 @router.get("/system/update", response_model=UpdateInfo)
-def update_info(force: bool = False) -> UpdateInfo:
+def update_info(force: bool = False, reload: bool = False) -> UpdateInfo:
     """Newest release vs the running version. Cached for an hour; force=true fetches now."""
-    return updates.check(force)
+    return updates.check(force, reload)
 
 
 @router.post("/system/update", response_model=UpdateInfo)

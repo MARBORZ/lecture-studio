@@ -86,7 +86,8 @@ export const api = {
   // system
   status: () => get<SystemStatus>('/api/system/status'),
   shutdown: () => request<{ ok: boolean }>('POST', '/api/system/shutdown'),
-  update: (force = false) => get<UpdateInfo>(`/api/system/update${force ? '?force=true' : ''}`),
+  /** force: always ask origin; reload: ask origin unless the server's answer is under 30 s old (page start). */
+  update: (force = false, reload = false) => get<UpdateInfo>(`/api/system/update${force ? '?force=true' : reload ? '?reload=true' : ''}`),
   applyUpdate: () => request<UpdateInfo>('POST', '/api/system/update'),
   discardUpdateChanges: () => request<UpdateInfo>('POST', '/api/system/update/discard'),
   uninstallPlan: () => get<UninstallPlan>('/api/system/uninstall'),

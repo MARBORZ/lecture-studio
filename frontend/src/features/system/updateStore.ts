@@ -55,10 +55,10 @@ class UpdateStore {
     this.listeners.forEach((fn) => fn())
   }
 
-  async check(force = false): Promise<UpdateInfo> {
+  async check(force = false, reload = false): Promise<UpdateInfo> {
     this.set({ checking: true })
     try {
-      const info = await api.update(force)
+      const info = await api.update(force, reload)
       this.set({ info })
       return info
     } finally {

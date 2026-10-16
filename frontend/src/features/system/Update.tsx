@@ -17,15 +17,16 @@ const GIVE_UP_MS = 25 * 60 * 1000 // a changed torch build (CUDA on Windows) is 
 const SHOWN_KEY = 'update.outcomeShown'
 
 /**
- * AppShell: check on start and every few hours; report the result of an update that just happened.
+ * AppShell: a real check on every start of the page (app launch, Cmd+R / Ctrl+Shift+R), then every few hours;
+ * report the result of an update that just happened.
  * The server repeats the outcome for a few minutes (the page reloads more than once around a restart):
  * shown once per outcome, and not while the waiting screen is still up (it is about to reload).
  */
 export function useUpdateWatcher() {
   const { t, toast } = useUI()
   useEffect(() => {
-    const run = () =>
-      updates.check().then(
+    const run = (fresh = false) =>
+      updates.check(false, fresh).then(
         (info) => {
           if (!info.last || updates.getState().phase || storage.get(SHOWN_KEY, 0) === info.last.at) return
           storage.set(SHOWN_KEY, info.last.at)
@@ -34,8 +35,8 @@ export function useUpdateWatcher() {
         },
         () => undefined,
       )
-    void run()
-    const id = setInterval(run, RECHECK_MS)
+    void run(true) // a reload is a restart for the user: ask origin, not the server's cached answer
+    const id = setInterval(() => void run(), RECHECK_MS)
     return () => clearInterval(id)
   }, [t, toast])
 }

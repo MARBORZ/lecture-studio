@@ -381,3 +381,24 @@ def test_release_dates_are_reported_but_the_number_decides(release_repos):
     with client() as c:
         info = c.get("/api/system/update?force=true").json()
     assert info["latest"] == "1.1.1" and info["released_at"].startswith("2020-01-01")
+
+
+def test_forced_check_on_reload_asks_origin_but_not_in_a_storm(monkeypatch):
+    # a page reload forces a real check; a burst of reloads reuses an answer fresher than FORCE_FLOOR_SEC
+    from backend.services import updates
+
+    calls = []
+    now = [1000.0]
+    monkeypatch.setattr(updates, "_cache", None)
+    monkeypatch.setattr(updates, "is_git_install", lambda: True)
+    monkeypatch.setattr(updates, "_check_git", lambda: calls.append(1) or updates._info("git"))
+    monkeypatch.setattr(updates.time, "time", lambda: now[0])
+
+    updates.check()
+    updates.check(reload=True)  # reloaded right away: cached
+    assert len(calls) == 1
+    now[0] += updates.FORCE_FLOOR_SEC + 1
+    updates.check()  # the periodic check keeps the long cache
+    assert len(calls) == 1
+    updates.check(reload=True)  # a reload later on: asks origin
+    assert len(calls) == 2
