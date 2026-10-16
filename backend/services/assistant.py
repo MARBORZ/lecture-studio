@@ -7,6 +7,7 @@ Threads:
 Each thread has sessions (services/chats.py); what one request carries is decided by services/context_window.py.
 """
 
+import logging
 import re
 import uuid
 
@@ -22,6 +23,8 @@ from backend.services.storage import Library
 from backend.settings import SettingsService
 
 _CITE_RE = re.compile(r"\[\[([A-Za-z0-9_\-]+)@(\d{1,2}:\d{2}(?::\d{2})?)\]\]")
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_sources(kind: ThreadKind, thread_id: str, requested: list[str] | None) -> list[LessonFull]:
@@ -99,6 +102,12 @@ def ask(kind: ThreadKind, thread_id: str, req: AskRequest) -> Thread:
             sources=source_ids, assistant_role=req.role, provider=name, model=provider.model,
         ),
     ]
+    # past the line after this answer: fold now, so the next question (and the meter) start below it
+    if context_window.needs_compaction(session, window):
+        try:
+            context_window.compact(provider, session, window)
+        except Exception as e:  # the answer is what matters; the next question compacts again
+            logger.warning("Compaction after the answer failed: %s", e)
     chats.save(kind, thread_id, session)
     return thread(kind, thread_id, session.id, name, req.sources)
 
