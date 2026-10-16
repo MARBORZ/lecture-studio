@@ -4,6 +4,7 @@ vX.Y.Z itself). APP_VERSION is what is running. Pre-releases are offered when th
 runs; tags of other shapes (alpha-*, the old releases) are ignored.
 
   check() — fetch tags (cached), compare the newest with APP_VERSION, list the changes, say if it can be applied.
+  discard_changes() — put the tracked files that block an update ("dirty") back to the committed version.
   apply() — fast-forward the current branch to the release tag, write the hand-over file, start the launcher
             in update mode. The launcher restarts everything (deps re-sync by lockfile hash, keeps the app window)
             and rolls back to the previous commit if the new version does not come up. If the launcher itself never
@@ -144,8 +145,8 @@ def _release_notes(tag: str) -> list[str]:
 
 
 def _dirty_files() -> list[str]:
-    """Tracked files with local changes ("XY path" lines of porcelain status)."""
-    return [line[3:] for line in _git("status", "--porcelain", "--untracked-files=no").splitlines() if line.strip()]
+    """Tracked files that differ from HEAD, staged or not (line endings alone count too). Untracked files never block."""
+    return [f for f in _git("diff", "--name-only", "--no-renames", "-z", "HEAD").split("\0") if f]
 
 
 def _block_reason(tag: str) -> UpdateBlock | None:
@@ -206,6 +207,22 @@ def check(force: bool = False) -> UpdateInfo:
     info.last = _last if _last and time.time() - _last.at < OUTCOME_SEC else None
     info.restart_failed = _restart_failed
     return info
+
+
+# ---------------------------------------------------------------- discard
+
+
+def discard_changes() -> UpdateInfo:
+    """Caller holds the system lock. The files are listed here, never taken from the request: only what blocks the
+    update is reset. A file added to the index is unstaged and stays on disk as untracked (it does not block)."""
+    files = _dirty_files()
+    if files:
+        _git("reset", "-q", "--", *files)
+        committed = [f for f in _git("ls-tree", "-r", "--name-only", "-z", "HEAD", "--", *files).split("\0") if f]
+        if committed:
+            _git("checkout", "--", *committed)
+        logger.info("Discarded local changes before the update: %s", ", ".join(files))
+    return check(force=True)
 
 
 # ---------------------------------------------------------------- apply

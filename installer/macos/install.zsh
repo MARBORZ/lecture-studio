@@ -21,6 +21,12 @@ LOG="$APP_HOME/logs/setup.log"
 print "\n=== $(date '+%F %T') step: $STEP" >>"$LOG"
 
 die() { print -r -- "$1" >&2; print "FAIL: $1" >>"$LOG"; exit 1 }
+# The range Vite 8 accepts, as in frontend/package.json engines: ^20.19.0 || >=22.12.0 (same check in launcher/macos/start.zsh).
+node_ok() {
+  local -a v=( ${(s:.:)${$(node --version 2>/dev/null)#v}} )
+  [[ ${v[1]-} == <-> && ${v[2]-} == <-> ]] || return 1
+  (( (v[1] == 20 && v[2] >= 19) || (v[1] == 22 && v[2] >= 12) || v[1] > 22 ))
+}
 run() { "$@" >>"$LOG" 2>&1 }
 
 case "$STEP" in
@@ -47,6 +53,13 @@ ASK
     for f in uv node ffmpeg; do
       brew list --formula "$f" >/dev/null 2>&1 || command -v "$f" >/dev/null || run brew install "$f" || die "Не удалось установить $f. Лог: $LOG"
     done
+    if ! node_ok; then
+      print "node $(node --version 2>/dev/null) is older than 20.19 / 22.12" >>"$LOG"
+      # Homebrew's node comes first on PATH here and in the launcher, whatever installed the old one.
+      if brew list --formula node >/dev/null 2>&1; then run brew upgrade node || true; else run brew install node || true; fi
+      hash -r
+      node_ok || die "Нужен Node.js 20.19+ или 22.12+, установлен $(node --version 2>/dev/null). Обновите: brew upgrade node"
+    fi
     ;;
 
   fetch)

@@ -78,6 +78,8 @@ Remove-Item -Path (Join-Path $AppHome 'server.pid'), (Join-Path $AppHome 'fronte
 foreach ($tool in 'uv', 'node', 'ffmpeg') {
     if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { Fail "Не найден $tool. Запустите Setup.cmd в папке программы." }
 }
+$nodeProblem = Update-Node -LogFile $Log
+if ($nodeProblem) { Fail $nodeProblem }
 
 # ---- 3. Dependencies, only when lockfiles or the torch build (GPU, driver) changed.
 $probe = Get-ComputeProbe

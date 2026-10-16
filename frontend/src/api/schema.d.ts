@@ -82,6 +82,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/update/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Update Discard
+         * @description Put the modified tracked files that block the update back to the committed version; returns a fresh check.
+         */
+        post: operations["update_discard_api_system_update_discard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/uninstall": {
         parameters: {
             query?: never;
@@ -2114,6 +2134,26 @@ export interface operations {
         };
     };
     update_apply_api_system_update_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateInfo"];
+                };
+            };
+        };
+    };
+    update_discard_api_system_update_discard_post: {
         parameters: {
             query?: never;
             header?: never;

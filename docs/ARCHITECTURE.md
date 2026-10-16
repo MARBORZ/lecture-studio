@@ -98,7 +98,9 @@ shapes, like the old releases renamed `alpha-*`, are ignored). Pre-releases are 
 "Get beta versions" is on (`beta_updates`) or a pre-release runs; a beta user then gets the release that follows too.
 A release-zip install asks the GitHub releases list (not `/releases/latest`, which skips pre-releases).
 The dialog lists the annotated tag's body as release notes, or the commit subjects up to the tag for a lightweight tag.
-Applying requires an idle system, a clean working tree and a fast-forward (no local commits); then:
+Applying requires an idle system, a clean working tree and a fast-forward (no local commits). "Discard changes" in the
+dialog (`discard_changes()`) resets the tracked files that differ from HEAD (line endings alone count) and checks again;
+untracked files are never touched. Then:
 
 1. the API writes `state/update.json` (`from_sha`, versions) and runs `git merge --ff-only vX.Y.Z`;
 2. it starts the launcher detached in update mode (`start.zsh update`, `start.ps1 -Mode update`) and gets stopped by it;
@@ -113,6 +115,9 @@ Applying requires an idle system, a clean working tree and a fast-forward (no lo
 On Windows the launcher is started like the shortcut, `wscript start.vbs update` (and `rollback`): a hidden detached
 `powershell.exe` spawned by Python is the pattern Defender kills silently. The installer and the launcher judge `npm ci`
 by its result (`node_modules\vite` exists), not by its exit code, which `cmd /c npm` reports wrongly on Windows.
+Both check Node.js against the range Vite 8 accepts (`^20.19.0 || >=22.12.0`; `Update-Node` in `common.ps1`, `node_ok` in
+the macOS scripts, `tests/test_node_check.py`): the installers upgrade an older one once, the Windows launcher too
+(`winget upgrade`), the macOS launcher says `brew upgrade node`.
 
 Installs without `.git` (the release zip) are told about a new release and get a link; they update by running Setup again.
 

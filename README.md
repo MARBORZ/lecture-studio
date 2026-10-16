@@ -132,9 +132,11 @@ Local speech recognition runs on the GPU when there is a usable one, several tim
 ## Known limitations
 
 - Built and used on macOS (Apple Silicon); Windows is tested by a friend on Windows 11 + RTX 3080. Linux has no launcher.
-- Requires Node.js 22 or newer (`engines` in `frontend/package.json`).
-- Self-update needs a clean app folder: local code edits block it (discard them: `git checkout -- .`; a local commit
-  blocks it too). If git reports "dubious ownership", the update dialog shows the `git config --global --add safe.directory` command.
+- Requires Node.js 20.19+ or 22.12+ (what Vite 8 accepts, `engines` in `frontend/package.json`). Setup and the launcher
+  check it: an older Node.js is upgraded once (`winget upgrade OpenJS.NodeJS.LTS`, `brew upgrade node`), otherwise they
+  say which version is needed.
+- Self-update needs a clean app folder: local code edits block it (the update dialog lists the files and has
+  "Discard changes"; a local commit blocks it too). If git reports "dubious ownership", the update dialog shows the `git config --global --add safe.directory` command.
 - One processing job at a time (Whisper and FFmpeg saturate the machine anyway); others wait in a queue.
 - The default AI instructions are written in Russian; the audit is written in the lecture's language.
   Change them in Settings → Instructions.

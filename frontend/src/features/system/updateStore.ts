@@ -66,6 +66,13 @@ class UpdateStore {
     }
   }
 
+  /** Reset the modified files that block the update (the server decides which); the dialog follows the fresh info. */
+  async discard(): Promise<UpdateInfo> {
+    const info = await api.discardUpdateChanges()
+    this.set({ info })
+    return info
+  }
+
   /** Server moves the code and starts the launcher; we wait for a new server pid. */
   async apply() {
     const { pid } = await api.status()
