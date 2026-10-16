@@ -87,6 +87,7 @@ export const api = {
   shutdown: () => request<{ ok: boolean }>('POST', '/api/system/shutdown'),
   update: (force = false) => get<UpdateInfo>(`/api/system/update${force ? '?force=true' : ''}`),
   applyUpdate: () => request<UpdateInfo>('POST', '/api/system/update'),
+  discardUpdateChanges: () => request<UpdateInfo>('POST', '/api/system/update/discard'),
   uninstallPlan: () => get<UninstallPlan>('/api/system/uninstall'),
   uninstall: (deleteLessons: boolean) => request<{ ok: boolean; kept?: string | null }>('POST', '/api/system/uninstall', { delete_lessons: deleteLessons }),
 

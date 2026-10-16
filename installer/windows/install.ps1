@@ -69,6 +69,8 @@ $steps = @(
             if (-not (Test-Tool $pkg.Tool)) { Fail "Не удалось установить $($pkg.Tool) (winget код $code)." }
         }
         Update-Path
+        $nodeProblem = Update-Node -LogFile $SetupLog -Tick $tick
+        if ($nodeProblem) { Fail $nodeProblem }
     } },
     @{ Label = 'Python и модели (torch, Whisper) — самый долгий шаг'; Run = {
         $probe = Get-ComputeProbe

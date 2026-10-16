@@ -46,6 +46,12 @@ fail() {
   dialog "$1" '"OK"' stop >/dev/null
   exit 1
 }
+# The range Vite 8 accepts, as in frontend/package.json engines: ^20.19.0 || >=22.12.0 (same check in installer/macos/install.zsh).
+node_ok() {
+  local -a v=( ${(s:.:)${$(node --version 2>/dev/null)#v}} )
+  [[ ${v[1]-} == <-> && ${v[2]-} == <-> ]] || return 1
+  (( (v[1] == 20 && v[2] >= 19) || (v[1] == 22 && v[2] >= 12) || v[1] > 22 ))
+}
 fingerprint() { (cd "$REPO" && find "$@" -type f -print0 2>/dev/null | sort -z | xargs -0 shasum 2>/dev/null | shasum | cut -d' ' -f1) }
 changed() { [[ "$(cat "$STATE/$1" 2>/dev/null)" != "$2" ]] }
 # wait_http URL [PID]: up to 90 s; gives up at once if PID (the server being waited for) has exited.
@@ -113,6 +119,7 @@ rm -f "$APP_HOME/server.pid" "$APP_HOME/frontend.pid"
 for tool in uv npm ffmpeg ffprobe lsof; do
   command -v $tool >/dev/null || fail "Не найден $tool. Установите: brew install ${tool/ffprobe/ffmpeg}"
 done
+node_ok || fail "Нужен Node.js 20.19+ или 22.12+, установлен $(node --version 2>/dev/null). Обновите: brew upgrade node"
 cd "$REPO" || fail "Папка проекта не найдена: $REPO"
 
 # ---- 3. Dependencies, only when lockfiles changed.

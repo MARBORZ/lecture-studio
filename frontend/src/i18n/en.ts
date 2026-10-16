@@ -394,6 +394,8 @@ export const en: Record<TKey, string> = {
   'update.apply': 'Update and restart',
   'update.applyHint': 'The code moves to the release, the server and the interface restart, the window stays open. Lessons and settings are not touched. If the new version does not start, the current one comes back.',
   'update.blocked.dirty': 'Code files in the app folder are modified. Discard the changes, then update: committing will not help, an update is not applied on top of local commits.',
+  'update.discard': 'Discard changes',
+  'update.discardText': 'Local changes to these files will be lost: they go back to the version in the repository. Lessons and settings are not touched.',
   'update.blocked.diverged': 'The app folder has local commits that the release does not contain. Update by hand: git pull.',
   'update.blocked.zip': 'The app was installed from the archive. Download the new release and run Setup.',
   'update.blocked.platform': 'Self-update works on macOS and Windows. Update by hand: git pull.',

@@ -62,6 +62,16 @@ def update_apply() -> UpdateInfo:
             raise HTTPException(409, detail={"message": str(e), "code": e.code}) from e
 
 
+@router.post("/system/update/discard", response_model=UpdateInfo)
+def update_discard() -> UpdateInfo:
+    """Put the modified tracked files that block the update back to the committed version; returns a fresh check."""
+    with _shutdown_lock:
+        try:
+            return updates.discard_changes()
+        except updates.UpdateError as e:
+            raise HTTPException(409, detail={"message": str(e), "code": e.code}) from e
+
+
 @router.get("/system/uninstall", response_model=UninstallPlan)
 def uninstall_preview() -> UninstallPlan:
     """What "Delete Lecture Studio" would remove, and whether it can run."""

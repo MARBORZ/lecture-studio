@@ -103,6 +103,34 @@ function Open-AppWindow {
     }
 }
 
+# ---------------------------------------------------------------- Node.js
+# The range Vite 8 accepts, as in frontend/package.json engines: ^20.19.0 || >=22.12.0.
+
+function Get-NodeVersion {
+    try { return "$(& node --version 2>$null | Select-Object -First 1)".Trim() } catch { return '' }
+}
+
+function Test-NodeVersion([string]$Version) {
+    if ($Version -notmatch '^v?(\d+)\.(\d+)\.(\d+)') { return $false }
+    $v = [version]"$($Matches[1]).$($Matches[2]).$($Matches[3])"
+    return ($v.Major -eq 20 -and $v -ge [version]'20.19.0') -or $v -ge [version]'22.12.0'
+}
+
+function Update-Node([string]$LogFile, [scriptblock]$Tick) {
+    # An older Node.js: one winget upgrade. Returns '' when the version fits, else the message for the user.
+    $version = Get-NodeVersion
+    if (Test-NodeVersion $version) { return '' }
+    Write-Log $LogFile "node $version is older than 20.19 / 22.12: winget upgrade"
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        $code = Invoke-Logged -Exe (Get-Command winget).Source -Arguments @('upgrade', '--id', 'OpenJS.NodeJS.LTS', '-e', '--silent', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity') -LogFile $LogFile -Tick $Tick
+        Update-Path
+        $version = Get-NodeVersion
+        Write-Log $LogFile "winget upgrade node: code $code, now $version"
+        if (Test-NodeVersion $version) { return '' }
+    }
+    return "Нужен Node.js 20.19+ или 22.12+, установлен $version. Обновите: winget upgrade OpenJS.NodeJS.LTS"
+}
+
 function Test-Http([string]$Url) {
     try { $null = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 1; return $true } catch { return $false }
 }

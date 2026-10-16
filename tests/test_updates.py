@@ -329,6 +329,23 @@ def test_dirty_block_lists_changed_files(release_repos):
     assert info["blocked"] == "dirty" and info["dirty_files"] == ["a.txt"]
 
 
+def test_discard_puts_back_only_the_files_that_block(release_repos):
+    clone, _, spawned = release_repos
+    (clone / "a.txt").write_text("Initial\r\n")  # line endings alone: the case that stuck a Windows tester
+    (clone / "staged new.txt").write_text("mine")
+    git(clone, "add", "staged new.txt")
+    (clone / "notes.txt").write_text("untracked, not ours to touch")
+    with client() as c:
+        assert c.get("/api/system/update?force=true").json()["dirty_files"] == ["a.txt", "staged new.txt"]
+        r = c.post("/api/system/update/discard")
+        assert r.status_code == 200, r.text
+        info = r.json()
+        assert info["available"] and info["blocked"] is None and info["dirty_files"] == []
+        assert c.post("/api/system/update").status_code == 200
+    assert (clone / "a.txt").read_text() == "Initial" and (clone / "staged new.txt").read_text() == "mine"
+    assert (clone / "notes.txt").exists() and spawned == [True]
+
+
 def time_now() -> float:
     import time
 

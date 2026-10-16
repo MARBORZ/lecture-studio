@@ -1,4 +1,4 @@
-import { CircleArrowUp, ExternalLink, LoaderCircle, RefreshCw } from 'lucide-react'
+import { CircleArrowUp, ExternalLink, LoaderCircle, RefreshCw, Undo2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '@/api/client'
 import type { BusyReason, UpdateInfo } from '@/api/types'
@@ -115,10 +115,11 @@ function blockText(info: UpdateInfo, t: ReturnType<typeof useUI>['t']): string |
 }
 
 function UpdateDialog({ close }: { close: () => void }) {
-  const { t, lang, toast } = useUI()
+  const { t, lang, toast, confirm } = useUI()
   const info = useUpdates((s) => s.info)
   const [reasons, setReasons] = useBusyReasons()
   const [applying, setApplying] = useState(false)
+  const [discarding, setDiscarding] = useState(false)
   if (!info?.available) return null
 
   const blocked = blockText(info, t)
@@ -134,6 +135,19 @@ function UpdateDialog({ close }: { close: () => void }) {
       if (detail?.reasons) setReasons(detail.reasons)
       else toast((e as Error).message, 'error')
       setApplying(false)
+    }
+  }
+
+  async function discard() {
+    if (!(await confirm({ title: t('update.discard'), text: t('update.discardText'), danger: true, confirmLabel: t('update.discard') }))) return
+    setDiscarding(true)
+    try {
+      const fresh = await updates.discard()
+      if (fresh.error) toast(`${t('update.checkFailed')}: ${fresh.error}`, 'error')
+    } catch (e) {
+      toast((e as Error).message, 'error')
+    } finally {
+      setDiscarding(false)
     }
   }
 
@@ -175,11 +189,16 @@ function UpdateDialog({ close }: { close: () => void }) {
           <div className="flex flex-col gap-2 rounded-lg border border-line-strong px-3 py-2.5 text-[13px] leading-relaxed text-soft">
             <p>{blocked}</p>
             {info.blocked === 'dirty' && info.dirty_files.length > 0 && (
-              <ul className="flex max-h-32 flex-col gap-0.5 overflow-y-auto font-mono text-[12px] text-muted">
-                {info.dirty_files.map((f) => (
-                  <li key={f}>{f}</li>
-                ))}
-              </ul>
+              <>
+                <ul className="flex max-h-32 flex-col gap-0.5 overflow-y-auto font-mono text-[12px] text-muted">
+                  {info.dirty_files.map((f) => (
+                    <li key={f}>{f}</li>
+                  ))}
+                </ul>
+                <Button size="sm" variant="danger" icon={Undo2} loading={discarding} onClick={discard} className="self-start">
+                  {t('update.discard')}
+                </Button>
+              </>
             )}
           </div>
         ) : busy ? (
