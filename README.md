@@ -8,7 +8,8 @@
 
 <p align="center">
   Turn hours of recorded lectures into something you can study in minutes.<br>
-  Local and private, for macOS and Windows.
+  Local and private, for macOS and Windows.<br>
+  <sub>Alpha: it works, but expect rough edges. Report bugs with the Feedback button in the app.</sub>
 </p>
 
 <p align="center">
