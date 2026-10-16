@@ -692,12 +692,11 @@ export const en: Record<TKey, string> = {
   'diary.mode.hybrid': 'Hybrid',
   'diary.mode.view': 'View',
   'diary.mode.edit': 'Edit',
-  'diary.mode.hybrid.hint': 'Entries are rendered; a click edits with the live render beside the text.',
+  'diary.mode.hybrid.hint': 'Entries are rendered; a click on a paragraph opens its source right in place.',
   'diary.mode.view.hint': 'Read only: entries cannot be changed.',
   'diary.mode.edit.hint': 'Only the Markdown source, editable at once. Saves itself.',
   'diary.clickToEdit': 'Click to edit',
   'diary.autosave': 'Saves automatically',
-  'diary.previewEmpty': 'The render appears here',
   'diary.search': 'Search entries',
 
   // onboarding

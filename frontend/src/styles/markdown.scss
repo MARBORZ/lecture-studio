@@ -98,6 +98,10 @@
   }
 
   input[type='checkbox'] { accent-color: var(--color-fg); margin-right: 0.4em; }
+
+  // what opens the text (a chat answer, a diary block) has nothing above it to space from or to separate with a line
+  > :first-child { margin-top: 0; }
+  > h2:first-child { padding-top: 0; border-top: 0; }
 }
 
 // Compact variant for chat bubbles
@@ -107,4 +111,6 @@
   h1 { font-size: 1.25em; }
   h2 { font-size: 1.14em; margin-top: 1.4em; padding-top: 0.8em; }
   h3 { font-size: 1.07em; margin-top: 1.1em; }
+  > :first-child { margin-top: 0; }
+  > h2:first-child { padding-top: 0; border-top: 0; }
 }

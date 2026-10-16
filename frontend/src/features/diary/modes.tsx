@@ -5,11 +5,10 @@ import { IconButton } from '@/components/ui'
 import type { TKey } from '@/i18n'
 import { cn } from '@/lib/cn'
 import { storage } from '@/lib/format'
-import { MarkdownView } from '@/features/markdown/MarkdownView'
 
 /**
  * How diary entries open:
- *   hybrid — rendered; a click edits with the live render beside the text (stacked when narrow)
+ *   hybrid — one sheet in two states: rendered, and the block you click turns into its source in place (blocks.tsx)
  *   view   — rendered only, nothing can be changed
  *   edit   — the Markdown source only, always editable, no render
  * One choice for the whole diary (remembered); a card can switch for itself.
@@ -50,46 +49,3 @@ export function ModeSwitch({ value, onChange, className }: { value: DiaryMode; o
 
 /** Rows for a textarea that grows with its text, between min and max. */
 export const rowsFor = (text: string, min: number, max: number) => Math.min(max, Math.max(min, text.split('\n').length + 1))
-
-/**
- * The Markdown source with its render: side by side when there is room (container ≥ 40rem), one above the other when
- * not. The render follows every keystroke; both scroll inside the same height.
- */
-export function SplitEditor({
-  value,
-  onChange,
-  onKeyDown,
-  placeholder,
-  autoFocus,
-  minRows = 4,
-  textareaRef,
-}: {
-  value: string
-  onChange: (v: string) => void
-  onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
-  placeholder?: string
-  autoFocus?: boolean
-  minRows?: number
-  textareaRef?: React.Ref<HTMLTextAreaElement>
-}) {
-  const { t } = useUI()
-  return (
-    <div className="@container">
-      <div className="grid @2xl:grid-cols-2">
-        <textarea
-          ref={textareaRef}
-          autoFocus={autoFocus}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder={placeholder}
-          rows={rowsFor(value, minRows, 24)}
-          className="read-14 max-h-[60vh] w-full resize-none overflow-y-auto bg-transparent px-5 py-4 font-mono leading-relaxed text-fg placeholder:text-dim focus:outline-none"
-        />
-        <div className="max-h-[60vh] min-h-full overflow-y-auto border-t border-line px-5 py-4 @2xl:border-t-0 @2xl:border-l">
-          {value.trim() ? <MarkdownView content={value} compact /> : <p className="read-14 text-dim">{t('diary.previewEmpty')}</p>}
-        </div>
-      </div>
-    </div>
-  )
-}
