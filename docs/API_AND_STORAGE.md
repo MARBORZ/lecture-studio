@@ -14,7 +14,7 @@ API: `http://127.0.0.1:3000` (the UI reaches it through the Vite proxy at `:5173
 | POST | `/api/system/update/discard` | put the modified tracked files (`dirty_files`, listed by the server, not the request) back to HEAD; returns a fresh check |
 | GET | `/api/system/uninstall` | what "Delete Lecture Studio" removes (app folder, settings folder, data folder kept by default), `lessons_inside`, `blocked: git_work` with the files/commits, how to reinstall |
 | POST | `/api/system/uninstall` | `{delete_lessons}`: start the OS uninstaller detached and stop everything; `409` when busy, when the library would go with the app folder, or on git work |
-| GET / PATCH | `/api/settings` | settings (keys are masked, with their source: settings / env / none); `ai.context_tokens` is merged per provider (`null` = default), `422` outside the model's limits |
+| GET / PATCH | `/api/settings` | settings (keys are masked, with their source: settings / env / none); `ai.context_tokens` is merged per provider (`null` = default), `422` outside the model's limits; `pipeline.output_language` (also in job options) is the audit language: `interface` (default) / `recording` / `ru` / `en`; `queue_limit` 1–100 |
 | POST | `/api/settings/test-key` | test a key with one tiny model request |
 | GET | `/api/settings/prompts` | AI instruction blocks: default, current, modified |
 | PUT / DELETE | `/api/settings/prompts/{key}` | save a custom block text / reset to default |
@@ -25,11 +25,11 @@ API: `http://127.0.0.1:3000` (the UI reaches it through the Vite proxy at `:5173
 | GET / POST | `/api/projects` | notebooks |
 | PATCH / DELETE | `/api/projects/{id}` | rename / delete (lessons move to the inbox); the inbox's `name` / `description` are `""` until set (the UI shows them in its language) |
 | GET | `/api/lessons?project_id&status&search` | lesson list |
-| GET / PATCH / DELETE | `/api/lessons/{id}` | full lesson / partial update (`bookmarks` replaces the list of marks) / delete with files |
+| GET / PATCH / DELETE | `/api/lessons/{id}` | full lesson (with `speech_language`, `audit_language`) / partial update (`bookmarks` replaces the list of marks; `project_id` moves the lesson to another notebook, files stay where they are) / delete with files |
 | GET | `/api/lessons/{id}/media/{audio,video}` | streaming with HTTP Range (instant seeking) |
 | GET | `/api/lessons/{id}/files/{kind}` | download: audio, video, audit, srt, orig_srt, txt, clean_ts, orig_ts, segments, time_map |
 | POST | `/api/lessons/{id}/export` | export to a folder (default: from settings) |
-| POST | `/api/lessons/{id}/audit` | regenerate the audit `{provider, audit_mode, source: transcript\|video}` (background job) |
+| POST | `/api/lessons/{id}/audit` | regenerate the audit `{provider, audit_mode, source: transcript\|video, language: interface\|recording\|ru\|en}` (background job) |
 | POST | `/api/lessons/{id}/transcribe` | recognize speech again `{transcriber: whisper\|gemini}` from the lesson's audio (Eco: from the original); media is kept |
 | POST | `/api/lessons/{id}/relink` | Eco: point the lesson at its recording's new path `{path}`; refused for another recording (length) |
 | POST | `/api/lessons/{id}/drop-video` | delete the lesson's video, keep the sound (a user's own Eco file is never deleted) |

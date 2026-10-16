@@ -28,8 +28,9 @@ Spec: [docs/MCP_REFERENCE.md](docs/MCP_REFERENCE.md).
    `segments.json`; every txt/srt file is derived (`core/transcription/writer.py`).
 2. **Prompts live only in `backend/core/ai/prompts.py`.** Editable blocks (`BLOCKS`: role, style, structure, assistant tasks)
    are overridden by the user in Settings → Instructions (`settings.json: prompts`); read them via `prompts.text(key)`.
-   The contract (timecode/citation format, part merging) is not editable. Default style: slide notes, no softening, no emoji.
-   Providers implement transport only.
+   The contract (timecode/citation format, part merging) is not editable. Prompts are in English; the output language is
+   a parameter (audit: `core/language.py:resolve`, the interface language by default; assistant: the language of the
+   question). Default style: slide notes, no softening, no emoji. Providers implement transport only.
 3. **Video goes to the cloud only when the user picks "audit from video" (Gemini), never by default**, and then only as
    an optimized copy (480p, 1 fps, quiet mono: `core/media/video.py:make_analysis_proxy`). Otherwise cloud models get
    audio (Gemini transcription) or text only.
