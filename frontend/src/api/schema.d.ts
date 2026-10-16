@@ -895,7 +895,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Entries */
+        /**
+         * List Entries
+         * @description Newest first, a page at a time (size up to 100); q searches every entry before the page is cut.
+         */
         get: operations["list_entries_api_diary_entries_get"];
         put?: never;
         /** Create Entry */
@@ -1547,6 +1550,20 @@ export interface components {
             text?: string | null;
             /** Category */
             category?: string | null;
+        };
+        /**
+         * DiaryPage
+         * @description One page of entries, newest first; the search applies before the cut.
+         */
+        DiaryPage: {
+            /** Items */
+            items: components["schemas"]["DiaryEntry"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Size */
+            size: number;
         };
         /** DownloadPage */
         DownloadPage: {
@@ -4866,6 +4883,8 @@ export interface operations {
             query?: {
                 category?: string | null;
                 q?: string | null;
+                page?: number;
+                size?: number;
             };
             header?: never;
             path?: never;
@@ -4879,7 +4898,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DiaryEntry"][];
+                    "application/json": components["schemas"]["DiaryPage"];
                 };
             };
             /** @description Validation Error */

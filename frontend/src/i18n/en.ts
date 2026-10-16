@@ -703,6 +703,7 @@ export const en: Record<TKey, string> = {
   'diary.clickToEdit': 'Click to edit',
   'diary.autosave': 'Saves automatically',
   'diary.search': 'Search entries',
+  'diary.allShown': 'All entries shown: {n}',
 
   // onboarding
   'onboarding.sample.lesson1': 'Lesson 1 · Python basics',

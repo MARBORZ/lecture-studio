@@ -1,11 +1,11 @@
 import { Clapperboard, Inbox, MessagesSquare, Pencil, Search, Trash2 } from 'lucide-react'
-import { useDeferredValue, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { useDeferredValue, useMemo, useRef } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import type { LessonStatus } from '@/api/types'
 import { useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { AnimatePresence, ListItem } from '@/components/motion'
-import { Button, EmptyState, IconButton, Page, PageHeader, Segmented } from '@/components/ui'
+import { Button, EmptyState, IconButton, Page, PageHeader, Pagination, Segmented } from '@/components/ui'
 import { NotebookCover } from '@/features/library/NotebookCover'
 import { SkeletonList } from '@/components/skeleton'
 import { LessonRow } from '@/features/library/LessonRow'
@@ -14,15 +14,33 @@ import { KeyNotice } from '@/features/system/KeyNotice'
 
 type Filter = 'all' | LessonStatus
 const INBOX = 'proj_inbox'
+const FILTERS = ['all', 'in_progress', 'to_review', 'completed'] as const
+const PAGE_SIZE = 30
 
 export function LibraryPage() {
   const { projectId } = useParams()
   const { t, openModal, confirm, toast } = useUI()
   const { projects, lessons, loading, deleteProject, projectName } = useLibrary()
   const navigate = useNavigate()
-  const [filter, setFilter] = useState<Filter>('all')
-  const [query, setQuery] = useState('')
+  // status, search and page live in the URL (?status=&q=&page=): back from a lesson, the list is where it was.
+  // Lessons are all in memory (the sidebar and moves need them), so the pages are cut here, not on the server.
+  const [params, setParams] = useSearchParams()
+  const filter: Filter = (FILTERS as readonly string[]).includes(params.get('status') ?? '') ? (params.get('status') as Filter) : 'all'
+  const query = params.get('q') ?? ''
   const q = useDeferredValue(query.trim().toLowerCase())
+  const listRef = useRef<HTMLDivElement>(null)
+  // a new status or search starts at the first page; the page itself is set by Pagination
+  const setParam = (key: 'status' | 'q' | 'page', value: string) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (!value || (key === 'status' && value === 'all') || (key === 'page' && value === '1')) next.delete(key)
+        else next.set(key, value)
+        if (key !== 'page') next.delete('page')
+        return next
+      },
+      { replace: true },
+    )
 
   const project = projectId ? projects.find((p) => p.id === projectId) : undefined
   const visible = useMemo(
@@ -36,6 +54,13 @@ export function LibraryPage() {
     [lessons, projectId, filter, q],
   )
   const inScope = projectId ? lessons.filter((l) => l.project_id === projectId).length : lessons.length
+  const pages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE))
+  const page = Math.min(pages, Math.max(1, Number(params.get('page')) || 1)) // a page that no longer exists shows the last one
+  const shown = visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const toPage = (p: number) => {
+    setParam('page', String(p))
+    listRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }
 
   return (
     <Page>
@@ -75,15 +100,15 @@ export function LibraryPage() {
           <Icon as={Search} size={14} className="absolute top-1/2 left-3 -translate-y-1/2 text-dim" />
           <input
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => setParam('q', e.target.value)}
             placeholder={t('library.searchPlaceholder')}
             className="h-9 w-full rounded-lg border border-line bg-surface pr-3 pl-8 text-[13.5px] text-fg placeholder:text-dim focus:border-fg focus:outline-none"
           />
         </div>
         <Segmented
           value={filter}
-          onChange={setFilter}
-          options={(['all', 'in_progress', 'to_review', 'completed'] as const).map((s) => ({ value: s, label: t(`status.${s}`) }))}
+          onChange={(v) => setParam('status', v)}
+          options={FILTERS.map((s) => ({ value: s, label: t(`status.${s}`) }))}
         />
       </div>
 
@@ -99,14 +124,18 @@ export function LibraryPage() {
       ) : !visible.length ? (
         <EmptyState icon={Search} title={t('library.noMatch')} />
       ) : (
-        <div className="divide-y divide-line overflow-hidden rounded-xl border border-line">
-          <AnimatePresence initial={true}>
-            {visible.map((l, i) => (
-              <ListItem key={l.id} index={i}>
-                <LessonRow lesson={l} notebook={projectId ? undefined : projectName(l.project_id ?? INBOX)} />
-              </ListItem>
-            ))}
-          </AnimatePresence>
+        <div ref={listRef} className="flex scroll-mt-4 flex-col gap-4">
+          {/* keyed by page: a new page enters fresh instead of 30 rows leaving next to 30 arriving */}
+          <div key={page} className="divide-y divide-line overflow-hidden rounded-xl border border-line">
+            <AnimatePresence initial={true}>
+              {shown.map((l, i) => (
+                <ListItem key={l.id} index={i}>
+                  <LessonRow lesson={l} notebook={projectId ? undefined : projectName(l.project_id ?? INBOX)} />
+                </ListItem>
+              ))}
+            </AnimatePresence>
+          </div>
+          <Pagination page={page} size={PAGE_SIZE} total={visible.length} onPage={toPage} />
         </div>
       )}
     </Page>

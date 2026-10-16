@@ -30,6 +30,15 @@ class DiaryEntry(DiaryEntryMeta):
     text: str
 
 
+class DiaryPage(BaseModel):
+    """One page of entries, newest first; the search applies before the cut."""
+
+    items: list[DiaryEntry]
+    total: int
+    page: int
+    size: int
+
+
 class DiaryEntryCreate(BaseModel):
     category: str = DIARY_INBOX
     text: str = Field(min_length=1, max_length=200_000)
