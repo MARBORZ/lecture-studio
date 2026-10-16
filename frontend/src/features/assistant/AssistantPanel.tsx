@@ -5,7 +5,7 @@ import type { AIProvider, AssistantRole, Attachment, ChatMessage, ContextUsage, 
 import { useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { Appear } from '@/components/motion'
-import { Button, IconButton, Segmented } from '@/components/ui'
+import { Button, IconButton, Select } from '@/components/ui'
 import { SkeletonChat } from '@/components/skeleton'
 import { MarkdownView } from '@/features/markdown/MarkdownView'
 import { KeyNotice, pickProvider, useAiKeys, useProviderOptions } from '@/features/system/KeyNotice'
@@ -136,7 +136,7 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
           <SessionBar chat={chat} />
         </div>
         <ContextMeter chat={chat} />
-        <Segmented size="sm" value={provider} onChange={setProvider} options={providerOptions} />
+        <Select size="sm" aria-label={t('ai.model')} className="w-40" value={provider} onChange={setProvider} options={providerOptions} />
       </div>
 
       <KeyNotice provider={provider} onSwitch={setProvider} className="mb-3" />
