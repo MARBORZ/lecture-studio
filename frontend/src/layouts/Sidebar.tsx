@@ -132,8 +132,10 @@ export function Sidebar() {
           <NavItem to="/settings" icon={Settings}>{t('nav.settings')}</NavItem>
         </nav>
 
-        <div className="mt-6 flex h-7 shrink-0 items-center justify-between pr-3 pl-[21px]">
+        {/* collapsed: a hairline instead of the section label, and "new notebook" stays reachable */}
+        <div className="relative mt-6 flex h-7 shrink-0 items-center justify-between pr-3 pl-[21px]">
           <span className={cn('label-caps whitespace-nowrap transition-opacity duration-200', collapsed && 'opacity-0')}>{t('nav.notebooks')}</span>
+          <span className={cn('absolute top-1/2 left-[22px] h-px w-4 bg-line-strong transition-opacity duration-200', !collapsed && 'opacity-0')} />
           {!collapsed && <IconButton icon={Plus} size="sm" label={t('nav.newNotebook')} onClick={() => openModal((close) => <ProjectFormModal close={close} />)} />}
         </div>
         <nav className="scroll-area flex min-h-0 flex-1 flex-col gap-0.5 px-3 pt-1">
@@ -144,6 +146,19 @@ export function Sidebar() {
                   {p.name}
                 </NavItem>
               ))}
+          {collapsed && !loading && (
+            <button
+              type="button"
+              title={t('nav.newNotebook')}
+              aria-label={t('nav.newNotebook')}
+              onClick={() => openModal((close) => <ProjectFormModal close={close} />)}
+              className="flex h-8 shrink-0 items-center rounded-lg px-[9px] text-dim transition-colors hover:bg-surface hover:text-soft"
+            >
+              <span className="flex size-[18px] items-center justify-center rounded-[5px] border border-dashed border-line-strong">
+                <Icon as={Plus} size={11} />
+              </span>
+            </button>
+          )}
         </nav>
 
         <JobIndicator />
