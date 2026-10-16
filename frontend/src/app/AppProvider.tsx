@@ -15,8 +15,10 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PromptDialog } from '@/components/ui/PromptDialog'
 import { createT, setLanguage, type TFunction } from '@/i18n'
 import { useAppearance } from '@/lib/appearance'
+import { storage } from '@/lib/format'
 
 const INBOX_ID = 'proj_inbox' // backend/models/project.py
+const LANG_KEY = 'ui.lang'
 
 // ---------------------------------------------------------------- UI
 
@@ -116,13 +118,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSettings(next)
     return next
   }, [])
-  const lang: UILanguage = settings?.ui_language ?? 'ru'
+  // Until settings arrive (the boot screen), the language of the last visit.
+  const lang: UILanguage = settings?.ui_language ?? storage.get<UILanguage>(LANG_KEY, 'ru')
   const t = useMemo(() => createT(lang), [lang])
   useAppearance(settings?.theme, settings?.text_scale)
   useEffect(() => {
     document.documentElement.lang = lang
     setLanguage(lang)
-  }, [lang])
+    if (settings) storage.set(LANG_KEY, lang)
+  }, [lang, settings])
 
   // ---------- modals / toasts ----------
   const [modals, setModals] = useState<ModalEntry[]>([])

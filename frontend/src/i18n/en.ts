@@ -635,6 +635,14 @@ export const en: Record<TKey, string> = {
   'onboarding.done.b2': 'Video never leaves this computer',
   'onboarding.done.b3': 'Lessons live in your data folder, not in the app code',
 
+  'boot.punch1': 'Cutting the silence, keeping the point',
+  'boot.punch2': 'An hour of lecture, five minutes of notes',
+  'boot.punch3': 'The pauses go, the timecodes stay',
+  'boot.punch4': 'Your video stays on your computer',
+  'boot.punch5': 'The transcript knows which minute it was',
+  'boot.punch6': 'Scrubbing is for people without timecodes',
+  'boot.punch7': 'Notes with no filler, like slides',
+  'boot.punch8': 'Almost there: the server is waking up',
   'error.title': 'Something went wrong',
 
   'error.notFound': 'Page not found',

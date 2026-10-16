@@ -1,10 +1,11 @@
 import { AlertTriangle, X } from 'lucide-react'
 import { Fragment } from 'react'
-import { useJobs, useUI } from '@/app/AppProvider'
+import { useJobs, useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { AnimatePresence, m, RouteOutlet } from '@/components/motion'
 import { Onboarding } from '@/features/onboarding/Onboarding'
 import { FloatingPlayer } from '@/features/player/FloatingPlayer'
+import { BootScreen } from '@/features/system/BootScreen'
 import { StoppedScreen } from '@/features/system/StoppedScreen'
 import { UpdatingScreen, useUpdateWatcher } from '@/features/system/Update'
 import { useUpdates } from '@/features/system/updateStore'
@@ -15,10 +16,13 @@ import { Sidebar } from './Sidebar'
 export function AppShell() {
   const { modals, toasts, dismissToast, stopped, settings, tutorialOpen, setTutorialOpen, focusMode } = useUI()
   const { connected } = useJobs()
+  const { loading } = useLibrary()
   const updating = useUpdates((s) => Boolean(s.phase))
   useUpdateWatcher()
-  if (stopped) return <StoppedScreen />
-  if (updating) return <UpdatingScreen />
+  // The boot screen stays until settings and the library are in (or the server is plainly not there).
+  const boot = <BootScreen ready={stopped || !connected || (Boolean(settings) && !loading)} />
+  if (stopped) return <><StoppedScreen />{boot}</>
+  if (updating) return <><UpdatingScreen />{boot}</>
 
   // Which scene is on stage. First run: only the tutorial (flag in settings.json); a blank screen while settings load.
   // AnimatePresence mode="wait": the tutorial dissolves first, then the app assembles (sidebar, then content).
@@ -26,6 +30,7 @@ export function AppShell() {
 
   return (
     <div className="flex h-full">
+      {boot}
       <AnimatePresence mode="wait">
         {scene === 'tutorial' && (
           <m.div key="tutorial" variants={sceneOut} initial={false} animate="show" exit="exit" className="fixed inset-0 z-[90]">
