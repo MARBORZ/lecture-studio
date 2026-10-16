@@ -161,6 +161,18 @@ Which release is newer is decided by the version number only; the tag date (`rel
 shown next to it. All subprocess output is decoded as UTF-8 explicitly (an architecture test enforces it): with the
 locale default Windows read git and ffprobe output as cp1252.
 
+## Feedback
+
+`services/feedback.py` + `routes/feedback.py`, the form is `features/feedback/Feedback.tsx` (sidebar). A report is a
+draft folder under `<settings home>/feedback/drafts/<id>` (opened-at time, uploaded files); sending checks the honeypot
+(`website`), the fill time (≥ 3 s), message length, files (types, 5 files, 4 MB together: the relay's request limit),
+then the cooldown (60 s) and the daily limit (10, `feedback/sent.json`). Diagnostics on request: version, OS, the
+compute plan, the last 200 lines of `server.log` / `launcher.log`, anything key-shaped masked. The report moves to
+`feedback/outbox/<id>` and is posted (multipart, header `X-Lecture-Studio`) to `config.FEEDBACK_URL`; on failure it
+stays and `flush()` retries at startup and after the next delivery. The app holds no secret: `feedback-relay/` is a
+Vercel function that holds the Gmail app password, checks the same limits again (plus a per-IP rate limit) and mails
+the report. Screenshots are shrunk in the browser (longest side 2200 px, JPEG) before upload.
+
 ## Uninstall
 
 `services/uninstall.py`. `preview()` lists the app folder, the settings home and the data folder, and refuses when the

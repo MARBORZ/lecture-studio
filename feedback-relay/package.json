@@ -1,0 +1,11 @@
+{
+  "name": "lecture-studio-feedback-relay",
+  "private": true,
+  "description": "Mails bug reports from Lecture Studio to the developer. Deployed on Vercel; holds the mail password.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "busboy": "1.6.0",
+    "nodemailer": "6.9.16"
+  }
+}

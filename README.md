@@ -50,6 +50,10 @@ that jump to the exact moment in the video. Video stays on your machine unless y
 - **Updates.** When a new release is tagged, the sidebar offers it with the list of changes. One click moves the code to
   the release and restarts the app; if the new version does not start, the previous one comes back automatically.
   Lessons and settings are never touched. Settings → Interface → Check for updates.
+- **Feedback.** The sidebar's **Feedback** button sends a bug or an idea straight to the developer's mail, with
+  screenshots (paste with ⌘V / Ctrl+V; they are shrunk before sending) and files, plus optional diagnostics (version,
+  system, log tails with API keys cut out). Limits: 5 files, 4 MB together, one report a minute, 10 a day. Without a
+  connection a report waits on this computer and goes out later. See `feedback-relay/README.md`.
 - **MCP server.** AI agents (Claude Code, Claude Desktop, Cursor, Cline) can read lessons, search transcripts and
   write audits through the bundled MCP server.
 
@@ -141,6 +145,7 @@ Video is processed only locally. Cloud models receive audio (Gemini transcriptio
 (transcripts for audits and the assistant). The one exception is opt-in: **audit from video** sends Gemini a light copy
 of the video (480p, one frame per second, quiet sound — never the original file) so it can see code and slides; the
 Studio warns about the extra cost first. With Whisper selected and no AI audit, nothing leaves the machine.
+A feedback report leaves only when you press Send in the Feedback form, and carries only what you put in it.
 
 ## GPU and CPU
 

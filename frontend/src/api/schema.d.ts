@@ -826,6 +826,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/feedback/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** New Draft */
+        post: operations["new_draft_api_feedback_drafts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/feedback/drafts/{draft_id}/files/{filename}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Upload File
+         * @description Raw streamed upload, cut off at the per-file / total cap.
+         */
+        put: operations["upload_file_api_feedback_drafts__draft_id__files__filename__put"];
+        post?: never;
+        /** Delete File */
+        delete: operations["delete_file_api_feedback_drafts__draft_id__files__filename__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/feedback/drafts/{draft_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Discard */
+        delete: operations["discard_api_feedback_drafts__draft_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/feedback/drafts/{draft_id}/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send */
+        post: operations["send_api_feedback_drafts__draft_id__send_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1232,6 +1304,87 @@ export interface components {
             count: number;
             /** Files */
             files: string[];
+        };
+        /** FeedbackDraft */
+        FeedbackDraft: {
+            /** Id */
+            id: string;
+            limits: components["schemas"]["FeedbackLimits"];
+            /**
+             * Retry After
+             * @default 0
+             */
+            retry_after: number;
+        };
+        /** FeedbackFile */
+        FeedbackFile: {
+            /** Name */
+            name: string;
+            /** Size */
+            size: number;
+        };
+        /**
+         * FeedbackLimits
+         * @description The same numbers the server enforces; the form shows them and checks before uploading.
+         */
+        FeedbackLimits: {
+            /** Max Files */
+            max_files: number;
+            /** Max File Bytes */
+            max_file_bytes: number;
+            /** Max Total Bytes */
+            max_total_bytes: number;
+            /** Min Message */
+            min_message: number;
+            /** Max Message */
+            max_message: number;
+            /** Max Contact */
+            max_contact: number;
+            /** Cooldown Sec */
+            cooldown_sec: number;
+            /** Daily Limit */
+            daily_limit: number;
+            /** Extensions */
+            extensions: string[];
+        };
+        /** FeedbackResult */
+        FeedbackResult: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "sent" | "queued";
+            /**
+             * Outbox
+             * @default 0
+             */
+            outbox: number;
+        };
+        /** FeedbackSend */
+        FeedbackSend: {
+            /**
+             * Kind
+             * @default bug
+             * @enum {string}
+             */
+            kind: "bug" | "idea" | "other";
+            /** Message */
+            message: string;
+            /**
+             * Contact
+             * @default
+             */
+            contact: string;
+            /**
+             * Diagnostics
+             * @default true
+             */
+            diagnostics: boolean;
+            /**
+             * Website
+             * @default
+             */
+            website: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -2342,6 +2495,7 @@ export interface operations {
         parameters: {
             query?: {
                 force?: boolean;
+                reload?: boolean;
             };
             header?: never;
             path?: never;
@@ -4179,6 +4333,160 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    new_draft_api_feedback_drafts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackDraft"];
+                };
+            };
+        };
+    };
+    upload_file_api_feedback_drafts__draft_id__files__filename__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draft_id: string;
+                filename: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackFile"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_file_api_feedback_drafts__draft_id__files__filename__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draft_id: string;
+                filename: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discard_api_feedback_drafts__draft_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draft_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_api_feedback_drafts__draft_id__send_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draft_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackSend"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackResult"];
                 };
             };
             /** @description Validation Error */

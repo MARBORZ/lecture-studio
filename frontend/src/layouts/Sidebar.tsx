@@ -10,6 +10,7 @@ import { JobIndicator } from '@/features/jobs/JobIndicator'
 import { ProjectFormModal } from '@/features/library/modals'
 import { LESSON_DRAG, useMoveLesson } from '@/features/library/MoveLesson'
 import { NotebookCover } from '@/features/library/NotebookCover'
+import { FeedbackButton } from '@/features/feedback/Feedback'
 import { ShutdownButton } from '@/features/system/ShutdownButton'
 import { UpdateButton } from '@/features/system/Update'
 import type { Project } from '@/api/types'
@@ -171,6 +172,7 @@ export function Sidebar() {
         <div className="flex flex-col gap-0.5 border-t border-line p-3">
           {collapsed && <IconButton icon={PanelLeftOpen} label={toggleLabel} onClick={toggle} className="w-full" />}
           <UpdateButton />
+          <FeedbackButton />
           <ShutdownButton />
         </div>
       </m.aside>

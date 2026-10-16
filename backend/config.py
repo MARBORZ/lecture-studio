@@ -47,9 +47,14 @@ FRONTEND_PID_FILE = APP_HOME / "frontend.pid"
 LOGS_DIR = APP_HOME / "logs"
 CHROME_PROFILE_DIR = APP_HOME / "chrome-profile"
 STATE_DIR = APP_HOME / "state"  # launcher fingerprints, update hand-over (update.json)
+FEEDBACK_DIR = APP_HOME / "feedback"  # bug reports: drafts being filled, the outbox of unsent ones, the send log
 
 # Releases are git tags vX.Y.Z on this repository.
 REPO_URL = "https://github.com/MARBORZ/lecture-studio"
+
+# Bug reports go to a small relay (feedback-relay/, a Vercel function) that mails them to the developer.
+# The relay holds the mail password; the app holds nothing secret. Empty: reports wait in the outbox.
+FEEDBACK_URL = os.getenv("LECTURE_STUDIO_FEEDBACK_URL", "")
 
 # Default data location for a fresh install (existing installs keep whatever settings.json says).
 DEFAULT_DATA_DIR = REPO_DIR / "workspace"

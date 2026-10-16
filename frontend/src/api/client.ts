@@ -1,7 +1,7 @@
 import type {
   AIProvider, AskRequest, Attachment, DiaryCategory, DiaryEntry, ExportResult, Job, JobOptions, Lesson, LessonFull, LessonPatch, LessonStatus,
   PathCheckResult, PipelineDefaults, Project, PromptView, ProjectCreate, ProjectPatch, ProviderInfo, SessionInfo, SessionPatch, SettingsPatch, SettingsView, SystemStatus,
-  Thread, ThreadKind, ComputeStatus, MediaInfo, UninstallPlan, UpdateInfo,
+  Thread, ThreadKind, ComputeStatus, MediaInfo, UninstallPlan, UpdateInfo, FeedbackDraft, FeedbackFile, FeedbackSend, FeedbackResult,
 } from './types'
 import { tr } from '@/i18n'
 
@@ -91,6 +91,13 @@ export const api = {
   applyUpdate: () => request<UpdateInfo>('POST', '/api/system/update'),
   discardUpdateChanges: () => request<UpdateInfo>('POST', '/api/system/update/discard'),
   uninstallPlan: () => get<UninstallPlan>('/api/system/uninstall'),
+  // feedback to the developer: a draft (the server times the form), its files, then send
+  feedbackDraft: () => request<FeedbackDraft>('POST', '/api/feedback/drafts'),
+  feedbackFile: (draftId: string, file: File, onProgress: (fraction: number) => void) =>
+    putFile<FeedbackFile>(`/api/feedback/drafts/${draftId}/files/${encodeURIComponent(file.name)}`, file, onProgress),
+  feedbackRemoveFile: (draftId: string, name: string) => request<{ ok: boolean }>('DELETE', `/api/feedback/drafts/${draftId}/files/${encodeURIComponent(name)}`),
+  feedbackDiscard: (draftId: string) => request<{ ok: boolean }>('DELETE', `/api/feedback/drafts/${draftId}`),
+  feedbackSend: (draftId: string, form: FeedbackSend) => request<FeedbackResult>('POST', `/api/feedback/drafts/${draftId}/send`, form),
   uninstall: (deleteLessons: boolean) => request<{ ok: boolean; kept?: string | null }>('POST', '/api/system/uninstall', { delete_lessons: deleteLessons }),
 
   // settings

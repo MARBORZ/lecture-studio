@@ -50,6 +50,10 @@ API: `http://127.0.0.1:3000` (the UI reaches it through the Vite proxy at `:5173
 | POST | `/api/assistant/{kind}/{id}/sessions/{sid}/compact` | fold the history into a summary now |
 | PUT | `/api/assistant/attachments/{filename}` | upload a chat attachment, any type, up to 500 MB (body = file bytes) |
 | GET | `/api/assistant/attachments/{id}/file` | download an attachment |
+| POST | `/api/feedback/drafts` | open a report: `{id, limits, retry_after}` (the server times the form from here) |
+| PUT / DELETE | `/api/feedback/drafts/{id}/files/{filename}` | attach (body = file bytes; type, count and total size checked) / remove |
+| DELETE | `/api/feedback/drafts/{id}` | throw the draft away |
+| POST | `/api/feedback/drafts/{id}/send` | send `{kind, message, contact, diagnostics, website}` → `{status: sent\|queued, outbox}`; `429` + `Retry-After` on cooldown / daily limit; a filled honeypot or a too-fast form is dropped and answered as sent |
 | GET / POST | `/api/diary/categories` | diary categories (folders) / create |
 | PATCH / DELETE | `/api/diary/categories/{name}` | rename / delete (entries move to the inbox) |
 | GET | `/api/diary/entries?category&q` | entries (full text), newest first, text search |

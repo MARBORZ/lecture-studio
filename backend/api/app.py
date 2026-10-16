@@ -4,13 +4,14 @@ FastAPI application factory. Pure JSON API on :3000; the UI is served by Vite on
 
 import logging
 import os
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from backend.api.routes import assistant, diary, jobs, lessons, projects, settings, system
+from backend.api.routes import assistant, diary, feedback, jobs, lessons, projects, settings, system
 from backend.config import APP_NAME, APP_VERSION, FRONTEND_ORIGINS, PID_FILE
 from backend.core.media import ffmpeg_available
 from backend.services import updates
@@ -53,6 +54,10 @@ async def lifespan(app: FastAPI):
         from backend.services import attachments, chats
 
         attachments.cleanup_orphans(set(chats.referenced_attachments()))
+        from backend.services import feedback as reports
+
+        reports.cleanup()
+        threading.Thread(target=reports.flush, name="feedback-outbox", daemon=True).start()  # network: off the startup path
     logger.info("Library ready: %d imported, %d migrated, data=%s", imported, migrated, data.data_dir)
     yield
     if read_text(PID_FILE).strip() == str(os.getpid()):
@@ -64,7 +69,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title=APP_NAME, version=APP_VERSION, lifespan=lifespan)
     app.add_middleware(CORSMiddleware, allow_origins=FRONTEND_ORIGINS, allow_methods=["*"], allow_headers=["*"])
 
-    for module in (system, settings, projects, lessons, jobs, assistant, diary):
+    for module in (system, settings, projects, lessons, jobs, assistant, diary, feedback):
         app.include_router(module.router)
 
     @app.exception_handler(QueueFull)

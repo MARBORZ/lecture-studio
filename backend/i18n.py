@@ -148,6 +148,14 @@ RU: dict[str, str] = {
     'Выполните в терминале: git config --global --add safe.directory "{repo}"',
     "update.none": "Нет доступного обновления",
     "update.blocked": "Обновление из приложения невозможно: {reason}",
+    # ---- feedback (services/feedback.py)
+    "feedback.no_draft": "Форма устарела — откройте её заново",
+    "feedback.bad_type": "Такой файл не принимается. Можно: {types}",
+    "feedback.too_many": "Не больше {n} файлов",
+    "feedback.too_big": "Вложения вместе — не больше {mb} МБ",
+    "feedback.too_short": "Опишите чуть подробнее — хотя бы {n} символов",
+    "feedback.too_long": "Слишком длинно: не больше {n} символов",
+    "feedback.too_soon": "Следующее сообщение можно отправить через {sec} с",
     # ---- uninstall (services/uninstall.py, tools/uninstall.py: Uninstall.app / Uninstall.cmd)
     "uninstall.unsafe": "Отказ: путь {path} нельзя удалять (корень диска или домашняя папка)",
     "uninstall.git_work": "В папке приложения есть работа, которой нет на GitHub. Удалите папку вручную, если она не нужна.",
@@ -306,6 +314,14 @@ EN: dict[str, str] = {
     "update.ownership": 'Git does not trust the app folder (detected dubious ownership). Run in a terminal: git config --global --add safe.directory "{repo}"',
     "update.none": "No update available",
     "update.blocked": "The update cannot be applied from the app: {reason}",
+    # ---- feedback (services/feedback.py)
+    "feedback.no_draft": "The form has expired — open it again",
+    "feedback.bad_type": "This file type is not accepted. Allowed: {types}",
+    "feedback.too_many": "At most {n} files",
+    "feedback.too_big": "Attachments together: at most {mb} MB",
+    "feedback.too_short": "Please describe it a bit more — at least {n} characters",
+    "feedback.too_long": "Too long: at most {n} characters",
+    "feedback.too_soon": "You can send the next message in {sec} s",
     # ---- uninstall
     "uninstall.unsafe": "Refused: the path {path} cannot be deleted (a disk root or the home folder)",
     "uninstall.git_work": "The app folder holds work that is not on GitHub. Delete the folder by hand if you do not need it.",
