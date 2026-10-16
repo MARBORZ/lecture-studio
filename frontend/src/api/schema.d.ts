@@ -456,6 +456,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lessons/{lesson_id}/drop-video": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Drop Video
+         * @description Keep the sound, free the space: the lesson becomes an audio lesson (same timeline, transcript and audit).
+         *     The lesson's video copy is deleted; a kept upload gives its sound to clean_speech.mp3 first; a file of the user's
+         *     own (Eco, an absolute path) is never deleted — the lesson just stops showing its picture.
+         */
+        post: operations["drop_video_api_lessons__lesson_id__drop_video_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/lessons/{lesson_id}/relink": {
         parameters: {
             query?: never;
@@ -3183,6 +3205,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Job"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    drop_video_api_lessons__lesson_id__drop_video_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lesson_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lesson"];
                 };
             };
             /** @description Validation Error */
