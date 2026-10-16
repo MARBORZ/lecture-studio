@@ -30,6 +30,11 @@ SHARE_HISTORY = 0.25
 SHARE_FILES = 0.20
 SUMMARY_SHARE = 0.06
 KEEP_RECENT = 4
+# compaction starts before the history reaches its share (so it never crowds out the material), keeping at least
+# the last exchange; a long history is folded in chunks the model's window holds
+COMPACT_AT = 0.9
+MIN_KEEP = 2
+CHUNK_SHARE = 0.5
 MIN_SOURCE_CHARS = 4000
 ANSWER_SHARE = 0.125
 
@@ -51,7 +56,18 @@ def history_chars(session: ChatSession) -> int:
 
 
 def needs_compaction(session: ChatSession, window: int) -> bool:
-    return len(recent(session)) > KEEP_RECENT and history_chars(session) > window * SHARE_HISTORY
+    """The verbatim history is near its share of the window (COMPACT_AT) and there is something old to fold."""
+    return len(recent(session)) > MIN_KEEP and history_chars(session) > window * SHARE_HISTORY * COMPACT_AT
+
+
+def keep_for(session: ChatSession, window: int) -> int:
+    """How many recent messages stay verbatim: KEEP_RECENT if they fit in half the history share, else fewer
+    (never under MIN_KEEP): a few huge answers must not stop the compaction."""
+    rec = recent(session)
+    keep = min(KEEP_RECENT, len(rec))
+    while keep > MIN_KEEP and sum(len(m.content) for m in rec[-keep:]) > window * SHARE_HISTORY / 2:
+        keep -= 1
+    return keep
 
 
 def _as_text(messages: Sequence[ChatMessage]) -> str:
@@ -61,17 +77,35 @@ def _as_text(messages: Sequence[ChatMessage]) -> str:
     return "\n\n".join(lines)
 
 
-def compact(provider, session: ChatSession, window: int, keep: int = KEEP_RECENT) -> ChatSession:
-    """Fold all but the last `keep` messages (plus the old summary) into a new summary. Returns the same session."""
+def compact(provider, session: ChatSession, window: int, keep: int | None = None) -> ChatSession:
+    """Fold all but the last `keep` messages (plus the old summary) into a new summary. Returns the same session.
+    However long the history, each call to the model carries at most CHUNK_SHARE of the window: the old messages are
+    folded chunk by chunk, the summary of one going into the next — the compaction itself never overflows."""
     rec = recent(session)
+    keep = keep_for(session, window) if keep is None else keep
     fold = len(rec) - keep
     if fold <= 0:
         return session
     limit = max(1500, int(window * SUMMARY_SHARE))
-    summary = provider.generate_text(prompts.compact_prompt(session.summary, _as_text(rec[:fold]), limit), system=prompts.compact_system())
-    session.summary = summary.strip()[: int(limit * 1.2)]
+    room = max(4000, int(window * CHUNK_SHARE) - limit)
+    summary, chunk, size = session.summary, [], 0
+    for m in rec[:fold]:
+        text = _as_text([m])[:room]  # one giant message: its beginning, rather than a request that cannot fit
+        if chunk and size + len(text) > room:
+            summary = _fold(provider, summary, chunk, limit)
+            chunk, size = [], 0
+        chunk.append(m.model_copy(update={"content": text}) if len(text) < len(m.content) else m)
+        size += len(text)
+    if chunk:
+        summary = _fold(provider, summary, chunk, limit)
+    session.summary = summary
     session.summarized += fold
     return session
+
+
+def _fold(provider, summary: str, messages: Sequence[ChatMessage], limit: int) -> str:
+    out = provider.generate_text(prompts.compact_prompt(summary, _as_text(messages), limit), system=prompts.compact_system())
+    return out.strip()[: int(limit * 1.2)]
 
 
 # ---------------------------------------------------------------- one request
@@ -134,7 +168,12 @@ def build(
 ) -> Request:
     system = prompts.assistant_system(role, multi, ui_language)
     summary_block = prompts.CTX_SUMMARY.format(summary=session.summary) if session.summary else ""
+    # the history never takes more than its share: the lesson material keeps its room (the oldest turns that do not
+    # fit stay out of this request; the next compaction folds them into the summary)
     history = [{"role": m.role, "content": m.content} for m in recent(session)]
+    cap = int(window * SHARE_HISTORY) - len(summary_block)
+    while len(history) > MIN_KEEP and sum(len(h["content"]) for h in history) > cap:
+        history = history[2:] if len(history) - 2 >= MIN_KEEP else history[1:]
     files_block, images = _files_block(new_files, vision, int(window * SHARE_FILES))
     final = prompts.CTX_QUESTION.format(files=files_block, question=question) if files_block else question
 

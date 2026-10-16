@@ -89,24 +89,60 @@ def test_first_question_into_a_fresh_unsaved_session(lesson_api):
     assert c.get("/api/assistant/lesson/less_x?session=ses_00000000").status_code == 404
 
 
-def test_history_is_compressed_when_it_outgrows_its_share(lesson_api, monkeypatch):
+def test_history_is_compressed_before_it_outgrows_its_share(lesson_api, monkeypatch):
     from backend.services import context_window
 
     c, fake = lesson_api
     assert c.patch("/api/settings", json={"ai": {"context_tokens": {"deepseek": 8_000}}}).status_code == 200
-    assert context_window.window_for("deepseek") * context_window.SHARE_HISTORY == 5_250  # the smallest window
-    for i in range(4):
-        ask(c, f"вопрос {i} " + "x" * 1600)
-    assert not fake.compactions
-    t = ask(c, "ещё вопрос " + "x" * 1600)
-    assert len(fake.compactions) == 1 and "вопрос 0" in fake.compactions[0]
-    s = t["session"]
-    assert s["summary"].startswith("СВОДКА") and s["summarized"] == len(s["messages"]) - 2 - context_window.KEEP_RECENT
-    # what was sent: the summary, then only the recent messages verbatim
+    share = context_window.window_for("deepseek") * context_window.SHARE_HISTORY
+    assert share == 5_250  # the smallest window
+    for i in range(5):
+        t = ask(c, f"вопрос {i} " + "x" * 1600)
+        s = t["session"]
+        verbatim = len(s["summary"]) + sum(len(m["content"]) for m in s["messages"][s["summarized"]:])
+        # never past the line after an answer: the next question starts below it
+        assert verbatim <= share or len(s["messages"]) - s["summarized"] <= context_window.MIN_KEEP
+    assert fake.compactions and "вопрос 0" in fake.compactions[0]
+    assert s["summary"].startswith("СВОДКА") and s["summarized"] >= 2
+    # what was sent: the summary, then only the recent messages verbatim, within the history share
     sent = fake.chats[-1]
     assert any("SUMMARY OF THE START" in m["content"] for m in sent)
     assert not any(m["content"].startswith("вопрос 0") for m in sent)
     assert len(s["messages"]) == 10  # nothing is lost for reading
+
+
+def test_a_huge_history_is_folded_in_chunks_that_fit_the_window():
+    from backend.models.assistant import ChatMessage, ChatSession
+    from backend.services import context_window
+
+    calls = []
+
+    class P:
+        def generate_text(self, prompt, system=""):
+            calls.append(len(prompt))
+            return "СВОДКА"
+
+    window = 20_000
+    msgs = [ChatMessage(id=str(i), role="user" if i % 2 == 0 else "assistant", content="y" * 9_000) for i in range(12)]
+    session = ChatSession(id="s", messages=msgs)
+    context_window.compact(P(), session, window)
+    assert len(calls) > 1 and max(calls) <= window * context_window.CHUNK_SHARE + 3_000  # each call fits
+    assert session.summarized == 12 - context_window.MIN_KEEP  # big answers: only the last exchange stays verbatim
+
+
+def test_the_history_never_crowds_out_the_material():
+    from backend.models.assistant import ChatMessage, ChatSession
+    from backend.models.lesson import LessonFull
+    from backend.services import context_window
+
+    window = 30_000
+    lesson = LessonFull(id="l", job_id="l", title="L", plain_text="z" * 12_000)
+    msgs = [ChatMessage(id=str(i), role="user" if i % 2 == 0 else "assistant", content="h" * 4_000) for i in range(10)]
+    req = context_window.build(provider_name="deepseek", window=window, vision=False, sources=[lesson], session=ChatSession(id="s", messages=msgs))
+    # within the share, except the last exchange, which always goes whole
+    assert req.usage.history <= max(window * context_window.SHARE_HISTORY, 2 * 4_000)
+    assert sum(1 for m in req.messages if m['content'].startswith('h')) == context_window.MIN_KEEP
+    assert not req.usage.sources_trimmed  # the lesson goes whole: no "switch the model" notice
 
 
 def test_session_files_live_in_the_session_folder_and_go_only_when_attached(lesson_api, data_dir):
