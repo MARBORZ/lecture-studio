@@ -2,6 +2,7 @@ import { BookmarkPlus, Pencil, Trash2 } from 'lucide-react'
 import { useCallback } from 'react'
 import { useLibrary, useUI } from '@/app/AppProvider'
 import { IconButton } from '@/components/ui'
+import { useHotkeyLabel, useWithHotkey } from '@/features/hotkeys/useHotkey'
 import { cn } from '@/lib/cn'
 import { formatTc } from '@/lib/time'
 import { player, usePlayer, type Bookmark } from './store'
@@ -54,7 +55,7 @@ export function useBookmarks() {
 export function BookmarkButton() {
   const { t } = useUI()
   const { add } = useBookmarks()
-  return <IconButton icon={BookmarkPlus} label={`${t('bookmark.add')} (M)`} onClick={() => void add()} />
+  return <IconButton icon={BookmarkPlus} label={useWithHotkey('player.mark')(t('bookmark.add'))} onClick={() => void add()} />
 }
 
 /** The list under the player: click = jump, hover = rename / delete. */
@@ -62,7 +63,8 @@ export function BookmarkList() {
   const { t } = useUI()
   const { bookmarks, rename, remove } = useBookmarks()
   const current = usePlayer((s) => s.currentTime)
-  if (!bookmarks.length) return <p className="px-2 py-1 text-[12.5px] text-dim">{t('bookmark.empty')}</p>
+  const markKey = useHotkeyLabel('player.mark')
+  if (!bookmarks.length) return <p className="px-2 py-1 text-[12.5px] text-dim">{markKey ? t('bookmark.emptyKey', { key: markKey }) : t('bookmark.empty')}</p>
   return (
     <ol className="flex flex-col">
       {bookmarks.map((b) => (

@@ -13,9 +13,11 @@ from pathlib import Path
 
 from backend.config import APP_HOME, DEFAULT_DATA_DIR, LOGS_DIR, SETTINGS_FILE
 from backend.i18n import tr
+from backend.settings import hotkeys
 from backend.settings.schema import (
     AISettingsView,
     AppSettings,
+    HotkeyView,
     KeyStatus,
     PathCheckResult,
     PathsView,
@@ -146,6 +148,8 @@ class SettingsService:
                 current.compute = patch.compute
             if patch.pipeline is not None:
                 current.pipeline = patch.pipeline
+            if patch.hotkeys:
+                current.hotkeys = hotkeys.apply(current.hotkeys, patch.hotkeys)  # HotkeyError: nothing is saved
             if patch.ai is not None:
                 for field, value in patch.ai.model_dump(exclude_none=True, exclude={"context_tokens"}).items():
                     setattr(current.ai, field, value.strip() if isinstance(value, str) else value)
@@ -268,6 +272,10 @@ class SettingsService:
                 context_tokens=s.ai.context_tokens,
             ),
             pipeline=s.pipeline,
+            hotkeys=[
+                HotkeyView(id=aid, scope=a.scope, default=a.default, combo=hotkeys.effective(s.hotkeys)[aid])
+                for aid, a in hotkeys.ACTIONS.items()
+            ],
         )
 
 

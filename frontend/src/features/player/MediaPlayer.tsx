@@ -3,8 +3,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { Button, IconButton, Segmented } from '@/components/ui'
+import { useHotkey, useHotkeyLabel, useWithHotkey } from '@/features/hotkeys/useHotkey'
 import { cn } from '@/lib/cn'
-import { isTyping } from '@/lib/keys'
 import { formatTc } from '@/lib/time'
 import { BookmarkButton, useBookmarks } from './bookmarks'
 import { mediaEvents, player, useMediaRef, usePlayer, type Chapter } from './store'
@@ -49,6 +49,10 @@ export function PlayerBar({ extra, compact = false, marks = true }: { extra?: Re
   const playing = usePlayer((s) => s.playing)
   const rate = usePlayer((s) => s.rate)
   const display = usePlayer((s) => s.display)
+  const withToggle = useWithHotkey('player.toggle')
+  const withBack = useWithHotkey('player.back')
+  const withForward = useWithHotkey('player.forward')
+  const playLabel = withToggle(playing ? t('player.pause') : t('player.play'))
 
   return (
     <div className="flex flex-col gap-3">
@@ -59,13 +63,14 @@ export function PlayerBar({ extra, compact = false, marks = true }: { extra?: Re
         <button
           type="button"
           onClick={() => player.toggle()}
-          aria-label={playing ? 'Pause' : 'Play'}
+          aria-label={playLabel}
+          title={playLabel}
           className="flex size-9 shrink-0 items-center justify-center rounded-full bg-fg text-bg transition-transform hover:scale-105"
         >
           <Icon as={playing ? Pause : Play} size={16} fill="currentColor" strokeWidth={0} className={playing ? '' : 'translate-x-[1px]'} />
         </button>
-        <IconButton icon={RotateCcw} label="−5 s" onClick={() => player.skip(-5)} />
-        <IconButton icon={RotateCw} label="+5 s" onClick={() => player.skip(5)} />
+        <IconButton icon={RotateCcw} label={withBack('−5 s')} onClick={() => player.skip(-5)} />
+        <IconButton icon={RotateCw} label={withForward('+5 s')} onClick={() => player.skip(5)} />
         <TimeReadout />
         </div>
         <div className="ml-auto flex items-center gap-1.5 @max-md:ml-0 @max-md:w-full @max-md:justify-between">
@@ -174,31 +179,17 @@ function Timeline() {
 }
 
 /**
- * Space = play/pause, ←/→ = ∓5 s, M = add a mark, outside text inputs. `target` = which window listens
- * (the main window, or the always-on-top OS window when the player lives there).
+ * Play/pause, ∓5 s and a mark (Space, ←/→, M by default; Settings → Hotkeys), outside text inputs. `target` = which
+ * window listens (the main window, or the always-on-top OS window when the player lives there).
  */
 export function usePlayerHotkeys(target: Window | null, enabled = true) {
   const { add } = useBookmarks()
-  const addRef = useRef(add)
-  useEffect(() => {
-    addRef.current = add
-  })
-  useEffect(() => {
-    if (!target || !enabled) return
-    const onKey = (e: KeyboardEvent) => {
-      if (isTyping(e) || e.metaKey || e.ctrlKey || e.altKey) return
-      if (e.code === 'KeyM' && target === window && !document.querySelector('[role="dialog"][aria-modal="true"]')) {
-        e.preventDefault()
-        void addRef.current()
-      } else if (e.code === 'Space') {
-        e.preventDefault()
-        player.toggle()
-      } else if (e.code === 'ArrowLeft') player.skip(-5)
-      else if (e.code === 'ArrowRight') player.skip(5)
-    }
-    target.addEventListener('keydown', onKey)
-    return () => target.removeEventListener('keydown', onKey)
-  }, [target, enabled])
+  const opts = { target, enabled }
+  useHotkey('player.toggle', () => player.toggle(), opts)
+  useHotkey('player.back', () => player.skip(-5), { ...opts, repeat: true })
+  useHotkey('player.forward', () => player.skip(5), { ...opts, repeat: true })
+  // a mark asks for its name in a dialog of the main window: not from the player window, not over another dialog
+  useHotkey('player.mark', () => void add(), { ...opts, when: () => target === window && !document.querySelector('[role="dialog"][aria-modal="true"]') })
 }
 
 // ---------------------------------------------------------------- page player
@@ -209,6 +200,7 @@ export function MediaPlayer() {
   const audioUrl = usePlayer((s) => s.audioUrl)
   const videoUrl = usePlayer((s) => s.videoUrl)
   const display = usePlayer((s) => s.display)
+  const focusKey = useHotkeyLabel('lesson.focus')
 
   // hotkeys belong to the page only while the video is on the page; a window binds its own
   usePlayerHotkeys(window, display === 'inline')
@@ -250,7 +242,7 @@ export function MediaPlayer() {
             )}
             <IconButton
               icon={focusMode ? Minimize2 : Maximize2}
-              label={focusMode ? t('player.unfocus') : t('player.focus')}
+              label={focusMode ? `${t('player.unfocus')} (${[focusKey, 'Esc'].filter(Boolean).join(' / ')})` : focusKey ? `${t('player.focus')} (${focusKey})` : t('player.focus')}
               active={focusMode}
               onClick={() => setFocusMode((v) => !v)}
             />

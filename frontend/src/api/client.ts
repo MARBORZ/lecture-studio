@@ -1,6 +1,6 @@
 import type {
   AIProvider, AskRequest, Attachment, DiaryCategory, DiaryEntry, ExportResult, Job, JobOptions, Lesson, LessonFull, LessonPatch, LessonStatus,
-  PathCheckResult, PipelineDefaults, Project, PromptView, ProjectCreate, ProjectPatch, ProviderInfo, SessionInfo, SessionPatch, SettingsPatch, SettingsView, SystemStatus,
+  HotkeyCheck, PathCheckResult, PipelineDefaults, Project, PromptView, ProjectCreate, ProjectPatch, ProviderInfo, SessionInfo, SessionPatch, SettingsPatch, SettingsView, SystemStatus,
   Thread, ThreadKind, ComputeStatus, MediaInfo, UninstallPlan, UpdateInfo, FeedbackDraft, FeedbackFile, FeedbackSend, FeedbackResult,
 } from './types'
 import { tr } from '@/i18n'
@@ -110,6 +110,7 @@ export const api = {
   resetPrompt: (key: string) => request<PromptView[]>('DELETE', `/api/settings/prompts/${key}`),
   testKey: (provider: AIProvider) => request<{ ok: boolean; model: string; error?: string }>('POST', '/api/settings/test-key', { provider }),
   checkPath: (path: string) => request<PathCheckResult>('POST', '/api/settings/check-path', { path }),
+  checkHotkey: (action: string, combo: string) => request<HotkeyCheck>('POST', '/api/settings/hotkeys/check', { action, combo }),
   changeDataDir: (path: string, mode: 'attach' | 'move') => request<SettingsView>('POST', '/api/settings/data-dir', { path, mode }),
 
   // projects

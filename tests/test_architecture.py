@@ -62,6 +62,23 @@ def test_hotkeys_match_physical_keys():
     assert offenders(FRONT, ["*.ts", "*.tsx"], r"\.key(\.toLowerCase\(\))?\s*===\s*'[A-Za-zА-Яа-я]'") == []
 
 
+def test_hotkeys_only_through_the_registry():
+    # a key comparison of its own (e.code === 'KeyM') would not follow Settings → Hotkeys: bind with useHotkey
+    assert offenders(FRONT, ["*.ts", "*.tsx"], r"\.code\s*[!=]==", {"frontend/src/lib/hotkeys.ts"}) == []
+    assert offenders(FRONT, ["*.ts", "*.tsx"], r"\bisHotkey\(") == []
+
+
+def test_hotkey_actions_match_the_backend_catalog():
+    from backend.settings.hotkeys import ACTIONS
+
+    registry = (FRONT / "lib" / "hotkeys.ts").read_text("utf-8")
+    ids = re.search(r"HOTKEY_ACTIONS = \[(.*?)\] as const", registry, re.S).group(1)
+    assert re.findall(r"'([^']+)'", ids) == list(ACTIONS)
+    for lang in ("ru", "en"):
+        strings = (FRONT / "i18n" / f"{lang}.ts").read_text("utf-8")
+        assert [a for a in ACTIONS if f"'hotkey.action.{a}':" not in strings] == [], lang
+
+
 def test_monochrome_palette_only_tokens():
     assert offenders(FRONT, ["*.tsx", "*.ts"], r"#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(") == []
 

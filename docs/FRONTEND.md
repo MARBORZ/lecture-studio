@@ -21,7 +21,7 @@ Motion for animation. Geist / Geist Mono fonts are bundled; no external CDNs.
 
 ## Layout and keyboard
 
-- **Sidebar**: ⌘B / Ctrl+B or the panel button collapses it to an icon rail (notebooks become monograms);
+- **Sidebar**: its hotkey (⌘B / Ctrl+B by default) or the panel button collapses it to an icon rail (notebooks become monograms);
   the state is remembered per browser.
 - **Lesson**: a splitter between the video and the content sets the video width (drag, ←/→, double-click to reset;
   remembered). **Focus mode** (player button or **F**, Esc to leave) hides the sidebar, the lesson header and everything
@@ -69,8 +69,14 @@ Tailwind container queries (`@container` on the column, `@md:` / `@xl:` / `@4xl:
 outline shows only when its column is wide enough, paddings shrink in a narrow column, the player bar becomes two full rows.
 Container queries style descendants only — paddings live on an inner wrapper.
 
-Hotkeys match physical keys (`e.code` via `lib/keys.ts:isHotkey`): with a Cyrillic layout Ctrl+B types "и" on Windows.
-Labels are platform-aware (`shortcutLabel`: ⌘B on macOS, Ctrl+B elsewhere). `tests/test_architecture.py` enforces it.
+Hotkeys live in one registry, `lib/hotkeys.ts`: the action ids (the same as the backend catalog,
+`backend/settings/hotkeys.py`), matching by the physical key (`e.code`: with a Cyrillic layout Ctrl+B types "и" on
+Windows) with exactly the combination's modifiers, and labels (⌃⌥⇧⌘ on macOS, Ctrl+Alt+Shift elsewhere). Components bind
+an action with `useHotkey(id, handler, { target, repeat, when })` (`features/hotkeys/useHotkey.ts`); combinations without
+⌘/Ctrl stay quiet in text fields, those with them only in rich editors. Labels and hints read the current combination
+(`useHotkeyLabel`, `useWithHotkey`). Settings → Hotkeys (`features/hotkeys/HotkeysSettings.tsx`) records a combination,
+asks `POST /api/settings/hotkeys/check` and saves it; Esc, Enter, ⌘Enter and paste stay fixed. `tests/test_architecture.py`
+forbids key comparisons outside the registry and keeps the ids and their labels in sync.
 
 ## Appearance
 

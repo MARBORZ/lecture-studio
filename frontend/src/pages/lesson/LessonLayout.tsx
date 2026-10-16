@@ -21,6 +21,7 @@ import { formatCount, formatDuration, storage } from '@/lib/format'
 import { collapse } from '@/lib/motion'
 import { extractChapters, findActiveIndex, formatTc } from '@/lib/time'
 import { useResource } from '@/lib/useResource'
+import { useHotkey } from '@/features/hotkeys/useHotkey'
 import { isTyping } from '@/lib/keys'
 
 export interface LessonContext {
@@ -55,12 +56,12 @@ export function LessonLayout() {
     focus: storage.get<number>(WIDTH.focus.key, WIDTH.focus.initial),
   }))
 
-  // Focus mode: F toggles, Esc leaves (unless a dialog is open); leaving the lesson always ends it.
+  // Focus mode: its hotkey toggles (F by default), Esc leaves (unless a dialog is open); leaving the lesson always ends it.
+  useHotkey('lesson.focus', () => setFocusMode((v) => !v))
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (isTyping(e) || e.metaKey || e.ctrlKey || e.altKey) return
-      if (e.code === 'KeyF' && !e.shiftKey) setFocusMode((v) => !v) // physical F: works in any layout
-      else if (e.key === 'Escape' && !modals.length) setFocusMode(false)
+      if (e.key === 'Escape' && !modals.length) setFocusMode(false)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)

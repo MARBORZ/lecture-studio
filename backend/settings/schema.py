@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from backend.settings.hotkeys import HotkeyProblem, HotkeyScope
+
 AuditMode = Literal["srt_timecodes", "clean_summary"]
 VideoResolution = Literal["1080p", "720p", "original"]
 AIProviderName = Literal["deepseek", "gemini"]
@@ -128,6 +130,7 @@ class AppSettings(BaseModel):
     ai: AISettings = Field(default_factory=AISettings)
     pipeline: PipelineDefaults = Field(default_factory=PipelineDefaults)
     prompts: dict[str, str] = Field(default_factory=dict)  # overrides of editable prompt blocks only
+    hotkeys: dict[str, str] = Field(default_factory=dict)  # overrides only (settings/hotkeys.py); "" = off
 
 
 # ---------- API views ----------
@@ -160,6 +163,25 @@ class PathsView(BaseModel):
     logs_dir: str
 
 
+class HotkeyView(BaseModel):
+    id: str
+    scope: HotkeyScope
+    default: str
+    combo: str  # what is bound now ("" = off)
+
+
+class HotkeyCheckRequest(BaseModel):
+    action: str
+    combo: str
+
+
+class HotkeyCheck(BaseModel):
+    ok: bool
+    combo: str  # normalized
+    problem: HotkeyProblem | None = None
+    other: str = ""  # the action it conflicts with
+
+
 class SettingsView(BaseModel):
     ui_language: UILanguage
     onboarding_done: bool
@@ -172,6 +194,7 @@ class SettingsView(BaseModel):
     paths: PathsView
     ai: AISettingsView
     pipeline: PipelineDefaults
+    hotkeys: list[HotkeyView]
 
 
 class AISettingsPatch(BaseModel):
@@ -197,6 +220,7 @@ class SettingsPatch(BaseModel):
     compute: ComputeSettings | None = None
     ai: AISettingsPatch | None = None
     pipeline: PipelineDefaults | None = None
+    hotkeys: dict[str, str | None] | None = None  # merged; None = back to the default, "" = off
 
 
 class PathCheckRequest(BaseModel):
