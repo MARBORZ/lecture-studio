@@ -6,6 +6,7 @@ Export a lesson into a local folder (Obsidian vault layout):
 import logging
 from pathlib import Path
 
+from backend.i18n import tr
 from backend.models.lesson import ExportResult
 from backend.services.jobs import JobRegistry
 from backend.services.storage import Artifacts, Library
@@ -39,10 +40,10 @@ def export_lesson(
 ) -> ExportResult:
     lesson = Library.get_lesson(lesson_id)
     if not lesson:
-        raise FileNotFoundError(f"Урок {lesson_id} не найден")
+        raise FileNotFoundError(tr("export.lesson_not_found", id=lesson_id))
     target = target_dir or SettingsService.get().export_dir
     if not target:
-        raise ValueError("Не задана папка экспорта: Настройки → Пути")
+        raise ValueError(tr("export.no_folder"))
 
     src = Library.lesson_dir(lesson)
     base = ensure_dir(to_path(target))

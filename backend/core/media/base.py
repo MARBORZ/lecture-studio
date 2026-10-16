@@ -11,6 +11,7 @@ from collections.abc import Sequence
 from functools import lru_cache
 from typing import Any
 
+from backend.i18n import tr
 from backend.utils.fs import PathLike
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ def has_encoder(name: str) -> bool:
 
 def verify_ffmpeg() -> None:
     if not ffmpeg_available():
-        raise RuntimeError("FFmpeg/FFprobe не найдены в PATH. Установите: brew install ffmpeg")
+        raise RuntimeError(tr("media.no_ffmpeg"))
 
 
 class MediaError(ValueError):
@@ -49,7 +50,7 @@ def run_ffmpeg(cmd: list[str], desc: str) -> None:
     proc = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
     if proc.returncode != 0:
         lines = [line.strip() for line in (proc.stderr or "").splitlines() if line.strip()]
-        raise RuntimeError(f"FFmpeg ({desc}): {' | '.join(lines[-4:])[-500:] or f'код {proc.returncode}'}")
+        raise RuntimeError(tr("media.ffmpeg_failed", what=desc, detail=" | ".join(lines[-4:])[-500:] or tr("media.exit_code", code=proc.returncode)))
 
 
 def check_input(path: PathLike) -> float:
@@ -58,11 +59,11 @@ def check_input(path: PathLike) -> float:
     try:
         data = ffprobe_json(path, "-show_entries", "stream=codec_type:format=duration")
     except RuntimeError as e:
-        raise MediaError(f"FFmpeg не может прочитать файл ({e}). Возможно, он повреждён или скачан не полностью.") from e
+        raise MediaError(tr("media.unreadable", error=e)) from e
     kinds = {s.get("codec_type") for s in data.get("streams", [])}
     if "audio" not in kinds:
-        hint = " Похоже на поток, скачанный с YouTube: там видео и звук — отдельные файлы. Скачайте версию со звуком." if "video" in kinds else ""
-        raise MediaError(f"В файле нет звуковой дорожки — обрабатывать нечего.{hint}")
+        hint = tr("media.youtube_hint") if "video" in kinds else ""
+        raise MediaError(tr("media.no_audio", hint=hint))
     return float(data.get("format", {}).get("duration") or 0.0)
 
 

@@ -6,13 +6,15 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from backend.api.routes import assistant, diary, jobs, lessons, projects, settings, system
 from backend.config import APP_NAME, APP_VERSION, FRONTEND_ORIGINS, PID_FILE
 from backend.core.media import ffmpeg_available
 from backend.services import updates
+from backend.services.jobs import QueueFull
 from backend.services.migration import migrate_all
 from backend.services.storage import Library
 from backend.settings import paths
@@ -64,5 +66,10 @@ def create_app() -> FastAPI:
 
     for module in (system, settings, projects, lessons, jobs, assistant, diary):
         app.include_router(module.router)
+
+    @app.exception_handler(QueueFull)
+    def queue_full(_: Request, e: QueueFull) -> JSONResponse:  # every route that starts a job
+        return JSONResponse(status_code=429, content={"detail": str(e)})
+
     return app
 

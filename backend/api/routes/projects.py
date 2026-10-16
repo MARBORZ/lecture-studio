@@ -6,6 +6,7 @@ Projects (= notebooks).
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 
+from backend.i18n import tr
 from backend.models.project import INBOX_ID, Project, ProjectCreate, ProjectPatch
 from backend.services import covers
 from backend.services.storage import Library
@@ -27,16 +28,16 @@ def create_project(data: ProjectCreate) -> Project:
 def patch_project(project_id: str, patch: ProjectPatch) -> Project:
     project = Library.patch_project(project_id, patch)
     if not project:
-        raise HTTPException(404, detail="Блокнот не найден")
+        raise HTTPException(404, detail=tr("project.not_found"))
     return project
 
 
 @router.delete("/{project_id}")
 def delete_project(project_id: str) -> dict:
     if project_id == INBOX_ID:
-        raise HTTPException(400, detail="Входящие удалить нельзя")
+        raise HTTPException(400, detail=tr("project.inbox_delete"))
     if not Library.delete_project(project_id):
-        raise HTTPException(404, detail="Блокнот не найден")
+        raise HTTPException(404, detail=tr("project.not_found"))
     return {"ok": True}
 
 
@@ -47,7 +48,7 @@ async def set_cover(project_id: str, request: Request) -> Project:
     async for chunk in request.stream():
         data += chunk
         if len(data) > covers.MAX_BYTES:
-            raise HTTPException(413, detail="Картинка больше 10 МБ")
+            raise HTTPException(413, detail=tr("cover.too_big"))
     try:
         return covers.save(project_id, bytes(data))
     except LookupError as e:
@@ -68,7 +69,7 @@ def delete_cover(project_id: str) -> Project:
 def get_cover(project_id: str) -> FileResponse:
     found = covers.file_for(project_id)
     if not found:
-        raise HTTPException(404, detail="Нет обложки")
+        raise HTTPException(404, detail=tr("cover.none"))
     path, mime = found
     # the file name changes with the image, so the URL (?v=<name>) can be cached for good
     return FileResponse(path, media_type=mime, headers={"Cache-Control": "public, max-age=31536000, immutable"})

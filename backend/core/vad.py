@@ -8,6 +8,8 @@ import numpy as np
 import soundfile as sf
 import torch
 
+from backend.i18n import tr
+
 logger = logging.getLogger(__name__)
 
 SAMPLE_RATE = 16000
@@ -40,7 +42,7 @@ def detect_speech(
     if data.ndim > 1:
         data = data.mean(axis=1)
     if sr != SAMPLE_RATE:
-        raise ValueError(f"VAD ожидает {SAMPLE_RATE} Гц, получено {sr}")
+        raise ValueError(tr("media.vad_rate", expected=SAMPLE_RATE, got=sr))
 
     stamps = get_speech_timestamps(
         torch.from_numpy(np.ascontiguousarray(data)),

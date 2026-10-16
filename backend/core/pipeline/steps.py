@@ -24,6 +24,7 @@ from backend.core.media import (
 from backend.core.timeline import TimeMap, frame_snap
 from backend.core.transcription import compact_transcript, segments_from_clean, write_transcripts
 from backend.core.vad import detect_speech
+from backend.i18n import tr
 from backend.models.job import JobOptions, JobStats, Stage
 from backend.models.lesson import SCHEMA_VERSION, Lesson
 from backend.models.transcript import Segment
@@ -94,7 +95,7 @@ class JobContext:
         if not self.raw_wav.is_file():
             source = Library.media_file(self.lesson, "audio") if self.lesson else None
             if not source:
-                raise FileNotFoundError("Нет аудио для распознавания: исходный файл не найден по сохранённому пути")
+                raise FileNotFoundError(tr("step.no_speech_audio"))
             extract_wav(source, self.raw_wav)
         return str(self.raw_wav)
 
@@ -132,7 +133,7 @@ class ExtractAudioStep(PipelineStep):
     weight = 1
 
     def execute(self, ctx, progress):
-        progress(0, "Извлечение аудио")
+        progress(0, tr("step.extract"))
         check_input(ctx.media_path)  # also guards paths that skip the API check (MCP, tests)
         ctx.fps = probe_video(ctx.media_path) if ctx.options.video != "none" else None
         ctx.orig_duration = extract_wav(ctx.media_path, ctx.raw_wav, ctx.options.enhance_audio)
@@ -150,7 +151,7 @@ class DetectSpeechStep(PipelineStep):
         return ctx.options.cut_silence
 
     def execute(self, ctx, progress):
-        progress(0, "Поиск речи (Silero VAD)")
+        progress(0, tr("step.vad"))
         o = ctx.options
         spans = detect_speech(str(ctx.raw_wav), o.vad_threshold, o.min_silence_ms, o.speech_pad_ms)
         # Same frame-aligned spans drive audio and video, so both clean timelines match exactly.
@@ -165,7 +166,7 @@ class BuildCleanAudioStep(PipelineStep):
         if not ctx.spans:
             ctx.spans = [(0.0, ctx.orig_duration)]  # nothing cut
         if ctx.options.keeps_audio_file:
-            progress(0, "Сборка чистого аудио" if ctx.options.cut_silence else "Сжатие аудио")
+            progress(0, tr("step.clean_audio" if ctx.options.cut_silence else "step.compress_audio"))
             res = AudioProcessor().process(ctx.raw_wav, ctx.lesson_dir / Artifacts.AUDIO, ctx.spans)
             time_map, clean = res["time_map"], res["clean_duration_sec"]
         else:  # the original recording plays as is: no audio copy, the timeline is the file's own
@@ -196,7 +197,7 @@ class BuildVideoStep(PipelineStep):
             self._encode(ctx, progress)
 
     def _keep_original(self, ctx, progress):
-        progress(0, "Оригинал без перекодирования")
+        progress(0, tr("step.keep_original"))
         source = Path(ctx.media_path)
         if ctx.is_uploaded:  # an upload is already a copy: move it into the lesson (same disk, no second copy)
             name = f"original{source.suffix.lower()}"
@@ -209,7 +210,7 @@ class BuildVideoStep(PipelineStep):
         ctx.stats.has_video = ctx.has_video_source
         problem = browser_playback_problem(Library.original_path_of(ctx.lesson_dir, ctx.original_file))
         if problem:
-            ctx.warn(f"Браузер может не воспроизвести оригинал ({problem}). Если плеер не играет — обработайте заново с видео «Сжатая копия».")
+            ctx.warn(tr("step.original_unplayable", problem=problem))
 
     def _encode(self, ctx, progress):
         from backend.core import compute
@@ -217,16 +218,16 @@ class BuildVideoStep(PipelineStep):
 
         c = SettingsService.get().compute
         encoder = pick_encoder(compute.plan(c.device, c.cpu_threads).backend)
-        label = "NVENC, видеокарта" if encoder == "nvenc" else "x264, процессор"
-        what = "Монтаж видео" if ctx.options.video == "clean" else "Сжатие видео"
-        progress(0, f"{what} ({label}, качество {ctx.options.video_crf}, {ctx.options.video_resolution})")
+        label = tr("step.encoder_gpu" if encoder == "nvenc" else "step.encoder_cpu")
+        what = tr("step.video_edit" if ctx.options.video == "clean" else "step.video_compress")
+        progress(0, tr("step.video_progress", what=what, encoder=label, crf=ctx.options.video_crf, resolution=ctx.options.video_resolution))
         spans = ctx.spans if ctx.options.cut_silence else []  # [] = the whole video, nothing cut
         try:
             res = VideoProcessor(ctx.options.video_crf, ctx.options.video_resolution, encoder=encoder).process(
                 ctx.media_path, ctx.lesson_dir / Artifacts.VIDEO, spans
             )
         except Exception as e:
-            ctx.warn(f"Видео не собрано, аудио сохранено: {e}")
+            ctx.warn(tr("step.video_failed", error=e))
             return
         ctx.stats.has_video = True
         ctx.stats.orig_video_size_mb = res["orig_size_mb"]
@@ -235,7 +236,7 @@ class BuildVideoStep(PipelineStep):
         ctx.stats.video_encoder = res["encoder"]
         ctx.stats.av_drift_sec = round(res["duration_sec"] - ctx.clean_duration, 3)
         if abs(ctx.stats.av_drift_sec) > 0.5:
-            ctx.warn(f"Расхождение длительности видео и аудио: {ctx.stats.av_drift_sec:+.2f} с")
+            ctx.warn(tr("step.av_drift", drift=ctx.stats.av_drift_sec))
 
 
 class TranscribeStep(PipelineStep):
@@ -260,7 +261,7 @@ class TranscribeStep(PipelineStep):
             if self.strict:
                 raise
             ctx.segments = []
-            ctx.warn(f"Стенограмма не создана: {e} Аудио и видео сохранены — «Распознать речь» в уроке повторит только этот шаг.")
+            ctx.warn(tr("step.transcript_failed", error=e))
             logger.warning("transcription failed, lesson saved without it: %s", e, exc_info=True)
 
     def _transcribe(self, ctx, progress):
@@ -268,17 +269,17 @@ class TranscribeStep(PipelineStep):
         audio = ctx.speech_audio()
 
         def on_progress(f):
-            return progress(f, f"Транскрибация {int(f * 100)}%")
+            return progress(f, tr("step.transcribe_pct", pct=int(f * 100)))
 
         if o.transcriber == "gemini":
             from backend.core.transcription import gemini
 
             key = SettingsService.api_key("gemini")
             if not key:
-                raise ValueError("Нет API-ключа Gemini. Настройки → ИИ")
+                raise ValueError(tr("ai.no_key", provider="Gemini"))
             if audio.endswith(".wav"):  # Eco: no MP3 of its own; the cloud gets a compact copy, not a 16 kHz WAV
                 audio = str(encode_mp3(audio, ctx.work_dir / "speech.mp3"))
-            progress(0, f"Транскрибация (Gemini {ai.gemini_model})")
+            progress(0, tr("step.transcribe_gemini", model=ai.gemini_model))
             raw = gemini.transcribe(
                 audio, ctx.clean_duration, key, ai.gemini_model, ctx.work_dir, o.language, o.custom_vocabulary, ctx.check_cancelled, on_progress,
             )
@@ -288,8 +289,8 @@ class TranscribeStep(PipelineStep):
 
             c = SettingsService.get().compute
             plan = compute.plan(c.device, c.cpu_threads)
-            where = {"cuda": f"GPU {plan.gpu_name}", "apple": "GPU Apple"}.get(plan.backend, f"CPU, {plan.threads} потоков")
-            progress(0, f"Транскрибация (Whisper {ai.whisper_model}, {where})")
+            where = {"cuda": f"GPU {plan.gpu_name}", "apple": "GPU Apple"}.get(plan.backend, tr("step.cpu_threads", n=plan.threads))
+            progress(0, tr("step.transcribe_whisper", model=ai.whisper_model, where=where))
             raw = whisper.transcribe(
                 audio, ctx.clean_duration, ai.whisper_model, o.language, o.custom_vocabulary, ctx.check_cancelled, on_progress, plan=plan,
             )
@@ -318,7 +319,7 @@ class GenerateAuditStep(PipelineStep):
         o = ctx.options
         provider_name = o.audit
         if not SettingsService.api_key(provider_name):
-            return self._fail(ctx, ValueError(f"Нет API-ключа {provider_name}. Настройки → ИИ"), "Нет ключа — аудит не создан")
+            return self._fail(ctx, ValueError(tr("ai.no_key", provider=provider_name)), tr("step.audit_no_key"))
         timed = o.audit_mode == "srt_timecodes"
         provider = AI.get(provider_name)
         lang = language.resolve(o.output_language, SettingsService.get().ui_language, ctx.speech_language)
@@ -332,18 +333,18 @@ class GenerateAuditStep(PipelineStep):
                 raise
             except Exception as e:
                 if self.strict or not ctx.segments:
-                    return self._fail(ctx, e, "Аудит по видео не создан")
-                ctx.warn(f"Аудит по видео не удался ({e}) — сделан по стенограмме.")
+                    return self._fail(ctx, e, tr("step.audit_video_failed"))
+                ctx.warn(tr("step.audit_video_fallback", error=e))
         if not ctx.segments:
-            ctx.warn("Стенограмма пуста — аудит не создан")
+            ctx.warn(tr("step.audit_empty_transcript"))
             return
         try:
-            progress(0, f"Аудит ({provider_name} {provider.model})")
+            progress(0, tr("step.audit", provider=provider_name, model=provider.model))
             md = provider.generate_audit(compact_transcript(ctx.segments), ctx.clean_duration, timed, progress, language=lang)
         except JobCancelled:
             raise
         except Exception as e:
-            return self._fail(ctx, e, "Аудит не создан")
+            return self._fail(ctx, e, tr("step.audit_failed"))
         write_text(ctx.lesson_dir / Artifacts.AUDIT, md)
 
     def _fail(self, ctx, error: Exception, label: str) -> None:
@@ -355,15 +356,15 @@ class GenerateAuditStep(PipelineStep):
     def _from_video(ctx, provider, timed: bool, progress, lang: str) -> str:
         """The lesson's own video if it has one (already on the clean timeline), else the original recording."""
         if not getattr(provider, "can_watch_video", False):
-            raise ValueError(f"{provider.category} не принимает видео — выберите Gemini")
+            raise ValueError(tr("step.no_video_audit", provider=provider.category))
         source = Library.media_file(ctx.lesson, "video") if ctx.lesson else None
         if source is None:
             own = ctx.lesson_dir / Artifacts.VIDEO
             original = Library.original_path_of(ctx.lesson_dir, ctx.original_file) if ctx.original_file and ctx.original_kind == "video" else None
             source = own if own.is_file() else original
         if source is None or not Path(source).is_file():
-            raise FileNotFoundError("Нет видео для анализа: включите видео в обработке")
-        progress(0, "Аудит по видео: подготовка лёгкой копии")
+            raise FileNotFoundError(tr("step.no_video_file"))
+        progress(0, tr("step.video_proxy"))
         ctx.work_dir.mkdir(parents=True, exist_ok=True)  # Gemini transcription may have cleaned it up
         proxy = make_analysis_proxy(source, ctx.work_dir / "analysis.mp4")
         segments = ctx.segments
@@ -379,13 +380,13 @@ class SaveLessonStep(PipelineStep):
     weight = 0.5
 
     def execute(self, ctx, progress):
-        progress(0, "Сохранение урока")
+        progress(0, tr("step.save"))
         o = ctx.options
         base = ctx.lesson or Lesson(
             id=f"less_{ctx.job_id}",
             job_id=ctx.job_id,
             project_id=o.project_id,
-            title=o.lesson_title.strip() or f"Урок {ctx.job_id}",
+            title=o.lesson_title.strip() or tr("lesson.default_title", id=ctx.job_id),
             notes=o.notes,
             status="in_progress" if ctx.segments else "to_review",
         )
@@ -408,7 +409,7 @@ class SaveLessonStep(PipelineStep):
             try:
                 export_lesson(ctx.lesson.id, raw_wav=ctx.raw_wav)
             except Exception as e:
-                ctx.warn(f"Экспорт не выполнен: {e}")
+                ctx.warn(tr("step.export_failed", error=e))
 
 
 PROCESS_STEPS: list[PipelineStep] = [

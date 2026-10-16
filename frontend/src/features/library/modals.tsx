@@ -36,7 +36,8 @@ export function ProjectFormModal({ project, close }: { project?: Project; close:
   const [cover, setCover] = useState<File | null | undefined>(undefined)
   const { busy, onSubmit } = useSubmit(async () => {
     const id = project ? project.id : (await createProject({ name, description })).id
-    if (project) await patchProject(project.id, { name, description })
+    // only what changed: an untouched Inbox keeps following the interface language
+    if (project) await patchProject(project.id, { ...(name !== project.name && { name }), ...(description !== project.description && { description }) })
     if (cover !== undefined) await setProjectCover(id, cover)
     if (!project) navigate(`/library/${id}`)
     close()

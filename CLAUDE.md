@@ -38,7 +38,7 @@ Spec: [docs/MCP_REFERENCE.md](docs/MCP_REFERENCE.md).
 5. **Frontend: one provider, no duplicate components.** `AppProvider` (`useUI` / `useLibrary` / `useJobs`); the player is an
    external store (`features/player/store.ts`). UI primitives in `components/ui`, loading states in `components/skeleton`,
    animation only through `components/motion` + `lib/motion.ts`. Monochrome palette, lucide SVG icons via `components/Icon.tsx`.
-   Strings in `i18n/ru.ts` + `en.ts`.
+   Strings in `i18n/ru.ts` + `en.ts`; server texts the user reads go through `backend/i18n.py` (`tr`), logs stay as they are.
 6. **Processes and platforms:** process handling only via `backend/utils/proc.py` (psutil, macOS/Windows/Linux).
    Windows scripts: `.ps1` in UTF-8 with BOM, CRLF (see `.gitattributes`); shared helpers in `launcher/windows/common.ps1`.
 7. **Diary** — `services/diary.py`: plain `.md` files in `<data_dir>/diary/<category>/`, no index (files are the source of truth).

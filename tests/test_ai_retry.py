@@ -7,6 +7,7 @@ import pytest
 from google.genai import errors
 
 from backend.core.ai.retry import DELAYS, AIUnavailable, ProviderHTTPError, with_retry
+from backend.i18n import tr
 
 OVERLOADED = {"error": {"code": 503, "message": "The model is overloaded. Please try again later.", "status": "UNAVAILABLE"}}
 
@@ -45,7 +46,7 @@ def test_exhausted_retries_explain_in_plain_words():
     with pytest.raises(AIUnavailable) as e:
         with_retry(fn, "Gemini", sleep=lambda s: None)
     assert calls["n"] == len(DELAYS) + 1
-    assert "Gemini перегружен (503)" in str(e.value) and "Whisper" in str(e.value) and "{'error'" not in str(e.value)
+    assert tr("retry.overloaded", provider="Gemini") in str(e.value) and "Whisper" in str(e.value) and "{'error'" not in str(e.value)
 
 
 def test_waiting_stays_cancellable():

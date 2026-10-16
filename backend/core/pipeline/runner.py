@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from backend.core.pipeline.steps import AUDIT_STEPS, PROCESS_STEPS, TRANSCRIBE_STEPS, JobContext, PipelineStep
 from backend.core.timeline import TimeMap
 from backend.core.transcription import load_segments
+from backend.i18n import tr
 from backend.models.job import Job, JobOptions, Stage
 from backend.models.lesson import Lesson
 from backend.services.jobs import JobCancelled, JobRegistry
@@ -63,14 +64,14 @@ def _execute(job: Job, steps: list[PipelineStep], ctx: JobContext) -> None:
     try:
         LecturePipeline(steps).run(job, ctx)
         JobRegistry.update(
-            job.id, status="completed", stage="done", progress=100, message="Готово",
+            job.id, status="completed", stage="done", progress=100, message=tr("job.done"),
             stats=ctx.stats, warning=ctx.warning, lesson_id=ctx.lesson.id if ctx.lesson else None,
         )
     except JobCancelled:
-        JobRegistry.update(job.id, status="cancelled", message="Отменено")
+        JobRegistry.update(job.id, status="cancelled", message=tr("job.cancelled"))
     except Exception as e:
         logger.error("[%s] failed: %s", job.id, e, exc_info=True)
-        JobRegistry.update(job.id, status="error", error=str(e), message="Ошибка")
+        JobRegistry.update(job.id, status="error", error=str(e), message=tr("job.failed"))
     finally:
         ctx.cleanup()
 
@@ -80,7 +81,7 @@ def _stages(steps: list[PipelineStep], options: JobOptions) -> list[Stage]:
 
 
 def start_processing(options: JobOptions, media_path: str, is_uploaded: bool) -> Job:
-    title = options.lesson_title.strip() or "Новый урок"
+    title = options.lesson_title.strip() or tr("job.new_lesson")
     job = JobRegistry.create("process", title, _stages(PROCESS_STEPS, options))
     ctx = JobContext(job.id, options, media_path, is_uploaded, cancel_check=lambda: JobRegistry.is_cancel_requested(job.id))
     _executor.submit(_execute, job, PROCESS_STEPS, ctx)
@@ -89,7 +90,7 @@ def start_processing(options: JobOptions, media_path: str, is_uploaded: bool) ->
 
 def start_transcription(lesson: Lesson, options: JobOptions) -> Job:
     """Recognize speech of an existing lesson from its clean audio (media is not redone), then the audit if enabled."""
-    job = JobRegistry.create("process", f"Распознавание: {lesson.title}", _stages(TRANSCRIBE_STEPS, options))
+    job = JobRegistry.create("process", tr("job.transcribe_title", title=lesson.title), _stages(TRANSCRIBE_STEPS, options))
     ctx = JobContext(job.id, options, lesson=lesson, cancel_check=lambda: JobRegistry.is_cancel_requested(job.id))
     ctx.time_map = TimeMap(read_json(ctx.lesson_dir / Artifacts.TIME_MAP, default=[]) or [])
     _executor.submit(_execute, job, TRANSCRIBE_STEPS, ctx)
@@ -98,7 +99,7 @@ def start_transcription(lesson: Lesson, options: JobOptions) -> Job:
 
 def start_audit(lesson: Lesson, provider: str, audit_mode: str, source: str = "transcript", output_language: str = "interface") -> Job:
     options = JobOptions(audit=provider, audit_mode=audit_mode, audit_source=source, video="clean", output_language=output_language)
-    job = JobRegistry.create("audit", f"Аудит: {lesson.title}", _stages(AUDIT_STEPS, options))
+    job = JobRegistry.create("audit", tr("job.audit_title", title=lesson.title), _stages(AUDIT_STEPS, options))
     ctx = JobContext(job.id, options, lesson=lesson, cancel_check=lambda: JobRegistry.is_cancel_requested(job.id))
     ctx.segments = load_segments(ctx.lesson_dir)
     _executor.submit(_execute, job, AUDIT_STEPS, ctx)

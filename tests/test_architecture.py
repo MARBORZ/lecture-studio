@@ -3,7 +3,9 @@ Project rules from CLAUDE.md, checked on every test run so the code keeps its sh
 Each rule says where something lives; a failure names the file that broke it.
 """
 
+import ast
 import re
+import string
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -88,3 +90,59 @@ def test_subprocess_text_is_decoded_as_utf8():
             if re.search(r"\btext=True|universal_newlines=True", call) and "encoding=" not in call:
                 bad.append(str(p.relative_to(ROOT)))
     assert bad == []
+
+
+CYRILLIC = re.compile(r"[А-Яа-яЁё]")
+
+
+def _docstrings(tree: ast.AST) -> set[int]:
+    ids = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef) and node.body:
+            first = node.body[0]
+            if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant):
+                ids.add(id(first.value))
+    return ids
+
+
+def test_server_texts_for_the_user_live_in_i18n():
+    # what the user reads comes from backend/i18n.py in the interface language; comments and docstrings may be Russian
+    model_text = {
+        "backend/i18n.py",
+        "backend/core/ai/prompts.py",
+    }
+    stored = {  # data, not messages
+        ("backend/models/diary.py", "Входящие"),  # the diary inbox folder on disk
+        ("backend/models/lesson.py", "Урок"),  # the title of a lesson saved without one
+        ("backend/services/storage.py", "Входящие"),  # old Inbox defaults, read as "not set"
+        ("backend/services/storage.py", "Неразобранные уроки"),
+        ("backend/services/storage.py", "Неразобранные записи"),
+    }
+    bad = []
+    for p in files(BACKEND, "*.py"):
+        rel = str(p.relative_to(ROOT))
+        if rel in model_text:
+            continue
+        tree = ast.parse(p.read_text("utf-8"))
+        skip = _docstrings(tree)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in skip and CYRILLIC.search(node.value):
+                if (rel, node.value) not in stored:
+                    bad.append(f"{rel}:{node.lineno} {node.value[:40]!r}")
+    assert bad == []
+
+
+def test_server_texts_exist_in_both_languages():
+    from backend.i18n import EN, RU
+
+    assert RU.keys() == EN.keys(), RU.keys() ^ EN.keys()
+    fields = [{k: {f for _, f, _, _ in string.Formatter().parse(v) if f} for k, v in d.items()} for d in (RU, EN)]
+    assert fields[0] == fields[1]  # the same {parameters} in both
+    used = set()
+    for p in files(BACKEND, "*.py"):
+        for call in ast.walk(ast.parse(p.read_text("utf-8"))):
+            if isinstance(call, ast.Call) and isinstance(call.func, ast.Name) and call.func.id == "tr" and call.args:
+                key = call.args[0]
+                branches = [key.body, key.orelse] if isinstance(key, ast.IfExp) else [key]  # tr("a" if x else "b")
+                used |= {n.value for n in branches if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+    assert used - RU.keys() == set()  # every key the code asks for exists

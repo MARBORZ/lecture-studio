@@ -16,6 +16,8 @@ import { PromptDialog } from '@/components/ui/PromptDialog'
 import { createT, type TFunction } from '@/i18n'
 import { useAppearance } from '@/lib/appearance'
 
+const INBOX_ID = 'proj_inbox' // backend/models/project.py
+
 // ---------------------------------------------------------------- UI
 
 export type ToastKind = 'info' | 'error'
@@ -171,7 +173,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [focusMode, setFocusMode] = useState(false) // lesson focus: video + content only, sidebar and chrome hidden
 
   // ---------- library ----------
-  const [projects, setProjects] = useState<Project[]>([])
+  const [storedProjects, setProjects] = useState<Project[]>([])
+  // The Inbox stores "" until the user names it: shown in the interface language (one place for every view).
+  const projects = useMemo(
+    () => storedProjects.map((p) => (p.id === INBOX_ID ? { ...p, name: p.name || t('library.inbox'), description: p.description || t('library.inboxDescription') } : p)),
+    [storedProjects, t],
+  )
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [loading, setLoading] = useState(true)
   const refresh = useCallback(async () => {

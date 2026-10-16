@@ -16,7 +16,7 @@ def detect(text: str) -> str:
     letters = [c for c in text if c.isalpha()]
     if len(letters) < 20:
         return ""
-    cyrillic = sum("а" <= c.lower() <= "я" or c.lower() == "ё" for c in letters)
+    cyrillic = sum("\u0400" <= c <= "\u04ff" for c in letters)  # the Cyrillic block
     return "ru" if cyrillic / len(letters) > 0.3 else "en"
 
 

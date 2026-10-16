@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 
+from backend.i18n import tr
 from backend.models.assistant import AskRequest, Attachment, CompactRequest, SessionInfo, SessionPatch, Thread, ThreadKind
 from backend.services import assistant, attachments, chats
 from backend.services.jobs import JobRegistry
@@ -30,14 +31,14 @@ async def upload_attachment(filename: str, request: Request) -> Attachment:
                 async for chunk in request.stream():
                     size += len(chunk)
                     if size > attachments.MAX_BYTES:
-                        raise HTTPException(413, detail="Файл больше 500 МБ")
+                        raise HTTPException(413, detail=tr("upload.too_big"))
                     await f.write(chunk)
         except BaseException:
             remove_dir(dest.parent)
             raise
     if size == 0:
         remove_dir(dest.parent)
-        raise HTTPException(400, detail="Пустой файл")
+        raise HTTPException(400, detail=tr("file.empty"))
     return await run_in_threadpool(attachments.register, att_id, dest)
 
 
@@ -48,7 +49,7 @@ def download_attachment(att_id: str) -> FileResponse:
     except ValueError as e:
         raise HTTPException(400, detail=str(e)) from e
     if not att or not attachments.file_path(att).is_file():
-        raise HTTPException(404, detail="Вложение не найдено")
+        raise HTTPException(404, detail=tr("attachment.not_found"))
     return FileResponse(attachments.file_path(att), media_type=att.mime, filename=att.name)
 
 
@@ -83,7 +84,7 @@ async def ask(kind: ThreadKind, thread_id: str, req: AskRequest) -> Thread:
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(502, detail=f"Ошибка ИИ: {e}") from e
+        raise HTTPException(502, detail=tr("ai.error", error=e)) from e
 
 
 @router.delete("/{kind}/{thread_id}")
@@ -125,7 +126,7 @@ async def compact_session(kind: ThreadKind, thread_id: str, session_id: str, req
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(502, detail=f"Ошибка ИИ: {e}") from e
+        raise HTTPException(502, detail=tr("ai.error", error=e)) from e
 
 
 @router.delete("/{kind}/{thread_id}/sessions/{session_id}")

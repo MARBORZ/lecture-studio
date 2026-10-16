@@ -13,6 +13,7 @@ import uuid
 from collections.abc import Iterable
 from datetime import datetime
 
+from backend.i18n import tr
 from backend.models.assistant import Attachment, ChatMessage, ChatSession, SessionInfo, SessionPatch, ThreadKind
 from backend.services import attachments
 from backend.services.storage import Library
@@ -83,7 +84,7 @@ def get(kind: ThreadKind, thread_id: str, session_id: str | None = None, create_
     current = next((s for s in sessions if s.id == wanted), None) or (sessions[-1] if sessions and not session_id else None)
     if session_id and current is None:
         if not create_missing or not re.fullmatch(r"ses_[0-9a-f]{8}", session_id):
-            raise LookupError("Сессия не найдена")
+            raise LookupError(tr("chat.session_not_found"))
         current = ChatSession(id=session_id)
     infos = sorted((_info(s) for s in sessions), key=lambda i: i.updated_at, reverse=True)
     return current or ChatSession(id=_new_id()), infos
@@ -124,7 +125,7 @@ def create(kind: ThreadKind, thread_id: str) -> ChatSession:
 def activate(kind: ThreadKind, thread_id: str, session_id: str) -> None:
     def fn(data, sessions):
         if not any(s.id == session_id for s in sessions):
-            raise LookupError("Сессия не найдена")
+            raise LookupError(tr("chat.session_not_found"))
         data["active"] = session_id
 
     _mutate(kind, thread_id, fn)
@@ -152,7 +153,7 @@ def patch(kind: ThreadKind, thread_id: str, session_id: str, change: SessionPatc
     def fn(data, sessions):
         s = next((s for s in sessions if s.id == session_id), None)
         if not s:
-            raise LookupError("Сессия не найдена")
+            raise LookupError(tr("chat.session_not_found"))
         if change.title is not None:
             s.title = change.title.strip()
         if change.excluded_files is not None:
@@ -169,7 +170,7 @@ def clear(kind: ThreadKind, thread_id: str, session_id: str) -> ChatSession:
     def fn(data, sessions):
         s = next((s for s in sessions if s.id == session_id), None)
         if not s:
-            raise LookupError("Сессия не найдена")
+            raise LookupError(tr("chat.session_not_found"))
         dropped = [a.id for a in session_files(s)]
         s.messages, s.summary, s.summarized, s.excluded_files = [], "", 0, []
         s.updated_at = _now()
@@ -184,7 +185,7 @@ def delete(kind: ThreadKind, thread_id: str, session_id: str) -> None:
     def fn(data, sessions):
         s = next((s for s in sessions if s.id == session_id), None)
         if not s:
-            raise LookupError("Сессия не найдена")
+            raise LookupError(tr("chat.session_not_found"))
         sessions.remove(s)
         if data["active"] == session_id:
             data["active"] = max(sessions, key=lambda x: x.updated_at).id if sessions else None

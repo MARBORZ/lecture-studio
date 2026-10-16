@@ -12,6 +12,7 @@ AIProviderName = Literal["deepseek", "gemini"]
 UILanguage = Literal["ru", "en"]
 Theme = Literal["system", "dark", "light"]
 TEXT_SCALE_MIN, TEXT_SCALE_MAX = 80, 150
+QUEUE_LIMIT_MIN, QUEUE_LIMIT_DEFAULT, QUEUE_LIMIT_MAX = 1, 10, 100  # one worker, FIFO: jobs waiting + running
 
 
 OutputLanguage = Literal["interface", "recording", "ru", "en"]  # the audit's language (core/language.py resolves it)
@@ -121,6 +122,7 @@ class AppSettings(BaseModel):
     theme: Theme = "system"  # follows the OS by default
     text_scale: int = Field(100, ge=TEXT_SCALE_MIN, le=TEXT_SCALE_MAX)  # % of the base size of reading text
     beta_updates: bool = False  # offer pre-releases (vX.Y.Z-beta.N) too, not only releases
+    queue_limit: int = Field(QUEUE_LIMIT_DEFAULT, ge=QUEUE_LIMIT_MIN, le=QUEUE_LIMIT_MAX)  # jobs waiting + running
     compute: ComputeSettings = Field(default_factory=ComputeSettings)
     ai: AISettings = Field(default_factory=AISettings)
     pipeline: PipelineDefaults = Field(default_factory=PipelineDefaults)
@@ -163,6 +165,7 @@ class SettingsView(BaseModel):
     theme: Theme
     text_scale: int
     beta_updates: bool
+    queue_limit: int
     compute: ComputeSettings
     paths: PathsView
     ai: AISettingsView
@@ -187,6 +190,7 @@ class SettingsPatch(BaseModel):
     theme: Theme | None = None
     text_scale: int | None = Field(default=None, ge=TEXT_SCALE_MIN, le=TEXT_SCALE_MAX)
     beta_updates: bool | None = None
+    queue_limit: int | None = Field(default=None, ge=QUEUE_LIMIT_MIN, le=QUEUE_LIMIT_MAX)
     compute: ComputeSettings | None = None
     ai: AISettingsPatch | None = None
     pipeline: PipelineDefaults | None = None

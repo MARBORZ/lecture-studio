@@ -11,6 +11,7 @@ from typing import Any
 from backend.core.ai import prompts
 from backend.core.ai.meta import AIMeta
 from backend.core.timeline import normalize_timecodes
+from backend.i18n import tr
 
 CHUNK_CHARS = 30_000
 
@@ -59,7 +60,7 @@ class BaseAIProvider(metaclass=AIMeta):
 
     def __init__(self, api_key: str, model: str | None = None):
         if not api_key:
-            raise ValueError(f"Не задан API-ключ {self.category}. Укажите его в Настройках → ИИ.")
+            raise ValueError(tr("ai.no_key", provider=self.category))
         self.api_key = api_key
         self.model = model or self.default_model
 
@@ -86,21 +87,21 @@ class BaseAIProvider(metaclass=AIMeta):
         """Audit markdown from a compact '[MM:SS] text' transcript (clean timeline), written in `language`."""
         report = on_progress or (lambda f, m: None)
         if not transcript.strip():
-            raise ValueError("Стенограмма пуста — аудит невозможен")
+            raise ValueError(tr("audit.empty"))
 
         chunks = split_lines(transcript)
         if len(chunks) == 1:
-            report(0.1, "Аудит")
+            report(0.1, tr("audit.start"))
             raw = self.generate_text(prompts.audit_prompt(transcript, timed), prompts.audit_system(timed, language))
             return clean_output(raw, duration, timed)
 
         notes = []
         for i, chunk in enumerate(chunks, start=1):
-            report((i - 1) / (len(chunks) + 1), f"Аудит: часть {i}/{len(chunks)}")
+            report((i - 1) / (len(chunks) + 1), tr("audit.part", i=i, n=len(chunks)))
             notes.append(self.generate_text(
                 prompts.chunk_notes_prompt(chunk, i, len(chunks)),
                 prompts.chunk_notes_system(timed, language),
             ))
-        report(len(chunks) / (len(chunks) + 1), "Аудит: сборка")
+        report(len(chunks) / (len(chunks) + 1), tr("audit.merge"))
         raw = self.generate_text("\n\n---\n\n".join(notes), prompts.merge_system(timed, language))
         return clean_output(raw, duration, timed)

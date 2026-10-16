@@ -10,6 +10,8 @@ from collections.abc import Callable
 
 import httpx
 
+from backend.i18n import tr
+
 logger = logging.getLogger(__name__)
 
 TRANSIENT = {408, 429, 500, 502, 503, 504}
@@ -43,17 +45,14 @@ def status_of(exc: BaseException) -> int | None:
 
 def _explain(provider: str, status: int, attempts: int) -> str:
     if status == 503:
-        what = f"{provider} перегружен (503)"
+        what = tr("retry.overloaded", provider=provider)
     elif status == 429:
-        what = f"{provider}: превышен лимит запросов или квота ключа (429)"
+        what = tr("retry.rate_limited", provider=provider)
     elif status == 0:
-        what = f"Нет связи с {provider}"
+        what = tr("retry.offline", provider=provider)
     else:
-        what = f"{provider} временно не отвечает ({status})"
-    return (
-        f"{what} — не помогли {attempts} попыток за ~{sum(DELAYS[: attempts - 1])} с. Это на стороне сервиса, не приложения. "
-        "Повторите позже или выберите другую модель (для транскрибации — Whisper, он работает локально)."
-    )
+        what = tr("retry.unavailable", provider=provider, status=status)
+    return tr("retry.gave_up", what=what, attempts=attempts, seconds=sum(DELAYS[: attempts - 1]))
 
 
 def with_retry[T](

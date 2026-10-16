@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from backend.config import APP_HOME, DEFAULT_DATA_DIR, LOGS_DIR, SETTINGS_FILE
+from backend.i18n import tr
 from backend.settings.schema import (
     AISettingsView,
     AppSettings,
@@ -132,6 +133,8 @@ class SettingsService:
                 current.text_scale = patch.text_scale
             if patch.beta_updates is not None:
                 current.beta_updates = patch.beta_updates
+            if patch.queue_limit is not None:
+                current.queue_limit = patch.queue_limit
             if patch.compute is not None:
                 current.compute = patch.compute
             if patch.pipeline is not None:
@@ -170,12 +173,12 @@ class SettingsService:
         p = to_path(path)
         result = PathCheckResult(path=str(p), exists=p.exists(), is_dir=p.is_dir(), writable=False, has_library=False)
         if result.exists and not result.is_dir:
-            result.error = "Путь указывает на файл, а не на папку"
+            result.error = tr("path.is_file")
             return result
         probe_dir = p if p.exists() else next((a for a in p.parents if a.exists()), None)
         result.writable = bool(probe_dir and os.access(probe_dir, os.W_OK))
         if not result.writable:
-            result.error = "Нет прав на запись"
+            result.error = tr("path.no_write")
         db = read_json(p / DB_FILENAME, default=None) if p.is_dir() else None
         if isinstance(db, dict):
             result.has_library = True
@@ -196,7 +199,7 @@ class SettingsService:
 
             if move:
                 if check.has_library:
-                    raise ValueError("В целевой папке уже есть библиотека — выберите «Подключить»")
+                    raise ValueError(tr("path.library_exists"))
                 target.mkdir(parents=True, exist_ok=True)
                 for src in Paths(source).movable():
                     if src.exists():
@@ -236,6 +239,7 @@ class SettingsService:
             theme=s.theme,
             text_scale=s.text_scale,
             beta_updates=s.beta_updates,
+            queue_limit=s.queue_limit,
             compute=s.compute,
             paths=PathsView(
                 data_dir=str(p.data_dir),

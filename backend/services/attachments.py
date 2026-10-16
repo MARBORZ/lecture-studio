@@ -19,6 +19,7 @@ import zipfile
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
+from backend.i18n import tr
 from backend.models.assistant import Attachment
 from backend.settings import paths
 from backend.utils.fs import read_json, read_text, sanitize_filename, write_json, write_text
@@ -98,19 +99,19 @@ def _classify(path: Path) -> tuple[str, str, str]:
     """-> (kind, extracted text, note)"""
     ext = path.suffix.lower() or ("." + path.name.lower() if path.name.startswith(".") else "")
     if ext in IMAGE_EXT:
-        return "image", "", "Изображение: видит только Gemini"
+        return "image", "", tr("attachment.image")
     if ext in EXTRACTORS:
         try:
             return "document", EXTRACTORS[ext](path), ""
         except Exception as e:  # damaged or encrypted documents
             logger.warning("Extract failed for %s: %s", path.name, e)
-            return "binary", "", "Не удалось прочитать документ"
+            return "binary", "", tr("attachment.unreadable_doc")
     with open(path, "rb") as f:
         data = f.read(MAX_TEXT * 4)  # only the head: a multi-GB video must not be loaded to be classified
     text = _decode(data)
     if text is not None and (ext in TEXT_EXT or _mostly_printable(text)):
         return "text", text, ""
-    return "binary", "", "Содержимое не читается: модели передаются имя и размер"
+    return "binary", "", tr("attachment.binary")
 
 
 def _mostly_printable(text: str) -> bool:
@@ -121,7 +122,7 @@ def _mostly_printable(text: str) -> bool:
 def register(att_id: str, path: Path) -> Attachment:
     kind, text, note = _classify(path)
     if len(text) > MAX_TEXT:
-        text, note = text[:MAX_TEXT], f"Текст обрезан до {MAX_TEXT // 1000}k символов"
+        text, note = text[:MAX_TEXT], tr("attachment.truncated", k=MAX_TEXT // 1000)
     mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
     att = Attachment(id=att_id, name=path.name, size=path.stat().st_size, mime=mime, kind=kind, chars=len(text), note=note)
     if text:
@@ -134,7 +135,7 @@ def register(att_id: str, path: Path) -> Attachment:
 
 def _folder(att_id: str) -> Path:
     if not re.fullmatch(r"[a-f0-9]{12}", att_id):
-        raise ValueError("Некорректный идентификатор вложения")
+        raise ValueError(tr("attachment.bad_id"))
     return root() / att_id
 
 

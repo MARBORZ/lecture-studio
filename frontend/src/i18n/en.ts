@@ -598,4 +598,10 @@ export const en: Record<TKey, string> = {
 
   'error.notFound': 'Page not found',
   'error.home': 'To library',
+  // ---- server texts, Inbox, queue (feat/backend-i18n)
+  'library.inbox': 'Inbox',
+  'library.inboxDescription': 'Recordings not sorted yet',
+  'settings.queueLimit': 'Job queue',
+  'settings.queueLimitHint': 'How many jobs may wait and run. Processing goes one at a time, in order; past the limit new jobs are refused.',
+  'settings.queueLimit.jobs': '{n} jobs',
 }

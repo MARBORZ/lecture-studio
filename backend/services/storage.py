@@ -14,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
+from backend.i18n import tr
 from backend.models.lesson import Lesson, LessonFull, LessonPatch
 from backend.models.project import INBOX_ID, Project, ProjectCreate, ProjectPatch
 from backend.models.transcript import Segment
@@ -55,9 +56,14 @@ def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
+# The Inbox keeps "" as its name and description until the user sets them: the UI shows them in its own language.
+# Older libraries stored the Russian defaults: those count as unset.
+_OLD_INBOX_DEFAULTS = {"Входящие", "Неразобранные уроки", "Неразобранные записи"}
+
+
 def _empty_db() -> dict[str, Any]:
     return {
-        "projects": [{"id": INBOX_ID, "name": "Входящие", "description": "Неразобранные записи", "created_at": _now()}],
+        "projects": [{"id": INBOX_ID, "name": "", "description": "", "created_at": _now()}],
         "lessons": [],
         "threads": {},
     }
@@ -79,6 +85,11 @@ class Library:
         db["lessons"] = list(lessons.values()) if isinstance(lessons, dict) else lessons
         if not any(p.get("id") == INBOX_ID for p in db["projects"]):
             db["projects"].insert(0, _empty_db()["projects"][0])
+        for p in db["projects"]:
+            if p.get("id") == INBOX_ID:
+                for key in ("name", "description"):
+                    if p.get(key) in _OLD_INBOX_DEFAULTS:
+                        p[key] = ""
         return db
 
     @classmethod
@@ -299,8 +310,8 @@ class Library:
             cls.save_lesson(Lesson(
                 id=f"less_{d.name}",
                 job_id=d.name,
-                title=f"Запись {d.name}",
-                notes="Импортировано с диска",
+                title=tr("lesson.imported_title", name=d.name),
+                notes=tr("lesson.imported_notes"),
                 status="to_review",
                 tags="imported",
                 created_at=datetime.fromtimestamp(d.stat().st_mtime).isoformat(timespec="seconds"),

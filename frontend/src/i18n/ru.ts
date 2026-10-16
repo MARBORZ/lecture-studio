@@ -610,6 +610,12 @@ export const ru = {
   'error.title': 'Что-то пошло не так',
   'error.notFound': 'Страница не найдена',
   'error.home': 'В библиотеку',
+  // ---- server texts, Inbox, queue (feat/backend-i18n)
+  'library.inbox': 'Входящие',
+  'library.inboxDescription': 'Неразобранные записи',
+  'settings.queueLimit': 'Очередь задач',
+  'settings.queueLimitHint': 'Сколько задач может ждать и выполняться. Обработка идёт по одной, по порядку; сверх предела новые задачи не принимаются.',
+  'settings.queueLimit.jobs': '{n} задач',
 } as const
 
 export type TKey = keyof typeof ru
