@@ -137,7 +137,10 @@ def test_download_reports_progress_and_the_file(monkeypatch, tmp_path, data_dir)
     seen = []
     real_update = JobRegistry.update
     monkeypatch.setattr(JobRegistry, "update", classmethod(lambda cls, jid, **f: (seen.append(f), real_update.__func__(cls, jid, **f))[1]))
-    fake = FakeProcess(["[youtube] x", "LSPROGRESS 10.0%", "LSPROGRESS 100.0%", "LSPROGRESS  5.0%", "LSPROGRESS 100%", f"LSFILE {final}"])
+    fake = FakeProcess([
+        "[youtube] x", "LSPROGRESS  10.0% avc1.640028", "LSPROGRESS  60.0% avc1.640028", "LSPROGRESS 100.0% avc1.640028",
+        "LSPROGRESS   5.0% none", "LSPROGRESS 100.0% none", f"LSFILE {final}",
+    ])
     job, _ = run_job(monkeypatch, tmp_path, fake)
     assert job.status == "completed" and job.media_path == str(final) and job.title == "Lecture one"
     progress = [f["progress"] for f in seen if "progress" in f]

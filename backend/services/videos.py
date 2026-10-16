@@ -45,7 +45,7 @@ _HOSTS = {
     "youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be", "www.youtu.be",
     "youtube-nocookie.com", "www.youtube-nocookie.com",
 }
-_PROGRESS = re.compile(r"^LSPROGRESS\s+(\S+)%")  # yt-dlp pads the percent: " 5.0%"
+_PROGRESS = re.compile(r"^LSPROGRESS\s+(\S+)%\s*(\S*)")  # " 5.0%" padded; then the stream's vcodec ("none" = sound)
 
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="download")
 
@@ -218,7 +218,7 @@ def download_cmd(vid: str, target: Path) -> list[str]:
     return _cmd(
         "-f", FORMAT, "--merge-output-format", "mp4", "--no-playlist", "--no-mtime", "--windows-filenames",
         "--progress", "--newline",  # --print implies --quiet, which would hide the progress lines
-        "--progress-template", "download:LSPROGRESS %(progress._percent_str)s",
+        "--progress-template", "download:LSPROGRESS %(progress._percent_str)s %(info.vcodec)s",
         "--print", "after_move:LSFILE %(filepath)s",
         "-o", str(target / "%(title).80B [%(id)s].%(ext)s"),
         watch_url(vid),
@@ -241,7 +241,7 @@ def run_download(vid: str, target: Path, job_id: str) -> Path:
     err_done = threading.Event()
     threading.Thread(target=pump, args=(p.stderr, err.append, err_done.set), daemon=True).start()
 
-    stream, last, saved = 0, 0.0, ""
+    saved, shown = "", 0
     while True:
         if JobRegistry.is_cancel_requested(job_id):
             proc.terminate_tree(p.pid)
@@ -257,12 +257,11 @@ def run_download(vid: str, target: Path, job_id: str) -> Path:
                 pct = float(m.group(1))
             except ValueError:
                 continue
-            if pct + 30 < last:
-                stream += 1  # the audio after the video: its own 0–100 %
-            last = pct
-            overall = min(95, (pct * 0.8 if stream == 0 else 80 + pct * 0.15))
-            label = tr("video.progress_video" if stream == 0 else "video.progress_audio", pct=int(pct))
-            JobRegistry.update(job_id, progress=int(overall), message=label)
+            sound = m.group(2) == "none"  # the separate audio stream comes after the video one
+            overall = min(95, 80 + pct * 0.15 if sound else pct * 0.8)
+            shown = max(shown, int(overall))  # fragmented streams re-estimate their size: the bar never goes back
+            label = tr("video.progress_audio" if sound else "video.progress_video", pct=int(pct))
+            JobRegistry.update(job_id, progress=shown, message=label)
         elif line.startswith("LSFILE "):
             saved = line[7:].strip()
             JobRegistry.update(job_id, progress=99, message=tr("video.merging"))
