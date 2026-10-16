@@ -4,14 +4,15 @@ Health, status, graceful shutdown, self-update and uninstall.
 
 import os
 import threading
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 
 from backend.config import APP_VERSION, CHROME_PROFILE_DIR, FRONTEND_PID_FILE, FRONTEND_PORT
 from backend.core.media import ffmpeg_available
 from backend.i18n import tr
-from backend.models.system import ShutdownResult, SystemStatus, UninstallPlan, UninstallRequest, UninstallResult, UpdateInfo
-from backend.services import uninstall, updates
+from backend.models.system import McpStatus, ShutdownResult, SystemStatus, UninstallPlan, UninstallRequest, UninstallResult, UpdateInfo
+from backend.services import mcp_connect, uninstall, updates
 from backend.services.jobs import JobRegistry
 from backend.utils import proc
 from backend.utils.fs import read_text, remove_file
@@ -102,3 +103,27 @@ def _stop_everything() -> None:
     proc.terminate(ui)
     remove_file(FRONTEND_PID_FILE)
     proc.stop_self()
+
+
+# ---- "Connect Claude": this app's MCP server in the user's Claude Desktop / Claude Code
+
+
+@router.get("/system/mcp", response_model=McpStatus)
+def mcp_status() -> McpStatus:
+    return mcp_connect.status()
+
+
+@router.post("/system/mcp/{client}", response_model=McpStatus)
+def mcp_connect_client(client: Literal["desktop", "code"]) -> McpStatus:
+    try:
+        return mcp_connect.connect_desktop() if client == "desktop" else mcp_connect.connect_code()
+    except mcp_connect.McpError as e:
+        raise HTTPException(400, detail=str(e)) from e
+
+
+@router.delete("/system/mcp/{client}", response_model=McpStatus)
+def mcp_disconnect_client(client: Literal["desktop", "code"]) -> McpStatus:
+    try:
+        return mcp_connect.disconnect_desktop() if client == "desktop" else mcp_connect.disconnect_code()
+    except mcp_connect.McpError as e:
+        raise HTTPException(400, detail=str(e)) from e

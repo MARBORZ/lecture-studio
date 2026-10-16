@@ -10,6 +10,7 @@ import { SkeletonCard } from '@/components/skeleton'
 import { FALLBACK_DEFAULTS, PipelineOptionsFields } from '@/features/jobs/PipelineOptionsFields'
 import { QueueLimitCard } from '@/features/jobs/QueueLimitCard'
 import { KeyField } from '@/features/system/KeyField'
+import { McpCard } from '@/features/system/McpCard'
 import { DownloaderCard } from '@/features/videos/DownloaderCard'
 import { CLOUD_PROVIDERS, PROVIDER_NAME, useProviderOptions } from '@/features/system/KeyNotice'
 import { LocalModelCard } from '@/features/system/LocalModelCard'
@@ -191,6 +192,7 @@ export function AISettingsSection() {
         </div>
       </Card>
       <LocalModelCard />
+      <McpCard />
       <ComputeCard />
       <Card title={t('settings.models')} fold="ai.models" summary={`${CLOUD_PROVIDERS.map((p) => ai[`${p}_model`]).join(' · ')} · Whisper ${ai.whisper_model}`}>
         <div className="grid gap-4 sm:grid-cols-2">
