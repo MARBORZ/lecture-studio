@@ -1,4 +1,4 @@
-import { FolderOutput, ImagePlus, X } from 'lucide-react'
+import { Crop, FolderOutput, ImagePlus, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '@/api/client'
@@ -6,6 +6,7 @@ import type { Lesson, LessonStatus, Project } from '@/api/types'
 import { useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { Button, Field, IconButton, Input, Modal, Select, Textarea } from '@/components/ui'
+import { CoverCropper } from './CoverCropper'
 import { NotebookCover } from './NotebookCover'
 
 /** Shared submit wrapper: busy flag + error toast. */
@@ -70,7 +71,10 @@ export function ProjectFormModal({ project, close }: { project?: Project; close:
   )
 }
 
-/** Notebook picture: click or drop an image; preview right away, saved with the form. */
+/**
+ * Notebook picture: click or drop an image, then frame it (CoverCropper: move, zoom, Apply); preview right away, saved
+ * with the form. A cover already set can be framed again the same way.
+ */
 function CoverPicker({ project, name, value, onChange }: { project?: Project; name: string; value: File | null | undefined; onChange: (v: File | null) => void }) {
   const { t } = useUI()
   const input = useRef<HTMLInputElement>(null)
@@ -79,7 +83,27 @@ function CoverPicker({ project, name, value, onChange }: { project?: Project; na
     if (preview) URL.revokeObjectURL(preview)
   }, [preview])
   const shown = value === null ? null : preview ?? (project ? api.coverUrl(project) : null)
-  const pick = (f?: File | null) => f && f.type.startsWith('image/') && onChange(f)
+  // the image being framed: a fresh pick (an object URL, revoked when done) or the current cover
+  const [cropping, setCropping] = useState<{ src: string; temp: boolean } | null>(null)
+  const endCrop = () =>
+    setCropping((c) => {
+      if (c?.temp) URL.revokeObjectURL(c.src)
+      return null
+    })
+  const pick = (f?: File | null) => f && f.type.startsWith('image/') && setCropping({ src: URL.createObjectURL(f), temp: true })
+
+  if (cropping) {
+    return (
+      <CoverCropper
+        src={cropping.src}
+        onApply={(file) => {
+          onChange(file)
+          endCrop()
+        }}
+        onCancel={endCrop}
+      />
+    )
+  }
 
   return (
     <div
@@ -101,6 +125,7 @@ function CoverPicker({ project, name, value, onChange }: { project?: Project; na
         <div className="text-[12px] text-muted">{t('library.coverHint')}</div>
         <div className="flex gap-1.5">
           <Button size="sm" icon={ImagePlus} onClick={() => input.current?.click()}>{t('library.coverPick')}</Button>
+          {shown && <IconButton icon={Crop} size="sm" label={t('library.coverCrop')} onClick={() => setCropping({ src: shown, temp: false })} />}
           {shown && <IconButton icon={X} size="sm" label={t('library.coverRemove')} onClick={() => onChange(null)} />}
         </div>
       </div>
