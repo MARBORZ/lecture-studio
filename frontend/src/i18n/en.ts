@@ -524,6 +524,7 @@ export const en: Record<TKey, string> = {
   'diary.showAll': 'Show all',
   'diary.showLess': 'Show less',
   'diary.move': 'Move to category',
+  'diary.inbox': 'Inbox',
 
   // onboarding
   'onboarding.sample.lesson1': 'Lesson 1 · Python basics',
@@ -601,6 +602,8 @@ export const en: Record<TKey, string> = {
 
   'error.notFound': 'Page not found',
   'error.home': 'To library',
+  'error.network': 'Network unavailable',
+  'error.uploadCancelled': 'Upload cancelled',
   // ---- server texts, Inbox, queue (feat/backend-i18n)
   'library.inbox': 'Inbox',
   'library.inboxDescription': 'Recordings not sorted yet',

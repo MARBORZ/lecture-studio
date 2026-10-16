@@ -13,7 +13,7 @@ import { api } from '@/api/client'
 import type { Job, Lesson, LessonPatch, Project, ProjectCreate, ProjectPatch, SettingsPatch, SettingsView, UILanguage } from '@/api/types'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { PromptDialog } from '@/components/ui/PromptDialog'
-import { createT, type TFunction } from '@/i18n'
+import { createT, setLanguage, type TFunction } from '@/i18n'
 import { useAppearance } from '@/lib/appearance'
 
 const INBOX_ID = 'proj_inbox' // backend/models/project.py
@@ -121,6 +121,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useAppearance(settings?.theme, settings?.text_scale)
   useEffect(() => {
     document.documentElement.lang = lang
+    setLanguage(lang)
   }, [lang])
 
   // ---------- modals / toasts ----------

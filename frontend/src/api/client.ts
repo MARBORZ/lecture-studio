@@ -3,6 +3,7 @@ import type {
   PathCheckResult, PipelineDefaults, Project, PromptView, ProjectCreate, ProjectPatch, ProviderInfo, SessionInfo, SessionPatch, SettingsPatch, SettingsView, SystemStatus,
   Thread, ThreadKind, ComputeStatus, MediaInfo, UninstallPlan, UpdateInfo,
 } from './types'
+import { tr } from '@/i18n'
 
 export class ApiError extends Error {
   status: number
@@ -74,8 +75,8 @@ function putFile<T>(url: string, file: File, onProgress: (fraction: number) => v
       if (xhr.status >= 400) reject(new ApiError(xhr.status, body?.detail))
       else resolve(body as T)
     }
-    xhr.onerror = () => reject(new ApiError(0, 'Сеть недоступна'))
-    xhr.onabort = () => reject(new ApiError(0, 'Загрузка отменена'))
+    xhr.onerror = () => reject(new ApiError(0, tr('error.network')))
+    xhr.onabort = () => reject(new ApiError(0, tr('error.uploadCancelled')))
     xhr.send(file)
   })
   return { promise, abort: () => xhr.abort() }

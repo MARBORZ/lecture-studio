@@ -17,6 +17,7 @@ from backend.core.ai.base import clean_output  # noqa: E402
 from backend.core.timeline import TimeMap, parse_srt  # noqa: E402
 from backend.core.transcription import write_transcripts  # noqa: E402
 from backend.models.lesson import LessonPatch  # noqa: E402
+from backend.models.project import INBOX_ID, Project  # noqa: E402
 from backend.models.transcript import Segment  # noqa: E402
 from backend.services.export import export_lesson  # noqa: E402
 from backend.services.storage import Artifacts, Library  # noqa: E402
@@ -29,10 +30,17 @@ def _not_found(lesson_id: str) -> dict[str, Any]:
     return {"error": f"Урок '{lesson_id}' не найден"}
 
 
+def _named(project: Project) -> Project:
+    """The Inbox keeps no name of its own (the app shows it in the interface language): agents get "Inbox"."""
+    if project.id != INBOX_ID or project.name:
+        return project
+    return project.model_copy(update={"name": "Inbox", "description": project.description or "Lessons not sorted into a notebook"})
+
+
 @mcp.tool()
 def lecture_list_projects() -> list[dict[str, Any]]:
-    """List notebooks (courses) with lesson counts."""
-    return [p.model_dump() for p in Library.list_projects()]
+    """List notebooks (courses) with lesson counts. proj_inbox (Inbox) holds lessons not sorted into a notebook."""
+    return [_named(p).model_dump() for p in Library.list_projects()]
 
 
 @mcp.tool()

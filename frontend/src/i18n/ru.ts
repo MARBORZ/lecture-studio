@@ -609,10 +609,13 @@ export const ru = {
   'diary.showAll': 'Показать полностью',
   'diary.showLess': 'Скрыть',
   'diary.move': 'Перенести в категорию',
+  'diary.inbox': 'Входящие',
 
   'error.title': 'Что-то пошло не так',
   'error.notFound': 'Страница не найдена',
   'error.home': 'В библиотеку',
+  'error.network': 'Сеть недоступна',
+  'error.uploadCancelled': 'Загрузка отменена',
   // ---- server texts, Inbox, queue (feat/backend-i18n)
   'library.inbox': 'Входящие',
   'library.inboxDescription': 'Неразобранные записи',
