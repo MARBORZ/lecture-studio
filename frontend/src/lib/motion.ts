@@ -16,6 +16,9 @@ export const easeInOut = [0.65, 0, 0.35, 1] as const // scene changes
 
 export const duration = { fast: 0.16, base: 0.26, slow: 0.42 } as const
 
+/** Focus mode on a lesson: the player column widens and the player glides to the middle (and back), one scene change. */
+export const focusShift: Transition = { duration: duration.slow, ease: easeInOut }
+
 /** Markers, pops: settles quickly without wobble. */
 export const spring: Transition = { type: 'spring', stiffness: 380, damping: 34, mass: 0.8 }
 /** Celebratory pop (tutorial finale). */
@@ -103,6 +106,14 @@ export const collapse: Variants = {
   hidden: { height: 0, opacity: 0 },
   show: { height: 'auto', opacity: 1, transition: { duration: duration.base, ease } },
   exit: { height: 0, opacity: 0, transition: leave },
+}
+
+/** What focus mode hides (the lesson header, the blocks under the player): the same curve and time as focusShift,
+ *  so the whole scene moves as one. */
+export const focusCollapse: Variants = {
+  hidden: { height: 0, opacity: 0 },
+  show: { height: 'auto', opacity: 1, transition: focusShift },
+  exit: { height: 0, opacity: 0, transition: focusShift },
 }
 
 /**
