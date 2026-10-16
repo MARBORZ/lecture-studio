@@ -168,6 +168,7 @@ def test_download_command():
     cmd = videos.download_cmd(VID, videos.Path("/tmp/d"))
     assert "--merge-output-format" in cmd and "mp4" in cmd and "height<=1080" in cmd[cmd.index("-f") + 1]
     assert cmd[-1] == f"https://www.youtube.com/watch?v={VID}" and "--no-playlist" in cmd
+    assert "--progress" in cmd and "--newline" in cmd  # --print makes yt-dlp quiet: without --progress no progress lines
 
 
 # ---------------------------------------------------------------- API

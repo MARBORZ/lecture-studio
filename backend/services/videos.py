@@ -216,7 +216,8 @@ class DownloadCancelled(Exception):
 
 def download_cmd(vid: str, target: Path) -> list[str]:
     return _cmd(
-        "-f", FORMAT, "--merge-output-format", "mp4", "--no-playlist", "--no-mtime", "--windows-filenames", "--newline",
+        "-f", FORMAT, "--merge-output-format", "mp4", "--no-playlist", "--no-mtime", "--windows-filenames",
+        "--progress", "--newline",  # --print implies --quiet, which would hide the progress lines
         "--progress-template", "download:LSPROGRESS %(progress._percent_str)s",
         "--print", "after_move:LSFILE %(filepath)s",
         "-o", str(target / "%(title).80B [%(id)s].%(ext)s"),

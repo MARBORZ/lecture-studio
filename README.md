@@ -31,6 +31,8 @@ It was built for one person's programming courses and is shared as is: no roadma
 - **Writes the notes.** DeepSeek, Gemini or a local model (Ollama, LM Studio) turns the transcript into short notes with `[MM:SS]` timecodes you can
   click, in the language you choose.
 - **Answers with citations.** Ask one lesson or a whole course; answers link to the exact moment ("Lesson 2 · 04:15").
+- **Finds lectures on YouTube.** Search and watch in the **Videos** tab, or paste a link; one click downloads it
+  (yt-dlp on your computer, up to 1080p) and opens it in the Studio. Download only what you have the rights to.
 - **A real workspace.** Player with marks, synced transcript, notebooks, a Markdown diary, export to Obsidian.
 - **Stays up to date.** New versions arrive inside the app; if one fails to start, the previous one comes back.
 
@@ -64,6 +66,7 @@ Your lessons stay unless you tick "Delete lessons too".
 - Video is processed on your computer. Cloud models get only sound (if you pick Gemini transcription) or text.
 - The one exception is opt-in: an **audit from video** sends Gemini a light 480p copy so it can read code on screen.
 - API keys are kept only on your computer, in the app's settings.
+- The **Videos** tab talks to YouTube only when you search, open or download a video.
 - With Whisper and a local model (or no AI notes), nothing leaves the machine at all.
 
 ## Requirements
