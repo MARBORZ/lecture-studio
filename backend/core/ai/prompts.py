@@ -47,54 +47,32 @@ STYLE (mandatory; breaking it makes the audit worthless):
 - Code, commands, paths and flags verbatim, in code blocks with the language.
 """
 
-TIMECODE_RULE = """\
-TIMECODES:
-- Strictly [MM:SS] or [HH:MM:SS], in square brackets, no backticks.
-- Take times only from the transcript lines. Do not invent or round beyond the line.
-- A timecode goes at the start of a bullet or in a block heading.
+# ---------- the contract: never editable, always after the user's blocks (the app turns these timecodes into links) ----------
+
+TIMECODE_PLACES = """\
+- Every block heading starts with its time: "### [MM:SS] <name of the block>".
+- Every bullet about a moment of the lecture (a decision, code, a mistake) starts with its time: "- [MM:SS] …".
+- A terms table ends with a column holding the time of each term.
 """
+
+TIMECODE_RULE = """\
+TIMECODES (they become clickable links; these rules override anything above about times):
+- Strictly [MM:SS] or [HH:MM:SS], in square brackets, no backticks, no other way of writing a time.
+- Take times only from the transcript lines. Do not invent or round beyond the line.
+""" + TIMECODE_PLACES
 
 NO_TIMECODE_RULE = """\
-TIMECODES: do not use any. No [MM:SS], no mentions of time.
+TIMECODES: do not use any, whatever is said above. No [MM:SS], no mentions of time.
 """
 
-AUDIT_STRUCTURE_TIMED = """\
-STRUCTURE (Markdown, exactly these sections, drop an empty section; headings in the output language):
-# <Lesson topic — 3–8 words>
-**Gist:** 1–2 lines — what is covered and why.
-
-## Blocks
-### [MM:SS] <Name of a meaningful block>
-- point
-- point
-
-## Architecture and decisions
-- [MM:SS] decision — why — cost/trade-off
-
-## Code and commands
-```language
-verbatim
-```
-- [MM:SS] what it does, one line
-
-## Mistakes and anti-patterns
-- [MM:SS] mistake → how it should be
-
-## Terms
-| Term | Definition | Time |
-|---|---|---|
-
-## Takeaways
-- 3–5 bullets: what to take from the lesson
-"""
-
-AUDIT_STRUCTURE_PLAIN = """\
+AUDIT_STRUCTURE = """\
 STRUCTURE (Markdown, exactly these sections, drop an empty section; headings in the output language):
 # <Lesson topic — 3–8 words>
 **Gist:** 1–2 lines — what is covered and why.
 
 ## Blocks
 ### <Name of a meaningful block>
+- point
 - point
 
 ## Architecture and decisions
@@ -104,6 +82,7 @@ STRUCTURE (Markdown, exactly these sections, drop an empty section; headings in 
 ```language
 verbatim
 ```
+- what it does, one line
 
 ## Mistakes and anti-patterns
 - mistake → how it should be
@@ -135,8 +114,8 @@ def audit_system(timed: bool, language: str) -> str:
     return "\n\n".join([
         text("audit.role"),
         text("audit.style"),
+        _structure(),
         TIMECODE_RULE if timed else NO_TIMECODE_RULE,
-        _structure(timed),
         _write_in(language),
         "Output only the audit Markdown, no preface.",
     ])
@@ -150,7 +129,7 @@ def audit_prompt(transcript: str, timed: bool) -> str:
 # ---------- long lectures: chunk notes -> final merge ----------
 
 def chunk_notes_system(timed: bool, language: str) -> str:
-    return "\n\n".join([text("audit.role"), text("audit.style"), TIMECODE_RULE if timed else NO_TIMECODE_RULE, _part_task(timed), _write_in(language)])
+    return "\n\n".join([text("audit.role"), text("audit.style"), _part_task(timed), TIMECODE_RULE if timed else NO_TIMECODE_RULE, _write_in(language)])
 
 
 def chunk_notes_prompt(transcript: str, part: int, total: int) -> str:
@@ -161,8 +140,8 @@ def merge_system(timed: bool, language: str) -> str:
     return "\n\n".join([
         text("audit.role"),
         text("audit.style"),
+        _structure(),
         TIMECODE_RULE if timed else NO_TIMECODE_RULE,
-        _structure(timed),
         _write_in(language),
         "The input is notes on the parts of one lecture. Assemble one audit following the structure. "
         "Keep every block and every timecode. Merge duplicates. Output only Markdown.",
@@ -178,16 +157,16 @@ when it is readable. Do not describe the video for its own sake — take from it
 """
 
 VIDEO_TIMECODE_RULE = """\
-TIMECODES:
-- Strictly [MM:SS] or [HH:MM:SS], in square brackets, no backticks.
+TIMECODES (they become clickable links; these rules override anything above about times):
+- Strictly [MM:SS] or [HH:MM:SS], in square brackets, no backticks, no other way of writing a time.
 - Time is the position in the video from its start. There is no transcript: rely on the speech and the frames.
-"""
+""" + TIMECODE_PLACES
 
 
 def video_audit_system(timed: bool, has_transcript: bool, part: bool, language: str) -> str:
     timing = (TIMECODE_RULE if has_transcript else VIDEO_TIMECODE_RULE) if timed else NO_TIMECODE_RULE
-    task = _part_task(timed) if part else _structure(timed) + "\n\nOutput only the audit Markdown, no preface."
-    return "\n\n".join([text("audit.role"), text("audit.style"), VIDEO_CONTEXT, timing, task, _write_in(language)])
+    task = _part_task(timed) if part else _structure() + "\n\nOutput only the audit Markdown, no preface."
+    return "\n\n".join([text("audit.role"), text("audit.style"), VIDEO_CONTEXT, task, timing, _write_in(language)])
 
 
 def video_audit_prompt(transcript: str, part: int, total: int) -> str:
@@ -212,12 +191,16 @@ ASSISTANT_LANGUAGE = (
 )
 
 CITATION_SINGLE = """\
-CITATIONS: back every fact taken from the sources with a timecode [MM:SS] or [HH:MM:SS] from the transcript.
+CITATIONS (they become clickable links; these rules override anything above about times and references):
+back every fact taken from the sources with a timecode [MM:SS] or [HH:MM:SS] from the transcript, in square brackets,
+never written any other way. A list tied to times (key moments, chapters) starts each line with it: "[MM:SS] …".
 """
 
 CITATION_MULTI = """\
-CITATIONS: back every fact taken from the sources with a reference [[<lesson_id>@MM:SS]] (or @HH:MM:SS), where lesson_id comes from the source
-heading and the time from its transcript. Example: [[less_ab12cd34@04:15]].
+CITATIONS (they become clickable links; these rules override anything above about times and references):
+back every fact taken from the sources with a reference [[<lesson_id>@MM:SS]] (or @HH:MM:SS), where lesson_id comes
+from the source heading and the time from its transcript. Example: [[less_ab12cd34@04:15]]. Never write a time or a
+reference any other way. A list tied to times (key moments, chapters) starts each line with its reference.
 """
 
 ROLE_TASKS: dict[str, str] = {
@@ -226,20 +209,21 @@ ROLE_TASKS: dict[str, str] = {
     "quiz": "Self-check quiz: 6 questions. Format: question → short correct answer → time reference.",
     "pitfalls": "Mistakes, anti-patterns, the lecturer's warnings. Format: mistake → how it should be → time.",
     "code_summary": "All code, commands, paths and flags verbatim in code blocks, in order, with times.",
-    "chapters": "Chapters: 8–15 lines like \"[MM:SS] Title\", starting at [00:00].",
+    "chapters": "Chapters: 8–15 lines, each a short title with the time it starts, the first at the very start.",
 }
 
 # Compressing the older part of a chat session (our own context window, services/context_window.py).
 ASSISTANT_COMPACT = """\
 Compress the start of a conversation between the user and the lecture assistant into a working summary to continue from.
 Keep: what the user asked and why; the answers and conclusions; definitions and terms; decisions and corrections;
-code, commands and paths verbatim; timecodes and source references as they are; what is still unclear, where it stopped.
+code, commands and paths verbatim; what is still unclear, where it stopped.
 Drop: repetitions, politeness, retellings of the sources that the materials already contain.
 Style: notes, bullets, no intros, no emoji. Write it in the language of the conversation.
 """
 
 COMPACT_CONTRACT = """\
 Output only the summary. At most {limit} characters.
+Keep every timecode [MM:SS] and source reference [[lesson_id@MM:SS]] exactly as written: the app turns them into links.
 If a previous summary is given, merge it with the new messages into one, losing nothing important from it.
 """
 
@@ -330,8 +314,7 @@ BLOCKS: dict[str, PromptBlock] = {
     for b in [
         PromptBlock("audit.role", "audit", ROLE_AUDITOR),
         PromptBlock("audit.style", "audit", AUDIT_STYLE),
-        PromptBlock("audit.structure_timed", "audit", AUDIT_STRUCTURE_TIMED),
-        PromptBlock("audit.structure_plain", "audit", AUDIT_STRUCTURE_PLAIN),
+        PromptBlock("audit.structure", "audit", AUDIT_STRUCTURE),
         PromptBlock("assistant.base", "assistant", ASSISTANT_BASE),
         PromptBlock("assistant.role.qa", "assistant", ROLE_TASKS["qa"]),
         PromptBlock("assistant.role.key_moments", "assistant", ROLE_TASKS["key_moments"]),
@@ -350,17 +333,37 @@ def text(key: str) -> str:
     return override if override.strip() else BLOCKS[key].default
 
 
-def _structure(timed: bool) -> str:
-    return text("audit.structure_timed" if timed else "audit.structure_plain")
+def _structure() -> str:
+    return text("audit.structure")
+
+
+# Before the contract existed the structure came in two blocks, with and without times.
+_LEGACY_STRUCTURE = ("audit.structure_timed", "audit.structure_plain")
+
+
+def migrate_overrides() -> bool:
+    """A user's text of an old structure block becomes the override of the one structure block (the timed one wins:
+    it was the default format); the old keys go, so nothing applies that Settings → Instructions does not show."""
+    overrides = SettingsService.get().prompts
+    legacy = [k for k in _LEGACY_STRUCTURE if k in overrides]
+    if not legacy:
+        return False
+    if not overrides.get("audit.structure", "").strip():
+        text_ = next((overrides[k] for k in _LEGACY_STRUCTURE if overrides.get(k, "").strip()), "")
+        if text_:
+            SettingsService.set_prompt("audit.structure", text_)
+    for k in legacy:
+        SettingsService.set_prompt(k, None)
+    return True
 
 
 def assistant_system(role: str, multi_source: bool, ui_language: str = "en") -> str:
     task = text(f"assistant.role.{role}" if f"assistant.role.{role}" in BLOCKS else "assistant.role.qa")
     return "\n".join([
         text("assistant.base"),
-        CITATION_MULTI if multi_source else CITATION_SINGLE,
         ASSISTANT_LANGUAGE.format(language=language_name(ui_language)),
         "TASK: " + task,
+        CITATION_MULTI if multi_source else CITATION_SINGLE,  # last: no editable text can override the format
     ])
 
 

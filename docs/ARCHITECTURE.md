@@ -89,10 +89,13 @@ audit timecodes to the clean timeline; the original audit is kept as `lesson_aud
   language is a parameter: an audit names its language explicitly ("Write everything in Russian…"), the assistant answers
   in the language of the question, and in the interface language for quick actions without a typed question. The default
   questions of quick actions (`ROLE_DEFAULT_QUESTIONS`) exist in both interface languages.
-  It is split into **editable blocks** (`BLOCKS`: role, style, audit structure A/B, assistant base instruction and tasks)
-  and the **contract** (`[MM:SS]` format, `[[lesson@MM:SS]]` citations, part/merge mechanics). Users override blocks in
-  Settings → Instructions; overrides live in `settings.json: prompts`, untouched blocks use the defaults.
-  The contract is always appended by the system, so a custom style cannot break clickable timecodes.
+  It is split into **editable blocks** (`BLOCKS`: role, style, the audit structure, assistant base instruction and
+  tasks, compaction) and the **contract** (the `[MM:SS]` format and where times go in an audit, `[[lesson@MM:SS]]`
+  citations, keeping references when compacting, part/merge mechanics). No editable default holds a time or citation
+  format (`tests/test_prompt_safety.py`); the contract always comes **after** the user's blocks and says it overrides
+  them, so no custom text can make timecodes unclickable. Users override blocks in Settings → Instructions; overrides
+  live in `settings.json: prompts`, untouched blocks use the defaults. Overrides of the two old structure blocks
+  (`audit.structure_timed` / `_plain`) move into `audit.structure` once at startup (`prompts.migrate_overrides`).
 - Audit provider: DeepSeek mode → DeepSeek, Gemini → Gemini, local → the local model, "Whisper only" → the provider chosen
   in Settings → AI. `AI.configured()` says whether one is ready (a key, or a chosen local model).
 - **Our own context window** (`services/context_window.py`). Chat APIs are stateless: every question re-sends everything.

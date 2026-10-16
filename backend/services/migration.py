@@ -75,6 +75,10 @@ def migrate_all() -> int:
 
     if chats.migrate():
         logger.info("Chat sessions moved into session folders")
+    from backend.core.ai import prompts  # the two old audit structure blocks into one (their time format is the contract's)
+
+    if prompts.migrate_overrides():
+        logger.info("Prompt overrides: the audit structure blocks merged into one")
     migrated = 0
     for lesson in Library.list_lessons():
         if lesson.schema_version >= SCHEMA_VERSION:
