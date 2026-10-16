@@ -72,6 +72,9 @@
 
 @layer components {
   .scroll-area { @apply overflow-y-auto overscroll-contain; }
+  /* scrolls, but without a visible bar (settings content) */
+  .scroll-hidden { @apply overflow-y-auto overscroll-contain; scrollbar-width: none; }
+  .scroll-hidden::-webkit-scrollbar { display: none; }
   .hairline { @apply border-line; }
   /* reading text that follows the text-size setting; base size in px x scale */
   .read-13 { font-size: calc(13px * var(--text-scale)); }

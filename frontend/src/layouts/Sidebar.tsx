@@ -8,6 +8,7 @@ import { IconButton } from '@/components/ui'
 import { Skeleton } from '@/components/skeleton'
 import { JobIndicator } from '@/features/jobs/JobIndicator'
 import { ProjectFormModal } from '@/features/library/modals'
+import { LESSON_DRAG, useMoveLesson } from '@/features/library/MoveLesson'
 import { NotebookCover } from '@/features/library/NotebookCover'
 import { ShutdownButton } from '@/features/system/ShutdownButton'
 import { UpdateButton } from '@/features/system/Update'
@@ -27,15 +28,36 @@ export const useSidebarCollapsed = () => useContext(CollapsedContext)
 
 function NavItem({ to, icon, children, end, count, notebook }: { to: string; icon?: typeof Library; children: string; end?: boolean; count?: number; notebook?: Project }) {
   const collapsed = useSidebarCollapsed()
+  const move = useMoveLesson()
+  const [over, setOver] = useState(false)
+  // a notebook takes lesson rows dragged from the library
+  const drop = notebook && {
+    onDragOver: (e: React.DragEvent) => {
+      if (!e.dataTransfer.types.includes(LESSON_DRAG)) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'move'
+      setOver(true)
+    },
+    onDragLeave: () => setOver(false),
+    onDrop: (e: React.DragEvent) => {
+      setOver(false)
+      const id = e.dataTransfer.getData(LESSON_DRAG)
+      if (!id) return
+      e.preventDefault()
+      void move(id, notebook.id)
+    },
+  }
   return (
     <NavLink
       to={to}
       end={end}
-      title={collapsed ? children : undefined}
+      title={over ? undefined : collapsed ? children : undefined}
+      {...drop}
       className={({ isActive }) =>
         cn(
           'relative isolate flex h-8 shrink-0 items-center gap-2.5 rounded-lg px-[9px] text-[13px] transition-colors',
           isActive ? 'text-fg' : 'text-muted hover:bg-surface hover:text-soft',
+          over && 'bg-surface text-fg ring-1 ring-fg',
         )
       }
     >

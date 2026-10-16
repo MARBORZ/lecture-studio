@@ -1,5 +1,6 @@
 import { ArrowLeft, ArrowRight, Check, FileVideo, HardDrive, Play, Upload, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router'
 import { api } from '@/api/client'
 import type { MediaInfo, PipelineDefaults } from '@/api/types'
 import { useJobs, useLibrary, useUI } from '@/app/AppProvider'
@@ -130,8 +131,15 @@ export function StudioPage() {
                     <Select value={projectId} onChange={setProjectId} options={projects.map((p) => ({ value: p.id, label: p.name }))} />
                   </Field>
                 </div>
-                <div className="mt-5">
-                  <Switch checked={exportAfter} onChange={setExportAfter} disabled={!settings?.paths.export_dir} label={t('studio.exportAfter')} hint={settings?.paths.export_dir || t('settings.exportDirHint')} />
+                <div className="mt-5 flex flex-col gap-1.5">
+                  <Switch checked={exportAfter} onChange={setExportAfter} disabled={!settings?.paths.export_dir} label={t('studio.exportAfter')} hint={settings?.paths.export_dir || undefined} />
+                  {!settings?.paths.export_dir && (
+                    // why the switch is off, and where to fix it
+                    <p className="pl-11 text-[12px] leading-snug text-muted">
+                      {t('studio.exportNoDir')}{' '}
+                      <Link to="/settings/paths" className="text-soft underline underline-offset-2 hover:text-fg">{t('studio.exportSetDir')}</Link>
+                    </p>
+                  )}
                 </div>
               </Card>
             )}

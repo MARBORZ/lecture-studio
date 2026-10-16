@@ -9,6 +9,7 @@ import { ActiveMark, AnimatePresence, m, RouteOutlet } from '@/components/motion
 import { Button, Collapsible, EmptyState, Field, IconButton, Modal, Segmented, Splitter, Stat } from '@/components/ui'
 import { SkeletonMarkdown, SkeletonPlayer, SkeletonText } from '@/components/skeleton'
 import { ExportModal, LessonEditModal } from '@/features/library/modals'
+import { MoveLessonButton } from '@/features/library/MoveLesson'
 import { MarkdownView } from '@/features/markdown/MarkdownView'
 import { VIDEO_TOKENS_PER_HOUR } from '@/features/jobs/PipelineOptionsFields'
 import { BookmarkList } from '@/features/player/bookmarks'
@@ -140,6 +141,7 @@ export function LessonLayout() {
                 />
                 <span className="mx-1 h-5 w-px bg-line" />
                 <IconButton icon={Pencil} size="sm" label={t('lesson.edit')} onClick={() => meta && openModal((close) => <LessonEditModal lesson={meta} close={close} />)} />
+                {meta && <MoveLessonButton lesson={meta} />}
                 <IconButton icon={RefreshCw} size="sm" label={t('lesson.regenerate')} disabled={!current.has_transcription} onClick={() => regenerate()} />
                 <IconButton icon={FolderOutput} size="sm" label={t('files.export')} onClick={() => meta && openModal((close) => <ExportModal lesson={meta} close={close} />)} />
                 <IconButton

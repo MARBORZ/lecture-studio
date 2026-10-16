@@ -69,6 +69,8 @@ export const en: Record<TKey, string> = {
   'lesson.assistant': 'Assistant',
   'lesson.files': 'Files',
   'lesson.edit': 'Edit lesson',
+  'lesson.moveTo': 'Move to notebook',
+  'lesson.moved': 'Lesson moved to “{notebook}”',
   'lesson.delete': 'Delete lesson',
   'lesson.deleteText': 'The lesson and all its files (video, audio, transcript, audit) will be deleted from disk.',
   'lesson.regenerate': 'Regenerate audit',
@@ -213,6 +215,8 @@ export const en: Record<TKey, string> = {
   'studio.cancelJob': 'Cancel',
   'studio.openLesson': 'Open lesson',
   'studio.exportAfter': 'Export to folder when done',
+  'studio.exportNoDir': 'Unavailable: no export folder is set.',
+  'studio.exportSetDir': 'Set it in Settings',
 
   'opt.silence': 'Silence threshold',
   'opt.silenceHint': 'Pauses longer than this are cut',

@@ -72,6 +72,8 @@ export const ru = {
   'lesson.assistant': 'Ассистент',
   'lesson.files': 'Файлы',
   'lesson.edit': 'Изменить урок',
+  'lesson.moveTo': 'Переместить в блокнот',
+  'lesson.moved': 'Урок перемещён в «{notebook}»',
   'lesson.delete': 'Удалить урок',
   'lesson.deleteText': 'Урок и все его файлы (видео, аудио, стенограмма, аудит) будут удалены с диска.',
   'lesson.regenerate': 'Перегенерировать аудит',
@@ -220,6 +222,8 @@ export const ru = {
   'studio.cancelJob': 'Отменить',
   'studio.openLesson': 'Открыть урок',
   'studio.exportAfter': 'Экспортировать в папку после обработки',
+  'studio.exportNoDir': 'Недоступно: не указана папка экспорта.',
+  'studio.exportSetDir': 'Указать в настройках',
 
   // pipeline options
   'opt.silence': 'Порог тишины',
