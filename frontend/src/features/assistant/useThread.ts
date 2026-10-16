@@ -1,7 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, type ThreadView } from '@/api/client'
 import type { AIProvider, AskRequest, ThreadKind } from '@/api/types'
 import { useResource } from '@/lib/useResource'
+import { inFlight, pending, pendingKey, unloading, usePending } from './pending'
+
+/** While a question waits and its request is not ours (it ran before a reload), the session is re-read this often. */
+const POLL_MS = 3000
 
 /**
  * One assistant thread (a lesson or a notebook) and its sessions. All server calls of the chat live here;
@@ -25,13 +29,45 @@ export function useThread(kind: ThreadKind, id: string, provider: AIProvider, so
 
   const reload = res.reload
 
-  const ask = async (req: Omit<AskRequest, 'session_id' | 'provider' | 'sources'>) => {
-    res.setData(await api.ask(kind, id, { ...req, provider, session_id: sid || null, sources: view.sources ?? null }))
+  // A question still waiting (asked before leaving the page or before a reload) shows as "thinking" until its answer
+  // is in the session. Its request in this tab updates the store when done; one from before a reload is polled.
+  const key = pendingKey(kind, id)
+  const waiting = usePending(key)
+  const last = session?.messages?.at(-1)
+  const lastAnswerAt = last?.role === 'assistant' ? new Date(last.created_at ?? 0).getTime() : 0
+  useEffect(() => {
+    if (waiting && session && (!waiting.session || waiting.session === session.id)) pending.settle(key, lastAnswerAt)
+  }, [waiting, session, lastAnswerAt, key])
+  useEffect(() => {
+    if (!waiting || inFlight.has(key)) return
+    const timer = window.setInterval(() => void reload(), POLL_MS)
+    return () => window.clearInterval(timer)
+  }, [waiting, key, reload])
+  // the answer arrived while this view was showing an older read: read again
+  const was = useRef(waiting)
+  useEffect(() => {
+    if (was.current && !waiting) void reload()
+    was.current = waiting
+  }, [waiting, reload])
+
+  /** shown = what the chat shows for the question while it waits (a quick action has no text of its own) */
+  const ask = async (req: Omit<AskRequest, 'session_id' | 'provider' | 'sources'>, shown = req.question ?? '') => {
+    pending.set(key, { question: shown, session: sid, at: Date.now() })
+    inFlight.add(key)
+    try {
+      res.setData(await api.ask(kind, id, { ...req, provider, session_id: sid || null, sources: view.sources ?? null }))
+    } finally {
+      inFlight.delete(key)
+      // a reload cuts the request, not the answer: the server still saves it, the next page waits for it
+      if (!unloading) pending.clear(key)
+    }
   }
 
   return {
     thread,
     session,
+    /** the question waiting for its answer in this session, if any (survives leaving the page and reloads) */
+    waiting: waiting && (!waiting.session || waiting.session === sid) ? waiting.question : null,
     loading: res.loading && !thread,
     ask,
     select: async (next: string) => {

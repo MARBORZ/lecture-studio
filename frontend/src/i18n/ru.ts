@@ -168,7 +168,7 @@ export const ru = {
   'files.time_map': 'Карта вырезов JSON',
 
   // assistant
-  'assistant.placeholder': 'Вопрос по источникам. Enter — отправить, Shift+Enter — перенос',
+  'assistant.placeholder': 'Вопрос по источникам. / — команды, Enter — отправить, Shift+Enter — перенос',
   'assistant.attach': 'Прикрепить файлы (или перетащите, или вставьте)',
   'assistant.attach.upload': 'Загрузить файл…',
   'assistant.attach.session': 'Файлы этой сессии',
@@ -198,6 +198,7 @@ export const ru = {
   'assistant.trimmedFixNoGemini': 'Уменьшите выбор источников или увеличьте окно в Настройки → ИИ.',
   'assistant.switchGemini': 'Переключить на Gemini',
   'assistant.context.hint': 'API ничего не помнит: каждый вопрос заново отправляет источники, историю и файлы. Когда история переполняет свою долю, старая часть сжимается в сводку автоматически.',
+  'assistant.context.base': 'Материал урока и инструкции ({base} токенов) уходят с каждым вопросом — они в фоне. Процент — сколько разговор занял из оставшегося места: {pct}%. Ближе к краю старая история сжимается сама.',
   'assistant.context.compact': 'Сжать историю сейчас',
   'assistant.context.compacted': 'История свёрнута в сводку',
   'assistant.quote': 'Спросить об этом',
@@ -220,6 +221,18 @@ export const ru = {
   'assistant.role.pitfalls': 'Ошибки',
   'assistant.role.code_summary': 'Код',
   'assistant.role.chapters': 'Главы',
+  'assistant.cmd.title': 'Команды',
+  'assistant.cmd.none': 'Такой команды нет',
+  'assistant.cmd.resume': 'Продолжить сессию',
+  'assistant.cmd.resumeHint': 'открыть прошлую сессию',
+  'assistant.cmd.newHint': 'чистый лист рядом с текущей',
+  'assistant.cmd.compactHint': 'свернуть историю в сводку',
+  'assistant.cmd.clearHint': 'очистить текущую сессию',
+  'assistant.cmd.keyHint': 'главные мысли урока',
+  'assistant.cmd.pitfallsHint': 'ошибки и подводные камни',
+  'assistant.cmd.codeHint': 'весь код из урока',
+  'assistant.cmd.quizHint': 'вопросы для самопроверки',
+  'assistant.cmd.chaptersHint': 'главы с таймкодами',
   'assistant.provider': 'Модель',
 
   // studio
