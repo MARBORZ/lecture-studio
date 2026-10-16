@@ -11,8 +11,7 @@ class FakeProvider:
     model = "fake"
     can_see_images = False
 
-    def __init__(self, window=90_000):
-        self.context_chars = window
+    def __init__(self):
         self.chats, self.compactions = [], []
 
     def chat(self, messages, system, images=None, **kw):
@@ -94,11 +93,12 @@ def test_history_is_compressed_when_it_outgrows_its_share(lesson_api, monkeypatc
     from backend.services import context_window
 
     c, fake = lesson_api
-    fake.context_chars = 8_000  # tiny window: history share = 2000 chars
+    assert c.patch("/api/settings", json={"ai": {"context_tokens": {"deepseek": 8_000}}}).status_code == 200
+    assert context_window.window_for("deepseek") * context_window.SHARE_HISTORY == 5_250  # the smallest window
     for i in range(4):
-        ask(c, f"вопрос {i} " + "x" * 600)
+        ask(c, f"вопрос {i} " + "x" * 1600)
     assert not fake.compactions
-    t = ask(c, "ещё вопрос " + "x" * 600)
+    t = ask(c, "ещё вопрос " + "x" * 1600)
     assert len(fake.compactions) == 1 and "вопрос 0" in fake.compactions[0]
     s = t["session"]
     assert s["summary"].startswith("СВОДКА") and s["summarized"] == len(s["messages"]) - 2 - context_window.KEEP_RECENT
@@ -133,7 +133,7 @@ def test_files_stay_in_the_session_until_switched_off(lesson_api):
 def test_context_usage_reports_the_window(lesson_api):
     c, _ = lesson_api
     ctx = c.get("/api/assistant/lesson/less_x?provider=gemini").json()["context"]
-    assert ctx["window"] == 600_000 and ctx["provider"] == "gemini"
+    assert ctx["window_tokens"] == 400_000 and ctx["window"] == 400_000 * 7 // 8 * 3 and ctx["provider"] == "gemini"
     assert ctx["sources"] > 0 and ctx["total"] >= ctx["sources"] + ctx["system"]
 
 
@@ -174,3 +174,56 @@ def test_notebook_cover(data_dir):
         c.delete(f"/api/projects/{pid}")
         assert not list((data_dir / "covers").glob(f"{pid}-*"))
         assert c.get(f"/api/projects/{pid}/cover").status_code == 404
+
+
+# ---------------------------------------------------------------- the window size (Settings → AI)
+
+
+def test_window_limits_are_checked_by_the_server(lesson_api):
+    c, _ = lesson_api
+    providers = c.get("/api/settings/providers").json()
+    assert providers["deepseek"]["max_context_tokens"] == 128_000 and providers["gemini"]["max_context_tokens"] == 1_000_000
+    assert providers["deepseek"]["min_context_tokens"] == 8_000 and providers["deepseek"]["default_context_tokens"] == 64_000
+
+    def set_window(values):
+        return c.patch("/api/settings", json={"ai": {"context_tokens": values}})
+
+    assert set_window({"deepseek": 7_999}).status_code == 422
+    assert set_window({"deepseek": 128_001}).status_code == 422
+    assert set_window({"openai": 64_000}).status_code == 422
+    r = set_window({"gemini": 1_000_000, "deepseek": 96_000})
+    assert r.status_code == 200 and r.json()["ai"]["context_tokens"] == {"gemini": 1_000_000, "deepseek": 96_000}
+    r = set_window({"gemini": None})  # back to the default; the other one stays
+    assert r.json()["ai"]["context_tokens"] == {"deepseek": 96_000}
+
+
+def test_window_comes_from_the_settings(lesson_api):
+    import json
+
+    from backend.core.ai import AI
+    from backend.services import context_window
+    from backend.settings import service
+
+    c, _ = lesson_api
+    raw = json.loads(service.SETTINGS_FILE.read_text())
+    assert "ai" not in raw  # the test settings.json predates this setting: the defaults
+    assert AI.context_tokens("deepseek") == 64_000 and AI.context_tokens("gemini") == 400_000
+    assert context_window.window_for("deepseek") == 64_000 * 7 // 8 * 3
+
+    c.patch("/api/settings", json={"ai": {"context_tokens": {"deepseek": 128_000}}})
+    assert context_window.window_for("deepseek") == 128_000 * 7 // 8 * 3
+
+    # a hand-edited value outside the model's limits is clamped, never sent as is
+    raw = json.loads(service.SETTINGS_FILE.read_text())
+    raw["ai"]["context_tokens"] = {"deepseek": 5_000_000, "gemini": 10}
+    service.SETTINGS_FILE.write_text(json.dumps(raw))
+    service.SettingsService._cache = None
+    assert AI.context_tokens("deepseek") == 128_000 and AI.context_tokens("gemini") == 8_000
+
+
+def test_meter_shows_tokens(lesson_api):
+    c, _ = lesson_api
+    c.patch("/api/settings", json={"ai": {"context_tokens": {"deepseek": 32_000}}})
+    usage = c.get("/api/assistant/lesson/less_x").json()["context"]
+    assert usage["window_tokens"] == 32_000 and usage["window"] == 32_000 * 7 // 8 * 3
+    assert usage["total"] > 0 and usage["total_tokens"] == -(-usage["total"] // 3)

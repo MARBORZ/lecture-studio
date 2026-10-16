@@ -64,8 +64,11 @@ audit timecodes to the clean timeline; the original audit is kept as `lesson_aud
 - Audit provider: DeepSeek mode → DeepSeek, Gemini → Gemini, "Whisper only" → the provider chosen in Settings → AI.
 - **Our own context window** (`services/context_window.py`). Chat APIs are stateless: every question re-sends everything.
   One request = system prompt + session summary and recent messages (≤ 25% of the window) + session files read by id
-  from disk (≤ 20%) + sources (audit + transcript, the rest, split between lessons) + the question. Window per provider:
-  `context_chars` (DeepSeek ~90k characters, Gemini ~600k). When the verbatim history outgrows its share, everything but
+  from disk (≤ 20%) + sources (audit + transcript, the rest, split between lessons) + the question. Window per provider,
+  in tokens, set in Settings → AI (`settings.ai.context_tokens`; default DeepSeek 64k, Gemini 400k; from 8k up to the
+  model's `max_context_tokens`: 128k, 1M; the server rejects values outside, a hand-edited file is clamped,
+  `AI.context_tokens`). The budget counts characters: `CHARS_PER_TOKEN` = 3 (core/ai/base.py, a low estimate for Russian,
+  timecodes and code), and 1/8 of the window stays free for the answer. When the verbatim history outgrows its share, everything but
   the last 4 messages is folded by the model into a "medium" summary (~6% of the window, prompt block `assistant.compact`,
   editable); folded messages stay visible, only the summary is sent. The UI reads the same numbers (`Thread.context`).
 - **Sessions** (`services/chats.py`): a thread (lesson or notebook) holds sessions — branches with their own history,

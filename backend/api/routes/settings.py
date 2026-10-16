@@ -31,6 +31,11 @@ def get_settings() -> SettingsView:
 
 @router.patch("", response_model=SettingsView)
 def patch_settings(patch: SettingsPatch) -> SettingsView:
+    if patch.ai and patch.ai.context_tokens:
+        try:
+            AI.check_context_tokens(patch.ai.context_tokens)
+        except ValueError as e:
+            raise HTTPException(422, detail=str(e)) from e
     SettingsService.patch(patch)
     return SettingsService.view()
 

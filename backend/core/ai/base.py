@@ -14,6 +14,12 @@ from backend.core.timeline import normalize_timecodes
 
 CHUNK_CHARS = 30_000
 
+# The assistant's context window is set in tokens (Settings → AI), per provider, within the model's limit. Our budget
+# (services/context_window.py) counts characters: CHARS_PER_TOKEN is a deliberately low estimate for the mix we send
+# (Russian prose, timecodes, code): about 3 characters per token, so the real token count stays under the setting.
+CHARS_PER_TOKEN = 3
+MIN_CONTEXT_TOKENS = 8_000
+
 _EMOJI_RE = re.compile(
     "[\U0001F000-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF\U00002B00-\U00002BFF️‍]"
 )
@@ -48,7 +54,8 @@ class BaseAIProvider(metaclass=AIMeta):
     default_model: str = ""
     supported_models: list[str] = []
     can_transcribe_audio: bool = False
-    context_chars: int = 90_000  # safe source budget for one request (chars, not tokens)
+    max_context_tokens: int = 128_000  # the model's window: the setting cannot go above it
+    default_context_tokens: int = 64_000  # the assistant's window until the user changes it
 
     def __init__(self, api_key: str, model: str | None = None):
         if not api_key:

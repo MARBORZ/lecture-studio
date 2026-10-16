@@ -783,6 +783,10 @@ export interface components {
             whisper_model?: string | null;
             /** Assistant Provider */
             assistant_provider?: ("deepseek" | "gemini") | null;
+            /** Context Tokens */
+            context_tokens?: {
+                [key: string]: number | null;
+            } | null;
         };
         /** AISettingsView */
         AISettingsView: {
@@ -799,6 +803,10 @@ export interface components {
              * @enum {string}
              */
             assistant_provider: "deepseek" | "gemini";
+            /** Context Tokens */
+            context_tokens: {
+                [key: string]: number;
+            };
         };
         /** AskRequest */
         AskRequest: {
@@ -1011,12 +1019,28 @@ export interface components {
         /**
          * ContextUsage
          * @description What one request carries, in characters, against the provider's window (our own context window).
+         *     The tokens are what the user sets and sees: window_tokens is the setting, total_tokens the estimate of total.
          */
         ContextUsage: {
             /** Provider */
             provider: string;
             /** Window */
             window: number;
+            /**
+             * Window Tokens
+             * @default 0
+             */
+            window_tokens: number;
+            /**
+             * Total Tokens
+             * @default 0
+             */
+            total_tokens: number;
+            /**
+             * Chars Per Token
+             * @default 3
+             */
+            chars_per_token: number;
             /**
              * System
              * @default 0
@@ -1763,6 +1787,14 @@ export interface components {
             can_transcribe_audio: boolean;
             /** Configured */
             configured: boolean;
+            /** Min Context Tokens */
+            min_context_tokens: number;
+            /** Max Context Tokens */
+            max_context_tokens: number;
+            /** Default Context Tokens */
+            default_context_tokens: number;
+            /** Chars Per Token */
+            chars_per_token: number;
         };
         /**
          * Segment

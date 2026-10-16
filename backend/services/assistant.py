@@ -71,7 +71,7 @@ def ask(kind: ThreadKind, thread_id: str, req: AskRequest) -> Thread:
 
     name = _provider_name(req.provider)
     provider = AI.get(name)
-    window = provider.context_chars
+    window = context_window.window_for(name)
     session, _ = chats.get(kind, thread_id, req.session_id, create_missing=True)
     if context_window.needs_compaction(session, window):
         context_window.compact(provider, session, window)
@@ -102,6 +102,6 @@ def compact(kind: ThreadKind, thread_id: str, session_id: str, provider: str | N
     name = _provider_name(provider)
     p = AI.get(name)
     session, _ = chats.get(kind, thread_id, session_id)
-    context_window.compact(p, session, p.context_chars, keep=2)
+    context_window.compact(p, session, context_window.window_for(name), keep=2)
     chats.save(kind, thread_id, session)
     return thread(kind, thread_id, session.id, name, sources)

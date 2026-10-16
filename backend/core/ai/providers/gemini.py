@@ -14,7 +14,8 @@ class GeminiProvider(BaseAIProvider):
     supported_models = ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite"]
     can_transcribe_audio = True
     can_see_images = True
-    context_chars = 600_000
+    max_context_tokens = 1_000_000
+    default_context_tokens = 400_000
 
     def _generate(self, contents: list, system: str, temperature: float) -> str:
         from google import genai

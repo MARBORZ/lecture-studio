@@ -8,7 +8,7 @@ from pydantic import BaseModel
 # Import providers so AIMeta registers them.
 import backend.core.ai.providers.deepseek  # noqa: F401,E402
 import backend.core.ai.providers.gemini  # noqa: F401,E402
-from backend.core.ai.base import BaseAIProvider
+from backend.core.ai.base import CHARS_PER_TOKEN, MIN_CONTEXT_TOKENS, BaseAIProvider
 from backend.core.ai.meta import AIMeta
 from backend.settings import SettingsService
 
@@ -19,6 +19,10 @@ class ProviderInfo(BaseModel):
     supported_models: list[str]
     can_transcribe_audio: bool
     configured: bool
+    min_context_tokens: int
+    max_context_tokens: int
+    default_context_tokens: int
+    chars_per_token: int
 
 
 class AI:
@@ -40,6 +44,29 @@ class AI:
                 supported_models=cls.supported_models,
                 can_transcribe_audio=cls.can_transcribe_audio,
                 configured=bool(SettingsService.api_key(cat)),
+                min_context_tokens=MIN_CONTEXT_TOKENS,
+                max_context_tokens=cls.max_context_tokens,
+                default_context_tokens=cls.default_context_tokens,
+                chars_per_token=CHARS_PER_TOKEN,
             )
             for cat, cls in AIMeta.get_all_providers().items()
         }
+
+    @staticmethod
+    def context_tokens(category: str) -> int:
+        """The assistant's window for this provider: the setting, else the default; a hand-edited value is clamped."""
+        cls = AIMeta.get_provider_class(category)
+        if not cls:
+            raise ValueError(f"Неизвестный провайдер ИИ: {category}")
+        tokens = SettingsService.get().ai.context_tokens.get(category, cls.default_context_tokens)
+        return min(max(tokens, MIN_CONTEXT_TOKENS), cls.max_context_tokens)
+
+    @staticmethod
+    def check_context_tokens(values: dict[str, int | None]) -> None:
+        """Settings patch: each window within MIN_CONTEXT_TOKENS..the model's limit (None = back to the default)."""
+        for category, tokens in values.items():
+            cls = AIMeta.get_provider_class(category)
+            if not cls:
+                raise ValueError(f"Неизвестный провайдер ИИ: {category}")
+            if tokens is not None and not MIN_CONTEXT_TOKENS <= tokens <= cls.max_context_tokens:
+                raise ValueError(f"Окно {category}: от {MIN_CONTEXT_TOKENS:,} до {cls.max_context_tokens:,} токенов".replace(",", " "))

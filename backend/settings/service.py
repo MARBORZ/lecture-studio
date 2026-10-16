@@ -137,8 +137,13 @@ class SettingsService:
             if patch.pipeline is not None:
                 current.pipeline = patch.pipeline
             if patch.ai is not None:
-                for field, value in patch.ai.model_dump(exclude_none=True).items():
+                for field, value in patch.ai.model_dump(exclude_none=True, exclude={"context_tokens"}).items():
                     setattr(current.ai, field, value.strip() if isinstance(value, str) else value)
+                for provider, tokens in (patch.ai.context_tokens or {}).items():
+                    if tokens is None:
+                        current.ai.context_tokens.pop(provider, None)
+                    else:
+                        current.ai.context_tokens[provider] = tokens
             cls._save(current)
             return current
 
@@ -248,6 +253,7 @@ class SettingsService:
                 gemini_model=s.ai.gemini_model,
                 whisper_model=s.ai.whisper_model,
                 assistant_provider=s.ai.assistant_provider,
+                context_tokens=s.ai.context_tokens,
             ),
             pipeline=s.pipeline,
         )

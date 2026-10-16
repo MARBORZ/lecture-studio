@@ -111,8 +111,10 @@ export function ContextMeter({ chat }: { chat: ThreadApi }) {
   const { t, lang, toast } = useUI()
   const usage: ContextUsage | null | undefined = chat.thread?.context
   if (!usage) return null
-  const pct = Math.min(100, Math.round((usage.total / usage.window) * 100))
+  // Tokens, as set in Settings → AI; the parts are counted in characters and shown as tokens (chars_per_token).
+  const pct = Math.min(100, Math.round((usage.total_tokens / usage.window_tokens) * 100))
   const n = (v: number) => formatCount(v, lang)
+  const tokens = (chars: number) => n(Math.ceil(chars / usage.chars_per_token))
   const recent = (chat.session?.messages?.length ?? 0) - (chat.session?.summarized ?? 0)
 
   return (
@@ -138,11 +140,12 @@ export function ContextMeter({ chat }: { chat: ThreadApi }) {
         <div className="flex flex-col gap-3">
           <div>
             <div className="text-[13px] font-medium text-fg">{t('assistant.context.title')}</div>
-            <div className="font-mono text-[11.5px] text-muted">{t('assistant.context.of', { used: n(usage.total), window: n(usage.window), provider: usage.provider })}</div>
+            <div className="font-mono text-[11.5px] text-muted">{t('assistant.context.of', { used: n(usage.total_tokens), window: n(usage.window_tokens), provider: usage.provider })}</div>
+            <div className="font-mono text-[11.5px] text-dim">{t('assistant.context.chars', { used: n(usage.total), window: n(usage.window) })}</div>
           </div>
           <div className="flex h-2 overflow-hidden rounded-full bg-line">
             {PARTS.map((p) => (
-              <span key={p.key} className={p.cls} style={{ width: `${(usage[p.key] / usage.window) * 100}%` }} />
+              <span key={p.key} className={p.cls} style={{ width: `${usage.total ? (usage[p.key] / usage.total) * pct : 0}%` }} />
             ))}
           </div>
           <ul className="flex flex-col gap-1.5 text-[12.5px]">
@@ -150,7 +153,7 @@ export function ContextMeter({ chat }: { chat: ThreadApi }) {
               <li key={p.key} className="flex items-center gap-2 text-soft">
                 <span className={cn('size-2 shrink-0 rounded-full', p.cls)} />
                 <span className="flex-1">{t(`assistant.context.${p.key}`)}</span>
-                <span className="font-mono text-[11.5px] text-muted tabular-nums">{n(usage[p.key])}</span>
+                <span className="font-mono text-[11.5px] text-muted tabular-nums">{tokens(usage[p.key])}</span>
               </li>
             ))}
           </ul>

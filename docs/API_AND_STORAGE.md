@@ -14,11 +14,11 @@ API: `http://127.0.0.1:3000` (the UI reaches it through the Vite proxy at `:5173
 | POST | `/api/system/update/discard` | put the modified tracked files (`dirty_files`, listed by the server, not the request) back to HEAD; returns a fresh check |
 | GET | `/api/system/uninstall` | what "Delete Lecture Studio" removes (app folder, settings folder, data folder kept by default), `lessons_inside`, `blocked: git_work` with the files/commits, how to reinstall |
 | POST | `/api/system/uninstall` | `{delete_lessons}`: start the OS uninstaller detached and stop everything; `409` when busy, when the library would go with the app folder, or on git work |
-| GET / PATCH | `/api/settings` | settings (keys are masked, with their source: settings / env / none) |
+| GET / PATCH | `/api/settings` | settings (keys are masked, with their source: settings / env / none); `ai.context_tokens` is merged per provider (`null` = default), `422` outside the model's limits |
 | POST | `/api/settings/test-key` | test a key with one tiny model request |
 | GET | `/api/settings/prompts` | AI instruction blocks: default, current, modified |
 | PUT / DELETE | `/api/settings/prompts/{key}` | save a custom block text / reset to default |
-| GET | `/api/settings/providers` | AI providers and models |
+| GET | `/api/settings/providers` | AI providers and models, context window limits in tokens (min, max, default) and `chars_per_token` |
 | GET | `/api/settings/compute` | what local transcription runs on: `cuda` / `apple` / `cpu`, GPU name, threads, cores; on the CPU the reason (user, no_gpu, old_gpu, old_driver, torch_cpu, apple_unavailable, gpu_failed). The preference itself is `settings.compute` (`device`: auto/gpu/cpu, `cpu_threads`: 0 = all cores) |
 | POST | `/api/settings/check-path` | check a folder (exists, writable, contains a library) |
 | POST | `/api/settings/data-dir` | switch the data folder: `attach` or `move`; refused while busy |
