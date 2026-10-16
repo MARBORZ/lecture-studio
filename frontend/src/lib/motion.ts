@@ -108,11 +108,11 @@ export const collapse: Variants = {
 /**
  * Frame-by-frame drawing (the boot mark redraws its SVG every frame): `draw(seconds since start)` on every animation
  * frame while mounted. Not a transition, so not a Motion preset; it lives here so all motion stays in one layer.
- * Off when the system asks for reduced motion (the caller keeps showing its first frame).
+ * Off when the system asks for reduced motion (the caller keeps showing its first frame), unless `always`.
  */
-export function useFrameLoop(draw: (seconds: number) => void, enabled = true): void {
+export function useFrameLoop(draw: (seconds: number) => void, { enabled = true, always = false } = {}): void {
   useEffect(() => {
-    if (!enabled || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (!enabled || (!always && matchMedia('(prefers-reduced-motion: reduce)').matches)) return
     let raf = 0
     const start = performance.now()
     const frame = (now: number) => {
@@ -121,5 +121,5 @@ export function useFrameLoop(draw: (seconds: number) => void, enabled = true): v
     }
     raf = requestAnimationFrame(frame)
     return () => cancelAnimationFrame(raf)
-  }, [draw, enabled])
+  }, [draw, enabled, always])
 }

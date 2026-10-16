@@ -4,9 +4,11 @@ import { AnimatePresence, m } from '@/components/motion'
 import { ease } from '@/lib/motion'
 import type { TKey } from '@/i18n'
 import { BootMark } from './BootMark'
+import { LOOP_SEC } from './markGeometry'
 
-const MIN_MS = 1200 // counted from the page start: a fast load still shows the mark, not a flash
-const PUNCH_AFTER_MS = 5000 // lines appear only when loading takes a while
+// counted from the page start: at least one full loop of the mark, however fast the load
+const MIN_MS = LOOP_SEC * 1000
+const PUNCH_AFTER_MS = LOOP_SEC * 1000 // still loading after the first loop: the lines start, the loop goes on
 const PUNCH_EVERY_MS = 2500
 const PUNCHLINES: TKey[] = ['boot.punch1', 'boot.punch2', 'boot.punch3', 'boot.punch4', 'boot.punch5', 'boot.punch6', 'boot.punch7', 'boot.punch8']
 
