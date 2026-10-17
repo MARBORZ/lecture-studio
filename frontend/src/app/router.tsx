@@ -10,7 +10,11 @@ import { LessonLayout } from '@/pages/lesson/LessonLayout'
 import { LessonAssistant, LessonFiles, LessonNotes, LessonTranscript } from '@/pages/lesson/tabs'
 import { HotkeysSettings } from '@/features/hotkeys/HotkeysSettings'
 import { SettingsLayout } from '@/pages/settings/SettingsLayout'
-import { AISettingsSection, InterfaceSettings, PathsSettings, ProcessingSettings, PromptsSettings } from '@/pages/settings/sections'
+import { AISettingsSection } from '@/pages/settings/AISettings'
+import { InterfaceSettings } from '@/pages/settings/InterfaceSettings'
+import { PathsSettings } from '@/pages/settings/PathsSettings'
+import { ProcessingSettings } from '@/pages/settings/ProcessingSettings'
+import { PromptsSettings } from '@/pages/settings/PromptsSettings'
 import { AppProvider } from './AppProvider'
 
 export const router = createBrowserRouter([

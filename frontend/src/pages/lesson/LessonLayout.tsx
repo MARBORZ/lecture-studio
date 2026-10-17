@@ -1,29 +1,28 @@
-import { AlertTriangle, ArrowLeft, FileText, FolderSearch, FolderOutput, Languages, MessagesSquare, Paperclip, Pencil, RefreshCw, ScrollText, Trash2, X } from 'lucide-react'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Link, NavLink, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router'
+import { ArrowLeft, FileText, MessagesSquare, Paperclip, ScrollText } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { Link, NavLink, useOutletContext, useParams } from 'react-router'
 import { api } from '@/api/client'
-import type { AIProvider, LessonFull, LessonStatus } from '@/api/types'
-import { KeyNotice, useProviderOptions } from '@/features/system/KeyNotice'
-import { useJobs, useLibrary, useUI } from '@/app/AppProvider'
+import type { LessonFull } from '@/api/types'
+import { useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { ActiveMark, m, RouteOutlet, SceneMotion, UserMotion } from '@/components/motion'
-import { Button, Collapsible, EmptyState, Field, IconButton, Modal, Segmented, Select, Splitter, Stat } from '@/components/ui'
-import { SkeletonMarkdown, SkeletonPlayer, SkeletonText } from '@/components/skeleton'
-import { ExportModal, LessonEditModal } from '@/features/library/modals'
-import { MoveLessonButton } from '@/features/library/MoveLesson'
+import { Collapsible, EmptyState, Splitter, Stat } from '@/components/ui'
+import { SkeletonMarkdown, SkeletonPlayer } from '@/components/skeleton'
 import { AskFromMoment } from '@/features/assistant/AskFromMoment'
 import { MarkdownView } from '@/features/markdown/MarkdownView'
-import { VIDEO_TOKENS_PER_HOUR } from '@/features/jobs/PipelineOptionsFields'
 import { BookmarkList } from '@/features/player/bookmarks'
-import { MediaPlayer, type Chapter } from '@/features/player/MediaPlayer'
-import { player, usePlayer } from '@/features/player/store'
+import { MediaPlayer } from '@/features/player/MediaPlayer'
 import { cn } from '@/lib/cn'
-import { formatCount, formatDuration, storage } from '@/lib/format'
-import { flip, focusFade, glide, restoreAnchor, scrollAnchor, type ScrollAnchor } from '@/lib/motion'
-import { extractChapters, findActiveIndex, formatTc } from '@/lib/time'
+import { formatDuration, storage } from '@/lib/format'
+import { focusFade } from '@/lib/motion'
+import { extractChapters } from '@/lib/time'
 import { useResource } from '@/lib/useResource'
-import { useHotkey } from '@/features/hotkeys/useHotkey'
-import { isTyping } from '@/lib/keys'
+import { useFocusKeys, useLessonInPlayer, useReloadOnChange } from './hooks'
+import { useFocusGlide } from './useFocusGlide'
+import { LessonHeader } from './LessonHeader'
+import { LanguageMismatch, SourceMissing } from './LessonNotices'
+import { RegenerateAuditModal } from './RegenerateAuditModal'
+import { Chapters } from './Chapters'
 
 export interface LessonContext {
   lesson: LessonFull
@@ -48,141 +47,31 @@ const TABS = [
 
 export function LessonLayout() {
   const { lessonId = '' } = useParams()
-  const [search, setSearch] = useSearchParams()
-  const navigate = useNavigate()
-  const { t, openModal, confirm, toast, lang, focusMode, setFocusMode, modals } = useUI()
+  const { t, openModal, lang, focusMode } = useUI()
   const splitRef = useRef<HTMLDivElement>(null)
   const [widths, setWidths] = useState(() => ({
     normal: storage.get<number>(WIDTH.normal.key, WIDTH.normal.initial),
     focus: storage.get<number>(WIDTH.focus.key, WIDTH.focus.initial),
   }))
 
-  // Focus mode: its hotkey toggles (F by default), Esc leaves (unless a dialog is open); leaving the lesson always ends it.
-  useHotkey('lesson.focus', () => setFocusMode((v) => !v))
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (isTyping(e) || e.metaKey || e.ctrlKey || e.altKey) return
-      if (e.key === 'Escape' && !modals.length) setFocusMode(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [setFocusMode, modals.length])
-  useEffect(() => () => setFocusMode(false), [setFocusMode])
+  useFocusKeys()
   const width = WIDTH[focusMode ? 'focus' : 'normal']
   const playerWidth = widths[focusMode ? 'focus' : 'normal']
   const setPlayerWidth = (v: number) => setWidths((w) => ({ ...w, [focusMode ? 'focus' : 'normal']: v }))
-  const { lessons, revision, patchLesson, deleteLesson, projectName } = useLibrary()
-  const { jobs } = useJobs()
+  const { lessons } = useLibrary()
   const res = useResource(() => api.lesson(lessonId), [lessonId])
   const lesson = res.data
   const meta = lessons.find((l) => l.id === lessonId)
   const chapters = useMemo(() => extractChapters(lesson?.lesson_audit_md ?? ''), [lesson?.lesson_audit_md])
+  useLessonInPlayer(lessonId, lesson, chapters, meta?.bookmarks)
+  useReloadOnChange(lessonId, res.reload)
 
-  // media + deep link ?t=
-  useEffect(() => {
-    if (!lesson) return
-    player.load(lesson.id, lesson.audio_url ?? null, lesson.video_url ?? null, lesson.title ?? '')
-    const t0 = search.get('t')
-    if (t0) {
-      player.seek(Number(t0), true)
-      setSearch((p) => (p.delete('t'), p), { replace: true })
-    }
-  }, [lesson, search, setSearch])
-  useEffect(() => {
-    if (lesson && player.getState().lessonId === lesson.id) player.setChapters(chapters)
-  }, [lesson, chapters])
-  const bookmarks = meta?.bookmarks
-  useEffect(() => {
-    if (lesson && player.getState().lessonId === lesson.id) player.setBookmarks(bookmarks ?? [])
-  }, [lesson, bookmarks])
-  // Leaving the page stops playback unless the video is out in a window (then it keeps playing).
-  useEffect(() => () => player.leave(), [lessonId])
-
-  // reload when a job for this lesson finishes (e.g. audit regeneration)
-  const finished = jobs.filter((j) => j.lesson_id === lessonId && j.status === 'completed').length
-  const seen = useRef(finished)
-  useEffect(() => {
-    if (finished > seen.current) void res.reload()
-    seen.current = finished
-  }, [finished, res])
-  // ...and when Claude changed the library through MCP (an audit, a transcript, the title)
-  const seenRevision = useRef(revision)
-  useEffect(() => {
-    if (revision === seenRevision.current) return
-    seenRevision.current = revision
-    void res.reload()
-  }, [revision, res])
+  const { playerRef, paneRef, asideRef } = useFocusGlide(focusMode)
 
   function regenerate(language?: 'ru' | 'en') {
     if (!lesson) return
     openModal((close) => <RegenerateAuditModal lesson={lesson} language={language} close={close} />)
   }
-
-  // Focus mode: the page changes in one step, then the player glides from where it was to where it is now, and the
-  // tab pane slides along and fades in over its reflow, still showing the paragraph the reader was on.
-  const playerRef = useRef<HTMLDivElement>(null)
-  const paneRef = useRef<HTMLElement>(null)
-  const asideRef = useRef<HTMLElement>(null)
-  const last = useRef<{ player: DOMRect | null; pane: DOMRect | null; anchor: ScrollAnchor | null }>({ player: null, pane: null, anchor: null })
-  const lastFocus = useRef(focusMode)
-  const tracking = useRef(0)
-  const lift = useRef(0)
-  const measure = () => ({
-    player: playerRef.current?.getBoundingClientRect() ?? null,
-    pane: paneRef.current?.getBoundingClientRect() ?? null,
-    anchor: scrollAnchor(paneRef.current),
-  })
-  useLayoutEffect(() => {
-    const el = playerRef.current
-    const pane = paneRef.current
-    if (lastFocus.current !== focusMode) {
-      restoreAnchor(last.current.anchor)
-      const running = [
-        el && last.current.player ? flip(el, last.current.player) : undefined,
-        pane && last.current.pane ? glide(pane, last.current.pane) : undefined,
-      ].filter((a): a is Animation => Boolean(a))
-      // the video glides in from a bigger box (leaving focus): its column must not clip it, and it rides above the pane
-      const aside = asideRef.current
-      if (el && aside && running.length && aside.scrollTop === 0) {
-        aside.style.overflow = 'visible'
-        el.style.position = 'relative'
-        el.style.zIndex = '20'
-        const turn = ++lift.current
-        void Promise.allSettled(running.map((a) => a.finished)).then(() => {
-          if (turn !== lift.current) return // a newer glide owns these styles now
-          aside.style.overflow = ''
-          el.style.position = ''
-          el.style.zIndex = ''
-        })
-      }
-      // while they glide, keep the on-screen boxes: pressed again mid-way, the way back starts from there
-      cancelAnimationFrame(tracking.current)
-      const track = () => {
-        last.current = measure()
-        if (running.some((a) => a.playState === 'running')) tracking.current = requestAnimationFrame(track)
-      }
-      tracking.current = requestAnimationFrame(track)
-    }
-    lastFocus.current = focusMode
-    last.current = measure()
-  })
-  useEffect(() => () => cancelAnimationFrame(tracking.current), [])
-  useEffect(() => {
-    let frame = 0
-    const remember = () => {
-      cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => {
-        last.current = measure()
-      })
-    }
-    window.addEventListener('resize', remember)
-    window.addEventListener('scroll', remember, true)
-    return () => {
-      cancelAnimationFrame(frame)
-      window.removeEventListener('resize', remember)
-      window.removeEventListener('scroll', remember, true)
-    }
-  }, [])
 
   if (res.error) {
     return <EmptyState icon={ArrowLeft} title={t('lesson.notFound')} hint={res.error.message} action={<Link to="/library" className="text-[13px] underline">{t('error.home')}</Link>} />
@@ -195,46 +84,7 @@ export function LessonLayout() {
         {!focusMode && (
           <m.div key="lesson-header" variants={focusFade} initial="hidden" animate="show" className="shrink-0">
           <UserMotion>
-          <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-6 py-3 lg:px-8">
-            <div className="min-w-0 flex-1">
-              {current ? (
-                <>
-                  <Link to={`/library/${current.project_id}`} className="text-[12px] text-muted hover:text-fg">
-                    {projectName(current.project_id ?? 'proj_inbox')}
-                  </Link>
-                  <h1 className="truncate text-[17px] font-semibold tracking-[-0.01em]">{current.title}</h1>
-                </>
-              ) : (
-                <SkeletonText lines={2} className="w-64" />
-              )}
-            </div>
-            {current && (
-              <div className="flex items-center gap-1.5">
-                <Segmented
-                  size="sm"
-                  value={current.status ?? 'in_progress'}
-                  onChange={(s: LessonStatus) => patchLesson(lessonId, { status: s }).catch((e) => toast(e.message, 'error'))}
-                  options={(['in_progress', 'to_review', 'completed'] as const).map((s) => ({ value: s, label: t(`status.${s}`) }))}
-                />
-                <span className="mx-1 h-5 w-px bg-line" />
-                <IconButton icon={Pencil} size="sm" label={t('lesson.edit')} onClick={() => meta && openModal((close) => <LessonEditModal lesson={meta} close={close} />)} />
-                {meta && <MoveLessonButton lesson={meta} />}
-                <IconButton icon={RefreshCw} size="sm" label={t('lesson.regenerate')} disabled={!current.has_transcription} onClick={() => regenerate()} />
-                <IconButton icon={FolderOutput} size="sm" label={t('files.export')} onClick={() => meta && openModal((close) => <ExportModal lesson={meta} close={close} />)} />
-                <IconButton
-                  icon={Trash2}
-                  size="sm"
-                  label={t('lesson.delete')}
-                  onClick={async () => {
-                    if (await confirm({ title: `${t('lesson.delete')}: ${current.title}`, text: t('lesson.deleteText'), danger: true, confirmLabel: t('common.delete') })) {
-                      await deleteLesson(lessonId)
-                      navigate(`/library/${current.project_id}`)
-                    }
-                  }}
-                />
-              </div>
-            )}
-          </header>
+          <LessonHeader lessonId={lessonId} current={current} meta={meta} onRegenerate={() => regenerate()} />
           </UserMotion>
           </m.div>
         )}
@@ -339,154 +189,5 @@ export function LessonLayout() {
         </section>
       </div>
     </div>
-  )
-}
-
-function Chapters({ chapters }: { chapters: Chapter[] }) {
-  const starts = useMemo(() => chapters.map((c) => c.t), [chapters])
-  const active = usePlayer((s) => findActiveIndex(starts, s.currentTime + 0.5))
-  return (
-    <ol className="flex flex-col">
-        {chapters.map((c, i) => (
-          <li key={`${c.t}-${i}`}>
-            <button
-              type="button"
-              onClick={() => player.seek(c.t, true)}
-              className={cn('flex w-full items-baseline gap-3 rounded-lg px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-surface', i === active ? 'text-fg' : 'text-muted')}
-            >
-              <span className={cn('w-12 shrink-0 font-mono text-[11.5px]', i === active ? 'text-fg' : 'text-dim')}>{formatTc(c.t)}</span>
-              <span className="min-w-0 truncate">{c.title}</span>
-            </button>
-          </li>
-        ))}
-    </ol>
-  )
-}
-
-/** Eco: the recording is no longer at its path. Point the lesson at it again (the server checks it is the same one). */
-function SourceMissing({ lessonId, onRelinked }: { lessonId: string; onRelinked: () => Promise<void> }) {
-  const { t, promptText, toast } = useUI()
-  return (
-    <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-fg px-6 py-3 lg:px-8">
-      <Icon as={AlertTriangle} size={16} className="shrink-0" />
-      <div className="min-w-[14rem] flex-1">
-        <p className="text-[13.5px] font-medium text-fg">{t('lesson.sourceMissing')}</p>
-        <p className="text-[12.5px] text-muted">{t('lesson.sourceMissingHint')}</p>
-      </div>
-      <Button
-        size="sm"
-        variant="primary"
-        icon={FolderSearch}
-        onClick={async () => {
-          const path = await promptText({ title: t('lesson.relink'), label: t('lesson.relinkLabel'), maxLength: 1000 })
-          if (!path) return
-          try {
-            await api.relink(lessonId, path)
-            toast(t('lesson.relinked'))
-            await onRelinked()
-          } catch (e) {
-            toast((e as Error).message, 'error')
-          }
-        }}
-      >
-        {t('lesson.relink')}
-      </Button>
-    </div>
-  )
-}
-
-const isLang = (v: string): v is 'ru' | 'en' => v === 'ru' || v === 'en'
-
-/**
- * The audit came out in a language other than the recording's (e.g. an English lecture, a Russian interface).
- * Offer to rebuild it in the recording language; dismissing it is remembered per lesson.
- */
-function LanguageMismatch({ lesson, onRegenerate }: { lesson: LessonFull; onRegenerate: (language: 'ru' | 'en') => void }) {
-  const { t } = useUI()
-  const key = `lesson.langNotice.${lesson.id}.${lesson.audit_language}`
-  const [dismissed, setDismissed] = useState(() => storage.get(key, false))
-  const { speech_language: speech, audit_language: audit } = lesson
-  if (dismissed || !isLang(speech) || !isLang(audit) || speech === audit || !lesson.has_transcription) return null
-  return (
-    <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-line px-6 py-3 lg:px-8">
-      <Icon as={Languages} size={16} className="shrink-0 text-muted" />
-      <div className="min-w-[14rem] flex-1">
-        <p className="text-[13.5px] text-fg">{t('lesson.languageMismatch', { audit: t(`lang.name.${audit}`), speech: t(`lang.name.${speech}`) })}</p>
-        <p className="text-[12.5px] text-muted">{t('lesson.languageMismatchHint')}</p>
-      </div>
-      <Button size="sm" variant="secondary" icon={RefreshCw} onClick={() => onRegenerate(speech)}>
-        {t('lesson.regenerateIn', { language: t(`lang.name.${speech}`) })}
-      </Button>
-      <IconButton
-        icon={X}
-        size="sm"
-        label={t('common.close')}
-        onClick={() => {
-          storage.set(key, true)
-          setDismissed(true)
-        }}
-      />
-    </div>
-  )
-}
-
-/** Regenerate the audit: model, source — the transcript, or (Gemini) the lesson's video — and the language. */
-function RegenerateAuditModal({ lesson, language: initial, close }: { lesson: LessonFull; language?: 'ru' | 'en'; close: () => void }) {
-  const { t, settings, toast, lang } = useUI()
-  const [language, setLanguage] = useState<'ru' | 'en'>(initial ?? (isLang(lesson.audit_language) ? lesson.audit_language : lang))
-  const [provider, setProvider] = useState<AIProvider>(settings?.ai.assistant_provider ?? 'deepseek')
-  const providerOptions = useProviderOptions()
-  const [source, setSource] = useState<'transcript' | 'video'>(lesson.has_transcription ? 'transcript' : 'video')
-  const [busy, setBusy] = useState(false)
-  const canVideo = provider === 'gemini' && Boolean(lesson.video_url)
-  const effective = source === 'video' && !canVideo ? 'transcript' : source
-  return (
-    <Modal
-      title={t('lesson.regenerate')}
-      description={t('lesson.regenerateText')}
-      width="sm"
-      onClose={close}
-      footer={
-        <>
-          <Button variant="ghost" onClick={close}>{t('common.cancel')}</Button>
-          <Button
-            variant="primary"
-            loading={busy}
-            disabled={effective === 'transcript' && !lesson.has_transcription}
-            onClick={async () => {
-              setBusy(true)
-              try {
-                await api.regenerateAudit(lesson.id, provider, settings?.pipeline.audit_mode, effective, language)
-                toast(t('lesson.regenerateStarted'))
-                close()
-              } catch (e) {
-                toast((e as Error).message, 'error')
-                setBusy(false)
-              }
-            }}
-          >
-            {t('lesson.regenerate')}
-          </Button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        <Select value={provider} onChange={setProvider} options={providerOptions} />
-        <KeyNotice provider={provider} />
-        <Field label={t('lesson.auditSource')} hint={effective === 'video' ? t('opt.auditSource.video.cost', { tokens: formatCount(VIDEO_TOKENS_PER_HOUR, lang) }) : undefined}>
-          <Segmented
-            value={effective}
-            onChange={setSource}
-            options={[
-              { value: 'transcript', label: t('opt.auditSource.transcript') },
-              ...(canVideo ? [{ value: 'video' as const, label: t('opt.auditSource.video') }] : []),
-            ]}
-          />
-        </Field>
-        <Field label={t('lesson.auditLanguage')}>
-          <Segmented value={language} onChange={setLanguage} options={(['ru', 'en'] as const).map((l) => ({ value: l, label: t(`lang.name.${l}`) }))} />
-        </Field>
-      </div>
-    </Modal>
   )
 }

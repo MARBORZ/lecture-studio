@@ -1,4 +1,6 @@
 import { forwardRef, useId, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react'
+import { Search } from 'lucide-react'
+import { Icon } from '@/components/Icon'
 import { ActiveMark } from '@/components/motion'
 import { cn } from '@/lib/cn'
 import type { Option } from './Select'
@@ -24,6 +26,16 @@ export function Field({ label, hint, error, children, className, aside }: { labe
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...rest }, ref) {
   return <input ref={ref} className={cn(CONTROL, 'h-9', className)} {...rest} />
 })
+
+/** A filter field: the magnifier inside, the rest of an Input. `sm` for toolbars inside a pane. */
+export function SearchInput({ size = 'md', className, ...rest }: Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> & { size?: 'sm' | 'md' }) {
+  return (
+    <div className={cn('relative', className)}>
+      <Icon as={Search} size={14} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-dim" />
+      <Input className={cn('pl-8', size === 'sm' && 'h-8 text-[13px]')} {...rest} />
+    </div>
+  )
+}
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ className, ...rest }, ref) {
   return <textarea ref={ref} className={cn(CONTROL, 'min-h-20 resize-y py-2 leading-relaxed', className)} {...rest} />
