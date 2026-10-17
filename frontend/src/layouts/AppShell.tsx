@@ -10,7 +10,7 @@ import { StoppedScreen } from '@/features/system/StoppedScreen'
 import { UpdatingScreen, useUpdateWatcher } from '@/features/system/Update'
 import { useUpdates } from '@/features/system/updateStore'
 import { cn } from '@/lib/cn'
-import { contentIn, ease, fadeUpFlow, sceneOut, sidebarIn } from '@/lib/motion'
+import { contentIn, ease, fadeUpFlow, focusFade, sceneOut, sidebarIn } from '@/lib/motion'
 import { Sidebar } from './Sidebar'
 
 export function AppShell() {
@@ -43,11 +43,17 @@ export function AppShell() {
         {scene === 'app' && (
           <m.div key="app" initial="hidden" animate="show" className="flex h-full w-full">
             <m.div variants={sidebarIn} className="h-full">
-              {/* Focus mode takes the sidebar away in one step: the lesson page then flips its player from the old
-                  place to the new one, and a sidebar still sliding would move that target mid-flight. */}
-              <div className={focusMode ? 'h-full w-0 overflow-hidden' : 'h-full'}>
+              {/* Focus mode takes the sidebar's width away in one step: the lesson page then flips its player from the
+                  old place to the new one, and a sidebar still sliding would move that target mid-flight. Coming back,
+                  its width returns at once and its content fades in (focusFade), like the rest of the scene. */}
+              <m.div
+                variants={focusFade}
+                initial={false}
+                animate={focusMode ? 'hidden' : 'show'}
+                className={focusMode ? 'h-full w-0 overflow-hidden' : 'h-full'}
+              >
                 <Sidebar />
-              </div>
+              </m.div>
             </m.div>
             <m.main variants={contentIn} className="min-w-0 flex-1 overflow-hidden">
               <RouteOutlet depth={1} className="h-full" />
