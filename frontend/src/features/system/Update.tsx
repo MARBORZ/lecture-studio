@@ -5,8 +5,7 @@ import type { BusyReason, UpdateInfo } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { Button, Card, Modal, Switch } from '@/components/ui'
-import { useSidebarCollapsed } from '@/layouts/Sidebar'
-import { cn } from '@/lib/cn'
+import { SidebarAction } from '@/layouts/Sidebar'
 import { formatDate, storage } from '@/lib/format'
 import { BusyList, useBusyReasons } from './busy'
 import { updates, useUpdates } from './updateStore'
@@ -44,21 +43,16 @@ export function useUpdateWatcher() {
 /** Sidebar: appears only when a release is newer than what runs. */
 export function UpdateButton() {
   const { t, openModal } = useUI()
-  const collapsed = useSidebarCollapsed()
   const info = useUpdates((s) => s.info)
   if (!info?.available) return null
-  const label = t('update.available', { v: info.latest ?? '' })
   return (
-    <button
-      type="button"
-      title={collapsed ? label : undefined}
+    <SidebarAction
+      icon={CircleArrowUp}
+      label={t('update.available', { v: info.latest ?? '' })}
       onClick={() => openModal((close) => <UpdateDialog close={close} />)}
-      className="flex h-9 w-full items-center gap-2.5 overflow-hidden rounded-lg px-[10px] text-[13px] whitespace-nowrap text-fg transition-colors hover:bg-hover"
-    >
-      <Icon as={CircleArrowUp} size={15} className="shrink-0" />
-      <span className={cn('flex-1 text-left transition-opacity duration-200', collapsed && 'opacity-0')}>{label}</span>
-      {!collapsed && <span className="size-1.5 shrink-0 rounded-full bg-fg" />}
-    </button>
+      emphasis
+      dot
+    />
   )
 }
 

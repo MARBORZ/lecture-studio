@@ -27,6 +27,27 @@ const EXPANDED = 256
 const CollapsedContext = createContext(false)
 export const useSidebarCollapsed = () => useContext(CollapsedContext)
 
+/** One action row at the bottom of the sidebar (feedback, update, shutdown): icon + label, the label fades when
+ *  collapsed and moves into the tooltip. `emphasis` keeps it bright (an update waiting), `dot` marks it. */
+export function SidebarAction({ icon, label, onClick, emphasis, dot }: { icon: typeof Library; label: string; onClick: () => void; emphasis?: boolean; dot?: boolean }) {
+  const collapsed = useSidebarCollapsed()
+  return (
+    <button
+      type="button"
+      title={collapsed ? label : undefined}
+      onClick={onClick}
+      className={cn(
+        'flex h-9 w-full items-center gap-2.5 overflow-hidden rounded-lg px-[10px] text-[13px] whitespace-nowrap transition-colors hover:bg-hover',
+        emphasis ? 'text-fg' : 'text-muted hover:text-fg',
+      )}
+    >
+      <Icon as={icon} size={15} className="shrink-0" />
+      <span className={cn('flex-1 text-left transition-opacity duration-200', collapsed && 'opacity-0')}>{label}</span>
+      {dot && !collapsed && <span className="size-1.5 shrink-0 rounded-full bg-fg" />}
+    </button>
+  )
+}
+
 function NavItem({ to, icon, children, end, count, notebook }: { to: string; icon?: typeof Library; children: string; end?: boolean; count?: number; notebook?: Project }) {
   const collapsed = useSidebarCollapsed()
   const move = useMoveLesson()

@@ -86,3 +86,13 @@ export function Segmented<V extends string>({ options, value, onChange, size = '
     </div>
   )
 }
+
+/** A consent or option checkbox with its text; the label wraps both, so the text toggles it too. */
+export function Checkbox({ checked, onChange, children, className }: { checked: boolean; onChange: (v: boolean) => void; children: ReactNode; className?: string }) {
+  return (
+    <label className={cn('flex cursor-pointer items-start gap-2.5 text-[13px] text-fg', className)}>
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-[3px] size-3.5 shrink-0 accent-fg" />
+      <span className="leading-snug">{children}</span>
+    </label>
+  )
+}

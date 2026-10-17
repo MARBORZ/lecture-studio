@@ -1,9 +1,9 @@
 """Bug reports and ideas to the developer (services/feedback.py): a draft, its files, then send."""
 
-import aiofiles
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 
+from backend.api.upload import receive
 from backend.i18n import tr
 from backend.models.feedback import FeedbackDraft, FeedbackFile, FeedbackResult, FeedbackSend
 from backend.services import feedback
@@ -27,20 +27,8 @@ async def upload_file(draft_id: str, filename: str, request: Request) -> Feedbac
         dest, cap = feedback.file_slot(draft_id, filename)
     except feedback.FeedbackError as e:
         raise _bad(e) from None
-    size = 0
-    try:
-        async with aiofiles.open(dest, "wb") as f:
-            async for chunk in request.stream():
-                size += len(chunk)
-                if size > cap:
-                    raise HTTPException(413, detail=tr("feedback.too_big", mb=feedback.MAX_TOTAL_BYTES // (1024 * 1024)))
-                await f.write(chunk)
-    except BaseException:
-        dest.unlink(missing_ok=True)
-        raise
-    if size == 0:
-        dest.unlink(missing_ok=True)
-        raise HTTPException(400, detail=tr("file.empty"))
+    too_big = tr("feedback.too_big", mb=feedback.MAX_TOTAL_BYTES // (1024 * 1024))
+    await receive(request, dest, lambda: dest.unlink(missing_ok=True), cap, too_big)
     return feedback.file_info(dest)
 
 

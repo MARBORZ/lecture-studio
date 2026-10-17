@@ -4,7 +4,7 @@ import { api, ApiError } from '@/api/client'
 import type { BusyReason, UninstallPlan } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
-import { Button, Card, Modal } from '@/components/ui'
+import { Button, Card, Checkbox, Modal } from '@/components/ui'
 import { player } from '@/features/player/store'
 import { BusyList, useBusyReasons } from './busy'
 
@@ -101,10 +101,7 @@ function UninstallDialog({ close }: { close: () => void }) {
             </ul>
           </div>
           {!deleteLessons && !plan.lessons_inside && <p className="break-all">{t('uninstall.lessonsKept', { path: plan.data_dir })}</p>}
-          <label className="flex cursor-pointer items-start gap-2.5 text-[13px] text-fg">
-            <input type="checkbox" checked={deleteLessons} onChange={(e) => setDeleteLessons(e.target.checked)} className="mt-[3px] size-3.5 accent-fg" />
-            <span>{t('uninstall.deleteLessons')}</span>
-          </label>
+          <Checkbox checked={deleteLessons} onChange={setDeleteLessons}>{t('uninstall.deleteLessons')}</Checkbox>
           {plan.blocked === 'git_work' && (
             <div className="flex flex-col gap-2 rounded-lg border border-line-strong px-3 py-2.5 text-[13px]">
               <p>{t('uninstall.gitWork')}</p>
@@ -119,10 +116,7 @@ function UninstallDialog({ close }: { close: () => void }) {
           {busy && <BusyList reasons={reasons} />}
           <p className="font-mono text-[12px] break-all text-muted">{reinstall}</p>
           {plan.uninstaller && <p className="text-[12px] break-all text-muted">{t('uninstall.native', { path: plan.uninstaller })}</p>}
-          <label className="flex cursor-pointer items-start gap-2.5 text-[13px] text-fg">
-            <input type="checkbox" checked={understood} onChange={(e) => setUnderstood(e.target.checked)} className="mt-[3px] size-3.5 accent-fg" />
-            <span>{t('uninstall.confirm')}</span>
-          </label>
+          <Checkbox checked={understood} onChange={setUnderstood}>{t('uninstall.confirm')}</Checkbox>
         </div>
       )}
     </Modal>

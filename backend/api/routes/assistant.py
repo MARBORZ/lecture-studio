@@ -3,11 +3,11 @@ Assistant threads: /api/assistant/{project|lesson}/{id}
 """
 
 
-import aiofiles
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 
+from backend.api.upload import receive
 from backend.i18n import tr
 from backend.models.assistant import AskRequest, Attachment, CompactRequest, SessionInfo, SessionPatch, Thread, ThreadKind
 from backend.services import assistant, attachments, chats
@@ -28,21 +28,8 @@ async def upload_attachment(filename: str, request: Request, session: str = "") 
         att_id, dest = attachments.new_slot(filename, session)
     except ValueError as e:
         raise HTTPException(400, detail=str(e)) from e
-    size = 0
     with JobRegistry.uploading():
-        try:
-            async with aiofiles.open(dest, "wb") as f:
-                async for chunk in request.stream():
-                    size += len(chunk)
-                    if size > attachments.MAX_BYTES:
-                        raise HTTPException(413, detail=tr("upload.too_big"))
-                    await f.write(chunk)
-        except BaseException:
-            remove_dir(dest.parent)
-            raise
-    if size == 0:
-        remove_dir(dest.parent)
-        raise HTTPException(400, detail=tr("file.empty"))
+        await receive(request, dest, lambda: remove_dir(dest.parent), attachments.MAX_BYTES)
     return await run_in_threadpool(attachments.register, att_id, dest, session)
 
 

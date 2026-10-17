@@ -7,7 +7,7 @@ import { Icon } from '@/components/Icon'
 import { AnimatePresence, m } from '@/components/motion'
 import { Button, Field, IconButton, Input, Modal, Progress, Segmented, Switch, Textarea } from '@/components/ui'
 import { SkeletonText } from '@/components/skeleton'
-import { useSidebarCollapsed } from '@/layouts/Sidebar'
+import { SidebarAction } from '@/layouts/Sidebar'
 import { cn } from '@/lib/cn'
 import { formatBytes } from '@/lib/format'
 import { shortcutLabel } from '@/lib/keys'
@@ -41,18 +41,7 @@ async function shrink(file: File): Promise<File> {
 /** Sidebar entry: write to the developer (bugs, ideas), with screenshots and files. */
 export function FeedbackButton() {
   const { t, openModal } = useUI()
-  const collapsed = useSidebarCollapsed()
-  return (
-    <button
-      type="button"
-      title={collapsed ? t('feedback.button') : undefined}
-      onClick={() => openModal((close) => <FeedbackModal close={close} />)}
-      className="flex h-9 w-full items-center gap-2.5 overflow-hidden rounded-lg px-[10px] text-[13px] whitespace-nowrap text-muted transition-colors hover:bg-hover hover:text-fg"
-    >
-      <Icon as={MessageSquareText} size={15} className="shrink-0" />
-      <span className={cn('transition-opacity duration-200', collapsed && 'opacity-0')}>{t('feedback.button')}</span>
-    </button>
-  )
+  return <SidebarAction icon={MessageSquareText} label={t('feedback.button')} onClick={() => openModal((close) => <FeedbackModal close={close} />)} />
 }
 
 /**
