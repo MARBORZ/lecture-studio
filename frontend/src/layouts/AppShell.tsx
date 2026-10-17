@@ -2,7 +2,7 @@ import { AlertTriangle, X } from 'lucide-react'
 import { Fragment } from 'react'
 import { useJobs, useLibrary, useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
-import { AnimatePresence, m, RouteOutlet } from '@/components/motion'
+import { AnimatePresence, m, RouteOutlet, SceneMotion } from '@/components/motion'
 import { Onboarding } from '@/features/onboarding/Onboarding'
 import { FloatingPlayer } from '@/features/player/FloatingPlayer'
 import { BootScreen } from '@/features/system/BootScreen'
@@ -32,10 +32,13 @@ export function AppShell() {
     <div className="flex h-full">
       {boot}
       <AnimatePresence mode="wait">
+        {/* SceneMotion around the tutorial only: it dissolves into the app even with the OS reduce motion, like it moves */}
         {scene === 'tutorial' && (
-          <m.div key="tutorial" variants={sceneOut} initial={false} animate="show" exit="exit" className="fixed inset-0 z-[90]">
-            <Onboarding />
-          </m.div>
+          <SceneMotion key="tutorial">
+            <m.div variants={sceneOut} initial={false} animate="show" exit="exit" className="fixed inset-0 z-[90]">
+              <Onboarding />
+            </m.div>
+          </SceneMotion>
         )}
         {scene === 'app' && (
           <m.div key="app" initial="hidden" animate="show" className="flex h-full w-full">
@@ -57,8 +60,8 @@ export function AppShell() {
       {/* Replay from Settings: same dissolve on close, no language question. */}
       <AnimatePresence>
         {tutorialOpen && (
+          <SceneMotion key="tutorial-replay">
           <m.div
-            key="tutorial-replay"
             variants={sceneOut}
             initial={{ opacity: 0 }}
             animate="show"
@@ -68,6 +71,7 @@ export function AppShell() {
           >
             <Onboarding replay onClose={() => setTutorialOpen(false)} />
           </m.div>
+          </SceneMotion>
         )}
       </AnimatePresence>
 
