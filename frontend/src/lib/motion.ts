@@ -141,18 +141,66 @@ export function useFrameLoop(draw: (seconds: number) => void, { enabled = true, 
  * video does not stutter. Uniform for a box that keeps its aspect (16:9 player). Runs whatever the OS motion setting,
  * like the focus scene it belongs to.
  */
-export function flip(el: HTMLElement, from: DOMRect, ms = duration.slow * 1000): void {
+export function flip(el: HTMLElement, from: DOMRect, ms = duration.slow * 1000): Animation | undefined {
+  // a glide still running (F pressed again mid-way): `from` is where it is on screen now, so start over from there
+  for (const a of el.getAnimations()) a.cancel()
   const to = el.getBoundingClientRect()
   if (!from.width || !to.width) return
   const s = from.width / to.width
   const dx = from.left - to.left
   const dy = from.top - to.top
   if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(s - 1) < 0.01) return
-  el.animate(
+  return el.animate(
     [
       { transformOrigin: 'top left', transform: `translate(${dx}px, ${dy}px) scale(${s})` },
       { transformOrigin: 'top left', transform: 'none' },
     ],
     { duration: ms, easing: `cubic-bezier(${easeInOut.join(',')})` },
   )
+}
+
+/**
+ * The pane beside a flipped player: it cannot scale (its text reflows to the new width), so it slides from its old
+ * corner and fades back in over the same curve and time — the reflow happens under the fade, never as a jump.
+ */
+export function glide(el: HTMLElement, from: DOMRect, ms = duration.slow * 1000): Animation | undefined {
+  for (const a of el.getAnimations()) a.cancel()
+  const to = el.getBoundingClientRect()
+  const dx = from.left - to.left
+  const dy = from.top - to.top
+  if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(from.width - to.width) < 1) return
+  return el.animate(
+    [
+      { transform: `translate(${dx}px, ${dy}px)`, opacity: 0.25 },
+      { transform: 'none', opacity: 1 },
+    ],
+    { duration: ms, easing: `cubic-bezier(${easeInOut.join(',')})` },
+  )
+}
+
+/** What the reader is looking at in a scroller: the first block whose bottom is below the top edge, and where it is. */
+export interface ScrollAnchor {
+  scroller: HTMLElement
+  el: Element
+  offset: number
+}
+
+const ANCHOR_BLOCKS = 'h1,h2,h3,h4,p,li,pre,table,blockquote,hr,[data-anchor]'
+
+export function scrollAnchor(root: HTMLElement | null): ScrollAnchor | null {
+  const scroller = [...(root?.querySelectorAll<HTMLElement>('.scroll-area') ?? [])].find((el) => el.scrollTop > 0)
+  if (!scroller) return null
+  const top = scroller.getBoundingClientRect().top
+  for (const el of scroller.querySelectorAll(ANCHOR_BLOCKS)) {
+    const r = el.getBoundingClientRect()
+    if (r.bottom > top) return { scroller, el, offset: r.top - top }
+  }
+  return null
+}
+
+/** After a reflow: scroll so the anchored block sits where it was. */
+export function restoreAnchor(a: ScrollAnchor | null): void {
+  if (!a || !a.scroller.isConnected || !a.el.isConnected) return
+  const shift = a.el.getBoundingClientRect().top - a.scroller.getBoundingClientRect().top - a.offset
+  if (Math.abs(shift) >= 1) a.scroller.scrollTop += shift
 }

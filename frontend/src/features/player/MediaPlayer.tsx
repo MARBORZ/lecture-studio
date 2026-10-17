@@ -244,24 +244,29 @@ export function MediaPlayer() {
         </div>
       )}
       <PlayerBar
+        // One way out of each state, nothing that fights it: full screen offers only its exit; focus mode does not
+        // offer the separate window (it would empty the focus scene); the window has no full screen of its own here.
         extra={
           <>
-            {videoUrl && display === 'inline' && (
-              <>
-                <IconButton icon={PictureInPicture2} label={t('player.popout')} onClick={() => player.setDisplay('window')} />
-                <IconButton
-                  icon={fullscreen ? Shrink : Expand}
-                  label={fullscreen ? t('player.exitFullscreen') : t('player.fullscreen')}
-                  onClick={() => (fullscreen ? document.exitFullscreen() : boxRef.current?.requestFullscreen())}
-                />
-              </>
+            {videoUrl && display === 'inline' && !fullscreen && !focusMode && (
+              <IconButton icon={PictureInPicture2} label={t('player.popout')} onClick={() => player.setDisplay('window')} />
             )}
-            <IconButton
-              icon={focusMode ? Minimize2 : Maximize2}
-              label={focusMode ? `${t('player.unfocus')} (${[focusKey, 'Esc'].filter(Boolean).join(' / ')})` : focusKey ? `${t('player.focus')} (${focusKey})` : t('player.focus')}
-              active={focusMode}
-              onClick={() => setFocusMode((v) => !v)}
-            />
+            {videoUrl && display === 'inline' && (
+              <IconButton
+                icon={fullscreen ? Shrink : Expand}
+                label={fullscreen ? t('player.exitFullscreen') : t('player.fullscreen')}
+                active={fullscreen}
+                onClick={() => (fullscreen ? document.exitFullscreen() : boxRef.current?.requestFullscreen())}
+              />
+            )}
+            {!fullscreen && (
+              <IconButton
+                icon={focusMode ? Minimize2 : Maximize2}
+                label={focusMode ? `${t('player.unfocus')} (${[focusKey, 'Esc'].filter(Boolean).join(' / ')})` : focusKey ? `${t('player.focus')} (${focusKey})` : t('player.focus')}
+                active={focusMode}
+                onClick={() => setFocusMode((v) => !v)}
+              />
+            )}
           </>
         }
       />
