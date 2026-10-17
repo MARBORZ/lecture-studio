@@ -1,7 +1,7 @@
 import { AlertTriangle, ArrowRight, Check, Cpu, Database, Film, KeyRound, Server } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { api } from '@/api/client'
-import type { ComputeStatus, SystemStatus } from '@/api/types'
+import type { ComputeStatus, McpStatus, SystemStatus } from '@/api/types'
 import { CLOUD_PROVIDERS, PROVIDER_NAME } from '@/features/system/KeyNotice'
 import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
@@ -22,21 +22,29 @@ type Row = { id: string; icon: typeof Server; label: string; value: string; ok: 
 
 /**
  * First run, after the language: what this computer is ready for. Real checks — server, FFmpeg, where speech
- * recognition will run, the data folder, AI keys — each resolving with its answer. Nothing here blocks: a missing
+ * recognition will run, the data folder, AI (keys, a local model, Claude through MCP) — each resolving with its answer. Nothing here blocks: a missing
  * piece is shown with what it means, and the walkthrough goes on.
  */
 export function Bootstrap({ onDone }: { onDone: () => void }) {
   const { t, settings } = useUI()
   const [status, setStatus] = useState<SystemStatus | null | undefined>()
   const [compute, setCompute] = useState<ComputeStatus | null | undefined>()
+  const [mcp, setMcp] = useState<McpStatus | null | undefined>()
   const [shown, setShown] = useState(0)
 
   useEffect(() => {
     api.status().then(setStatus, () => setStatus(null))
     api.compute().then(setCompute, () => setCompute(null))
+    api.mcpStatus().then(setMcp, () => setMcp(null))
   }, [])
 
-  const keys = settings ? [...CLOUD_PROVIDERS.filter((p) => settings.ai[`${p}_key`].source !== 'none'), ...(settings.ai.local_model ? ['local' as const] : [])] : []
+  const keys = settings
+    ? [
+        ...CLOUD_PROVIDERS.filter((p) => settings.ai[`${p}_key`].source !== 'none').map((p) => PROVIDER_NAME[p]),
+        ...(settings.ai.local_model ? [t('ai.local.short')] : []),
+        ...(mcp?.desktop.connected || mcp?.code.connected ? ['Claude (MCP)'] : []),
+      ]
+    : []
   const rows: Array<Row | null> = [
     status === undefined ? null : { id: 'server', icon: Server, label: t('onboarding.boot.server'), value: status ? `v${status.version}` : t('onboarding.boot.unknown'), ok: Boolean(status) },
     status === undefined ? null : { id: 'ffmpeg', icon: Film, label: 'FFmpeg', value: status?.ffmpeg ? t('onboarding.boot.ready') : t('onboarding.boot.ffmpegMissing'), ok: Boolean(status?.ffmpeg) },
@@ -54,8 +62,8 @@ export function Bootstrap({ onDone }: { onDone: () => void }) {
           ok: Boolean(compute),
         },
     settings ? { id: 'data', icon: Database, label: t('onboarding.boot.data'), value: tail(settings.paths.data_dir), ok: true } : null,
-    settings
-      ? { id: 'keys', icon: KeyRound, label: t('onboarding.boot.keys'), value: keys.length ? keys.map((k) => (k === 'local' ? t('ai.local.short') : PROVIDER_NAME[k])).join(', ') : t('onboarding.boot.noKeys'), ok: keys.length > 0 }
+    settings && mcp !== undefined
+      ? { id: 'keys', icon: KeyRound, label: t('onboarding.boot.keys'), value: keys.length ? keys.join(', ') : t('onboarding.boot.noKeys'), ok: keys.length > 0 }
       : null,
   ]
 

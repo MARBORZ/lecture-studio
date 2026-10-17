@@ -8,23 +8,25 @@ import type { TKey } from '@/i18n'
 import { AnimatePresence, m } from '@/components/motion'
 import { cn } from '@/lib/cn'
 import { fade, fadeIn, fadeUp, slide } from '@/lib/motion'
-import { AssistantArt, DiaryArt, DoneArt, KeysStep, LessonArt, LibraryArt, PowerArt, SettingsArt, StudioArt, WelcomeArt } from './illustrations'
+import { AssistantArt, DiaryArt, DoneArt, LessonArt, LibraryArt, PowerArt, SettingsArt, StudioArt, WelcomeArt } from './illustrations'
+import { AiStep } from './AiStep'
 import { useHotkeyLabel } from '@/features/hotkeys/useHotkey'
 import { isTyping } from '@/lib/keys'
 import { LogoMark } from '@/features/system/BootMark'
 import { Bootstrap } from './Bootstrap'
 import { Intro } from './Intro'
 
-type StepId = 'welcome' | 'library' | 'studio' | 'lesson' | 'assistant' | 'diary' | 'keys' | 'settings' | 'power' | 'done'
+type StepId = 'welcome' | 'library' | 'studio' | 'lesson' | 'assistant' | 'diary' | 'ai' | 'settings' | 'power' | 'done'
 
-const STEPS: Array<{ id: StepId; art: ComponentType }> = [
+// art gets onNext: the AI step's "Skip" moves on
+const STEPS: Array<{ id: StepId; art: ComponentType<{ onNext: () => void }> }> = [
   { id: 'welcome', art: WelcomeArt },
   { id: 'library', art: LibraryArt },
   { id: 'studio', art: StudioArt },
   { id: 'lesson', art: LessonArt },
   { id: 'assistant', art: AssistantArt },
   { id: 'diary', art: DiaryArt },
-  { id: 'keys', art: KeysStep },
+  { id: 'ai', art: AiStep },
   { id: 'settings', art: SettingsArt },
   { id: 'power', art: PowerArt },
   { id: 'done', art: DoneArt },
@@ -132,6 +134,8 @@ function Walkthrough({ onClose }: { onClose?: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (isTyping(e)) return
+      // Enter on a focused button presses that button (Next included), never a second step forward
+      if (e.key === 'Enter' && e.target instanceof Element && e.target.closest('button, a')) return
       if (e.key === 'Escape' && onClose) onClose()
       else if (e.key === 'ArrowRight' || e.key === 'Enter') next()
       else if (e.key === 'ArrowLeft') back()
@@ -198,7 +202,7 @@ function Walkthrough({ onClose }: { onClose?: () => void }) {
                   </ul>
                 </m.section>
                 <m.div variants={fadeIn} initial="hidden" animate="show" custom={0.1} className="w-full lg:justify-self-end">
-                  <Art />
+                  <Art onNext={next} />
                 </m.div>
               </m.div>
             </AnimatePresence>
