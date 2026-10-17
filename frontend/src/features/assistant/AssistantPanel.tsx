@@ -8,13 +8,14 @@ import { Appear } from '@/components/motion'
 import { Button, IconButton, Select } from '@/components/ui'
 import { SkeletonChat } from '@/components/skeleton'
 import { MarkdownView } from '@/features/markdown/MarkdownView'
-import { KeyNotice, pickProvider, useAiKeys, useProviderOptions } from '@/features/system/KeyNotice'
+import { KeyNotice, useAiKeys, useProviderOptions } from '@/features/system/KeyNotice'
 import { cn } from '@/lib/cn'
 import { formatTc } from '@/lib/time'
 import { AttachButton, AttachmentChip, useAttachments } from './attachments'
 import { ContextMeter, SessionBar } from './SessionBar'
 import { SelectionAsk, withQuote } from './SelectionAsk'
 import { SlashMenu } from './SlashMenu'
+import { useChatProvider, useRestoreProvider } from './chatProvider'
 import { useThread } from './useThread'
 
 
@@ -30,12 +31,14 @@ export interface AskState { quote?: string; newSession?: boolean; at?: number }
  *   kind="project" — selected lessons of a notebook, citations [[lesson@MM:SS]] open the lesson
  */
 export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKind; id: string; sources?: string[]; lessonId?: string }) {
-  const { t, settings, toast, confirm } = useUI()
+  const { t, toast, confirm } = useUI()
   const { patchLesson, lessons } = useLibrary()
   const keys = useAiKeys()
-  const [provider, setProvider] = useState<AIProvider>(() => pickProvider(settings?.ai.assistant_provider ?? 'deepseek', keys))
+  const { provider, choose, setProvider } = useChatProvider(kind, id)
   const providerOptions = useProviderOptions()
   const chat = useThread(kind, id, provider, sources)
+  useRestoreProvider(chat.session, setProvider)
+  const pick = (p: AIProvider) => choose(p, chat.session?.id)
   const files = useAttachments(chat.session?.id ?? '')
   const { clear: clearDrafts } = files
   useEffect(() => clearDrafts(), [chat.session?.id, clearDrafts]) // drafts belong to the session they were added in
@@ -136,10 +139,10 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
           <SessionBar chat={chat} />
         </div>
         <ContextMeter chat={chat} />
-        <Select size="sm" aria-label={t('ai.model')} className="w-40" value={provider} onChange={setProvider} options={providerOptions} />
+        <Select size="sm" aria-label={t('ai.model')} className="w-40" value={provider} onChange={pick} options={providerOptions} />
       </div>
 
-      <KeyNotice provider={provider} onSwitch={setProvider} className="mb-3" />
+      <KeyNotice provider={provider} onSwitch={pick} className="mb-3" />
 
       <SelectionAsk onAsk={takeQuote} className="scroll-area flex min-h-0 flex-1 flex-col gap-4 pr-1">
         {chat.loading ? (
@@ -172,7 +175,7 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
         <div ref={endRef} />
       </SelectionAsk>
 
-      <TrimNotice usage={chat.thread?.context} provider={provider} canGemini={keys.gemini} onGemini={() => setProvider('gemini')} />
+      <TrimNotice usage={chat.thread?.context} provider={provider} canGemini={keys.gemini} onGemini={() => pick('gemini')} />
 
       <form
         className="relative mt-2 flex flex-col gap-2 rounded-xl border border-line bg-surface p-2 focus-within:border-line-strong"
