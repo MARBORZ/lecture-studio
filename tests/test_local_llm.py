@@ -9,7 +9,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.core.ai import base, prompts
+from backend.core.ai import audit, base, prompts
 from backend.core.ai.providers import local
 from backend.core.ai.retry import AIUnavailable
 
@@ -175,7 +175,7 @@ def transcript(chars: int) -> str:
 @pytest.mark.parametrize("window", [8_000, 16_000, 32_000])
 def test_every_audit_request_fits_a_small_window(window):
     p = Recorder(window)
-    p.generate_audit(transcript(200_000), duration=3600, language="ru")
+    audit.write(p, transcript(200_000), duration=3600, language="ru")
     assert len(p.calls) > 3  # parts and a merge
     assert max(p.calls) <= window * base.CHARS_PER_TOKEN, (window, max(p.calls))
 
@@ -183,15 +183,15 @@ def test_every_audit_request_fits_a_small_window(window):
 def test_many_parts_merge_in_rounds_in_a_small_window():
     p = Recorder(8_000)
     notes = ["заметка " * 600] * 30  # 30 parts of ~4 800 characters: far more than one 8k request holds
-    limit = p._part_limit(prompts.merge_system(True, "ru"))
-    joined = p._fit_notes(notes, limit, prompts.merge_system(True, "ru"))
+    limit = audit.part_limit(p, prompts.merge_system(True, "ru"))
+    joined = audit.fit_notes(p, notes, limit, prompts.merge_system(True, "ru"))
     assert len(joined) <= limit and p.calls  # merged in rounds first
     assert max(p.calls) <= 8_000 * base.CHARS_PER_TOKEN
 
 
 def test_cloud_parts_unchanged():
     p = Recorder(None)
-    assert p._part_limit("x" * 5000) == base.CHUNK_CHARS
+    assert audit.part_limit(p, "x" * 5000) == audit.CHUNK_CHARS
 
 
 # ---------------------------------------------------------------- settings and API

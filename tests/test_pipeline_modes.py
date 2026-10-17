@@ -128,9 +128,7 @@ def test_audit_from_video_and_its_fallback(data_dir, tmp_path, monkeypatch):
             seen["transcript"] = transcript_between(0, duration)
             return "# По видео\\n\\n- кадр [00:01]"
 
-        def generate_audit(self, transcript, duration, timed, progress, language="en"):
-            return "# По стенограмме"
-
+    monkeypatch.setattr(steps.audit, "write", lambda provider, transcript, duration, timed, progress, language="en": "# По стенограмме")
     monkeypatch.setattr(steps.AI, "get", staticmethod(lambda name: Gemini()))
     monkeypatch.setattr(steps.SettingsService, "api_key", classmethod(lambda cls, name: "key"))
     with TestClient(app, base_url="http://127.0.0.1") as c:
