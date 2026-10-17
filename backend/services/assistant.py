@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from backend.core.ai import AI, prompts
-from backend.core.ai.base import strip_emoji
+from backend.core.ai.output import strip_emoji
 from backend.core.timeline import normalize_timecodes
 from backend.i18n import tr
 from backend.models.assistant import AskRequest, ChatMessage, Thread, ThreadKind

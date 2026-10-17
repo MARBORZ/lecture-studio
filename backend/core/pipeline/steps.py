@@ -10,7 +10,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from backend.core import language
-from backend.core.ai import AI
+from backend.core.ai import AI, audit
 from backend.core.media import (
     AudioProcessor,
     VideoProcessor,
@@ -362,7 +362,7 @@ class GenerateAuditStep(PipelineStep):
             return
         try:
             progress(0, tr("step.audit", provider=provider_name, model=provider.model))
-            md = provider.generate_audit(compact_transcript(ctx.segments), ctx.clean_duration, timed, progress, language=lang)
+            md = audit.write(provider, compact_transcript(ctx.segments), ctx.clean_duration, timed, progress, language=lang)
         except JobCancelled:
             raise
         except Exception as e:

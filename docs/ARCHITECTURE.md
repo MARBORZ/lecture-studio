@@ -122,10 +122,10 @@ audit timecodes to the clean timeline; the original audit is kept as `lesson_aud
 - **The assistant's sources rule** (`assistant.base`): answers are grounded in the lessons and cited; when they do not
   cover a question, or the user asks for general knowledge, the model says so and answers from its own knowledge under
   "Beyond the lecture:", without timecodes.
-- `BaseAIProvider.generate_audit` exists once: a long transcript is split into ~30k-character parts, each part becomes
+- The audit algorithm exists once, `core/ai/audit.py:write(provider, …)` (providers only carry text: `chat`, `stream_chat`, and their window `audit_window_tokens`): a long transcript is split into ~30k-character parts, each part becomes
   notes, then a final merge. Nothing is truncated. A provider with a small window (`audit_window_tokens()`, the local
   model) gets parts sized to it (a quarter of the window, at least 1k tokens, stays for the answer, 10% margin), and when
-  the parts' notes do not fit one request they are merged in rounds first (`_fit_notes`).
+  the parts' notes do not fit one request they are merged in rounds first (`audit.fit_notes`). Cleaning a model's text (emoji, a fenced reply, timecodes) is `core/ai/output.py:clean_output`.
 - **Local model** (`providers/local.py`): Ollama or LM Studio at `settings.ai.local_base_url`, model `local_model`, no key.
   Ollama is asked through its own `/api/chat`, the only way to set the context window per request (`options.num_ctx` =
   the window setting; its OpenAI endpoint keeps the server default of a few thousand tokens and cuts longer prompts

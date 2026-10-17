@@ -43,10 +43,11 @@ def test_audit_follows_the_chosen_language(data_dir, monkeypatch):
     class Provider:
         category, model = "deepseek", "fake"
 
-        def generate_audit(self, transcript, duration, timed, progress, language="en"):
-            seen.append(language)
-            return "# Audit"
+    def write(provider, transcript, duration, timed, progress, language="en"):
+        seen.append(language)
+        return "# Audit"
 
+    monkeypatch.setattr(steps.audit, "write", write)
     monkeypatch.setattr(steps.AI, "get", staticmethod(lambda name: Provider()))
     monkeypatch.setattr(steps.SettingsService, "api_key", classmethod(lambda cls, name: "key"))
     Lessons.save(Lesson(id="less_l", job_id="l", title="Lesson", speech_language="en"))

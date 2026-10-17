@@ -1,4 +1,5 @@
-from backend.core.ai.base import clean_output, split_lines
+from backend.core.ai.audit import split_lines
+from backend.core.ai.output import clean_output
 
 
 def test_clean_output_strips_emoji_and_fixes_timecodes():

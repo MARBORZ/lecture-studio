@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import Any
 
 from backend.core.ai import prompts
-from backend.core.ai.base import BaseAIProvider, clean_output
+from backend.core.ai.base import BaseAIProvider
+from backend.core.ai.output import clean_output
 from backend.core.ai.retry import stream_with_retry, with_retry
 from backend.i18n import tr
 

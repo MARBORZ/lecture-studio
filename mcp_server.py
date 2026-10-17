@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from mcp.server.mcpserver import MCPServer  # noqa: E402
 
-from backend.core.ai.base import clean_output  # noqa: E402
+from backend.core.ai.output import clean_output  # noqa: E402
 from backend.core.timeline import TimeMap, parse_srt  # noqa: E402
 from backend.core.transcription import write_transcripts  # noqa: E402
 from backend.models.lesson import LessonPatch  # noqa: E402
