@@ -15,7 +15,7 @@ import { storage } from '@/lib/format'
 import { shortcutLabel } from '@/lib/keys'
 import { useResource } from '@/lib/useResource'
 
-const EMPTY: DiaryPageData = { items: [], total: 0, page: 1, size: 30 }
+const EMPTY: DiaryPageData = { items: [], total: 0, size: 30, next: null }
 
 /** Diary: Obsidian-style categories on the left, quick-capture stream on the right. */
 export function DiaryPage() {
@@ -25,21 +25,22 @@ export function DiaryPage() {
   const [query, setQuery] = useState('')
   const q = useDeferredValue(query.trim())
   const cats = useResource(() => api.diaryCategories(), [])
-  // a page at a time (the server searches every entry, then cuts); the next page loads as its end comes into view
+  // a page at a time (the server searches every entry, then cuts); the next page loads as its end comes into view,
+  // asked for by the last entry shown (a cursor), so entries written or deleted meanwhile neither repeat nor go missing
   const entries = useResource(() => api.diaryEntries(category, q || undefined), [category, q])
   const items = entries.data?.items
   const [more, setMore] = useState({ loading: false, failed: false })
   const endRef = useRef<HTMLDivElement>(null)
-  const hasMore = Boolean(entries.data && entries.data.items.length < entries.data.total)
+  const hasMore = Boolean(entries.data?.next)
   const loadMore = async (retry = false) => {
     const list = entries.data
-    if (!list || !hasMore || more.loading || (more.failed && !retry)) return
+    if (!list?.next || more.loading || (more.failed && !retry)) return
     setMore({ loading: true, failed: false })
     try {
-      const next = await api.diaryEntries(category, q || undefined, list.page + 1)
+      const page = await api.diaryEntries(category, q || undefined, list.next)
       entries.setData((prev = EMPTY) => {
-        const seen = new Set(prev.items.map((e) => e.id)) // an entry written meanwhile shifts the pages by one
-        return { ...next, items: [...prev.items, ...next.items.filter((e) => !seen.has(e.id))] }
+        const seen = new Set(prev.items.map((e) => e.id)) // guard: an entry moved meanwhile may come back under its new id
+        return { ...page, items: [...prev.items, ...page.items.filter((e) => !seen.has(e.id))] } // total: the server's, fresh
       })
       setMore({ loading: false, failed: false })
     } catch (e) {

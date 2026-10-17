@@ -35,8 +35,8 @@ class DiaryPage(BaseModel):
 
     items: list[DiaryEntry]
     total: int
-    page: int
     size: int
+    next: str | None = None  # pass as `after` for the following page; None = this was the last one
 
 
 class DiaryEntryCreate(BaseModel):

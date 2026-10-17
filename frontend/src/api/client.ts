@@ -182,7 +182,8 @@ export const api = {
   createDiaryCategory: (name: string) => request<DiaryCategory>('POST', '/api/diary/categories', { name }),
   renameDiaryCategory: (name: string, to: string) => request<DiaryCategory>('PATCH', `/api/diary/categories/${encodeURIComponent(name)}`, { name: to }),
   deleteDiaryCategory: (name: string) => request<{ moved: number }>('DELETE', `/api/diary/categories/${encodeURIComponent(name)}`),
-  diaryEntries: (category?: string, q?: string, page = 1) => get<DiaryPage>(`/api/diary/entries${qs({ category, q, page: page > 1 ? String(page) : undefined })}`),
+  /** after = the previous page's next (a cursor: entries written or deleted meanwhile shift nothing) */
+  diaryEntries: (category?: string, q?: string, after?: string) => get<DiaryPage>(`/api/diary/entries${qs({ category, q, after })}`),
   createDiaryEntry: (text: string, category?: string) => request<DiaryEntry>('POST', '/api/diary/entries', { text, category }),
   updateDiaryEntry: (id: string, patch: { text?: string; category?: string }) => request<DiaryEntry>('PUT', `/api/diary/entries/${diaryPath(id)}`, patch),
   deleteDiaryEntry: (id: string) => request<{ ok: boolean }>('DELETE', `/api/diary/entries/${diaryPath(id)}`),

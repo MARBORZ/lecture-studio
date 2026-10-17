@@ -932,7 +932,7 @@ export interface paths {
         };
         /**
          * List Entries
-         * @description Newest first, a page at a time (size up to 100); q searches every entry before the page is cut.
+         * @description Newest first, a page at a time (size up to 100; after = the previous page's next); q searches every entry before the cut.
          */
         get: operations["list_entries_api_diary_entries_get"];
         put?: never;
@@ -1599,10 +1599,10 @@ export interface components {
             items: components["schemas"]["DiaryEntry"][];
             /** Total */
             total: number;
-            /** Page */
-            page: number;
             /** Size */
             size: number;
+            /** Next */
+            next?: string | null;
         };
         /** DownloadPage */
         DownloadPage: {
@@ -5021,7 +5021,7 @@ export interface operations {
             query?: {
                 category?: string | null;
                 q?: string | null;
-                page?: number;
+                after?: string | null;
                 size?: number;
             };
             header?: never;

@@ -41,7 +41,7 @@ def test_diary_api(data_dir):
         assert c.put(f"/api/diary/entries/{e['id']}", json={"text": "правка"}).json()["title"] == "правка"
         assert c.delete("/api/diary/categories/Входящие").status_code == 400
         assert c.delete(f"/api/diary/entries/{e['id']}").status_code == 200
-        assert c.get("/api/diary/entries").json() == {"items": [], "total": 0, "page": 1, "size": 30}
+        assert c.get("/api/diary/entries").json() == {"items": [], "total": 0, "size": 30, "next": None}
 
 
 def test_prompt_overrides(data_dir):
@@ -64,19 +64,37 @@ def test_entries_come_a_page_at_a_time(data_dir):
 
     from backend.main import app
 
+    def pages(c, **params):
+        """Every page in turn, each asked for with the previous page's cursor."""
+        out, after = [], None
+        while True:
+            page = c.get("/api/diary/entries", params={**params, **({"after": after} if after else {})}).json()
+            out.append(page)
+            if not (after := page["next"]):
+                return out
+
     with TestClient(app, base_url="http://127.0.0.1") as c:
         for i in range(75):
             c.post("/api/diary/entries", json={"text": f"запись {i} {'функции' if i % 5 == 0 else 'списки'}"})
         first = c.get("/api/diary/entries").json()
-        assert (first["total"], first["page"], first["size"], len(first["items"])) == (75, 1, 30, 30)
-        seen = [e["id"] for p in (1, 2, 3) for e in c.get("/api/diary/entries", params={"page": p}).json()["items"]]
+        assert (first["total"], first["size"], len(first["items"])) == (75, 30, 30) and first["next"]
+        all_pages = pages(c)
+        assert [len(p["items"]) for p in all_pages] == [30, 30, 15] and all_pages[-1]["next"] is None
+        seen = [e["id"] for p in all_pages for e in p["items"]]
         assert len(seen) == 75 and len(set(seen)) == 75  # pages do not overlap and miss nothing
-        dates = [e["created_at"] for p in (1, 2, 3) for e in c.get("/api/diary/entries", params={"page": p}).json()["items"]]
+        dates = [e["created_at"] for p in all_pages for e in p["items"]]
         assert dates == sorted(dates, reverse=True)  # newest first across pages
-        assert c.get("/api/diary/entries", params={"page": 4}).json()["items"] == []  # past the end: empty, total kept
 
         found = c.get("/api/diary/entries", params={"q": "функции", "size": 10}).json()
         assert found["total"] == 15 and len(found["items"]) == 10  # the search is applied before the cut
         assert all("функции" in e["text"] for e in found["items"])
+        assert sum(len(p["items"]) for p in pages(c, q="функции", size=10)) == 15
         assert c.get("/api/diary/entries", params={"size": 1000}).json()["size"] == 100  # capped
-        assert c.get("/api/diary/entries", params={"page": 0}).json()["page"] == 1
+
+        # entries written and deleted between two pages shift nothing: no repeats, nothing skipped
+        page1 = c.get("/api/diary/entries").json()
+        c.post("/api/diary/entries", json={"text": "новая, пока листали"})
+        for e in page1["items"][:3]:
+            c.delete(f"/api/diary/entries/{e['id']}")
+        page2 = c.get("/api/diary/entries", params={"after": page1["next"]}).json()
+        assert page2["items"][0]["id"] == seen[30] and page2["total"] == 73

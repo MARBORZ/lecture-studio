@@ -160,12 +160,26 @@ def list_entries(category: str | None = None, query: str | None = None) -> list[
 PAGE_SIZE_MAX = 100
 
 
-def page_entries(category: str | None = None, query: str | None = None, page: int = 1, size: int = 30) -> DiaryPage:
-    """Entries a page at a time (the files are read and searched first: cheap, and the order and total stay exact)."""
+def _cursor(entry: DiaryEntry) -> str:
+    return f"{entry.created_at}|{entry.id}"
+
+
+def page_entries(category: str | None = None, query: str | None = None, after: str | None = None, size: int = 30) -> DiaryPage:
+    """
+    Entries a page at a time (the files are read and searched first: cheap, and the order and total stay exact).
+    after = the previous page's `next`: the entries that come after that one in the order, so an entry written or
+    deleted meanwhile neither repeats one nor skips one.
+    """
     size = max(1, min(size, PAGE_SIZE_MAX))
-    page = max(1, page)
     entries = list_entries(category, query)
-    return DiaryPage(items=entries[(page - 1) * size : page * size], total=len(entries), page=page, size=size)
+    if after:
+        created_at, _, entry_id = after.partition("|")
+        entries_after = [e for e in entries if (e.created_at, e.id) < (created_at, entry_id)]
+    else:
+        entries_after = entries
+    items = entries_after[:size]
+    more = len(entries_after) > size
+    return DiaryPage(items=items, total=len(entries), size=size, next=_cursor(items[-1]) if more else None)
 
 
 def get_entry(entry_id: str) -> DiaryEntry:
