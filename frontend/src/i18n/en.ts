@@ -737,8 +737,6 @@ export const en: Record<TKey, string> = {
   'onboarding.next': 'Next',
   'onboarding.back': 'Back',
   'onboarding.finish': 'Get started',
-  'onboarding.step': 'Step {n} of {total}',
-  'onboarding.keysHint': '←/→ to browse, Enter for next',
   'onboarding.boot.title': 'Getting ready',
   'onboarding.boot.lead': 'Checking that this computer is ready. Nothing to do — just have a look.',
   'onboarding.boot.server': 'Server',

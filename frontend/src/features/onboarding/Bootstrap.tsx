@@ -7,7 +7,7 @@ import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
 import { AnimatePresence, m } from '@/components/motion'
 import { Button } from '@/components/ui'
-import { fade, fadeUp, pop } from '@/lib/motion'
+import { fadeUp, pop, stepIn, stepItem } from '@/lib/motion'
 
 /** Rows resolve one after another at this pace even when the answers are instant: readable, not a flash. */
 const PACE_MS = 320
@@ -84,38 +84,34 @@ export function Bootstrap({ onDone }: { onDone: () => void }) {
   }, [done, onDone])
 
   return (
-    <m.div key="boot" variants={fade} initial="hidden" animate="show" exit="exit" className="fixed inset-0 z-[90] flex items-center justify-center bg-bg px-6">
-      <div className="flex w-full max-w-lg flex-col gap-8">
-        <m.div variants={fadeUp} initial="hidden" animate="show">
-          <h1 className="text-[24px] font-semibold tracking-[-0.02em] text-fg">{t('onboarding.boot.title')}</h1>
-          <p className="mt-2 text-[14px] leading-relaxed text-muted">{t('onboarding.boot.lead')}</p>
+    <m.div key="boot" variants={stepIn} initial="hidden" animate="show" exit="exit" className="fixed inset-0 z-[90] flex items-center justify-center bg-bg px-6">
+      <div className="flex w-full max-w-lg flex-col gap-10">
+        <m.div variants={stepItem}>
+          <h1 className="text-[32px] leading-[1.1] font-semibold tracking-[-0.03em] text-fg">{t('onboarding.boot.title')}</h1>
+          <p className="mt-3 text-[15px] leading-relaxed text-muted">{t('onboarding.boot.lead')}</p>
         </m.div>
 
-        <ol className="flex flex-col divide-y divide-line rounded-2xl border border-line-strong bg-surface">
+        <m.ol variants={stepItem} className="flex flex-col divide-y divide-line">
           {rows.map((r, i) => {
             const visible = i < shown && r
             return (
-              <li key={i} className="flex h-14 items-center gap-3.5 px-4">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-line text-soft">
-                  {r ? <Icon as={r.icon} size={15} /> : <span className="size-1.5 animate-pulse-soft rounded-full bg-muted" />}
+              <li key={i} className="flex h-12 items-center gap-4">
+                <span className="flex size-5 shrink-0 items-center justify-center text-muted">
+                  {visible ? <Icon as={visible.icon} size={15} /> : <span className="size-1.5 animate-pulse-soft rounded-full bg-line-strong" />}
                 </span>
-                <AnimatePresence initial={false}>
-                  {visible ? (
-                    <m.span key="row" variants={fadeUp} initial="hidden" animate="show" className="flex min-w-0 flex-1 items-center gap-3">
-                      <span className="shrink-0 text-[13.5px] text-fg">{visible.label}</span>
-                      <span className="min-w-0 flex-1 truncate text-right font-mono text-[12px] text-muted" title={visible.value}>{visible.value}</span>
-                      <m.span variants={pop} initial="hidden" animate="show" className="shrink-0">
-                        <Icon as={visible.ok ? Check : AlertTriangle} size={15} className={visible.ok ? 'text-fg' : 'text-soft'} />
-                      </m.span>
+                {visible && (
+                  <m.span variants={fadeUp} initial="hidden" animate="show" className="flex min-w-0 flex-1 items-center gap-3">
+                    <span className="shrink-0 text-[14px] text-fg">{visible.label}</span>
+                    <span className="min-w-0 flex-1 truncate text-right font-mono text-[12px] text-muted" title={visible.value}>{visible.value}</span>
+                    <m.span variants={pop} initial="hidden" animate="show" className="shrink-0">
+                      <Icon as={visible.ok ? Check : AlertTriangle} size={15} className={visible.ok ? 'text-fg' : 'text-soft'} />
                     </m.span>
-                  ) : (
-                    <span className="h-2 w-1/3 animate-pulse-soft rounded-full bg-raised" />
-                  )}
-                </AnimatePresence>
+                  </m.span>
+                )}
               </li>
             )
           })}
-        </ol>
+        </m.ol>
 
         <div className="flex h-11 items-center justify-end">
           <AnimatePresence>

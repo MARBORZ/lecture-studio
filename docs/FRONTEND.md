@@ -89,9 +89,12 @@ the rest of the UI keeps its size.
 ## First run
 
 `features/onboarding/Onboarding.tsx`. Until `settings.json` has `onboarding_done: true`, `AppShell` shows only the tutorial:
-language first (both languages on screen; the choice is written to `ui_language` right away), then 10 steps
-(app, library, studio, lesson, assistant, diary, connect AI, settings, start/shut down, done). A step rail on the left,
-text and a mini-mockup built from the app's own components and i18n keys (`illustrations.tsx`) on the right.
+the intro (it starts as the boot screen fades — `useBootScreenUp` — with the mark at the boot mark's size and place, so the
+loop runs on into it), language (both languages on screen; the choice is written to `ui_language` right away), a check of
+this computer, then 10 steps (app, library, studio, lesson, assistant, diary, connect AI, settings, start/shut down, done).
+Minimal on purpose: one idea per step — a large title, a short lead, three quiet lines, and a monochrome sketch with no
+card around it, built from the app's own components and i18n keys (`illustrations.tsx`). Where you are: a row of dots
+between Back and Next (each jumps to its step, its title on hover and for screen readers).
 The connect-AI step (`AiStep.tsx`) is real controls: Claude through MCP (`McpClients`, no key), an API key (`KeyField`),
 a local model, or Skip — cutting, the clean video and Whisper work without AI. Keys ←/→/Enter (Enter on a focused
 button presses only that button). "Get started" only closes the tutorial — the user stays where
@@ -149,17 +152,24 @@ new pid and reloads. The outcome toast (updated / rolled back) is shown once per
 ## Animation
 
 Motion (`motion/react`) with one config, `lib/motion.ts`: curves (`ease` for entering, `easeIn` for leaving, `easeInOut`
-for scene changes), durations, springs, presets (`fadeUp`, `fadeIn`, `pop`, `fade`, `slide`, `collapse`, `sceneOut`,
-`sidebarIn`, `contentIn`) and a capped list stagger (`itemDelay`). Set up once by `MotionRoot` (`components/motion`: `LazyMotion` +
+for scene changes), durations, springs (`spring`, `springSheet` — Apple's critically damped sheet spring, `springBouncy`),
+presets (`fadeUp`, `fadeIn`, `pop`, `fade`, `stepIn` / `stepItem`, `collapse`, `sceneOut`, `sidebarIn`, `contentIn`) and
+staggers (`stagger` for a scene's cascade, the capped list `itemDelay`). Set up once by `MotionRoot` (`components/motion`: `LazyMotion` +
 `MotionConfig reducedMotion="user"`) (the OS "reduce motion" setting is respected). Screens use only the wrappers from
 `components/motion`: `Appear`, `ListItem` (in `AnimatePresence`: enter/exit and siblings reflow), `RouteOutlet depth`
 (screen change without re-animating the parent), `ActiveMark` (the sliding "you are here" marker in the sidebar, settings,
 tutorial, segmented controls and lesson tabs). Modals and toasts animate out too (`AnimatePresence` in `AppShell`).
 
-- Inside something that moves, children only fade (`fadeIn`), never move on their own — no double motion.
-- Scenes (`AppShell`, `AnimatePresence mode="wait"`): the tutorial leaves with `sceneOut` (fade, slight zoom, blur), then
-  the app assembles — sidebar `sidebarIn`, content `contentIn`. The tutorial finale draws a check (`pathLength`), pops a
-  badge (`springBouncy`), breathes rings and staggers section tiles.
+- Inside something that moves, children only fade (`fadeIn`), never move on their own — no double motion. The one
+  exception is a tutorial scene's cascade: `stepItem` parts take the scene's `stepIn` and rise 6 px one after another on
+  the same spring, in the same direction — one orchestrated motion, not two.
+- Tutorial: each step (and the language and boot screens) arrives on `springSheet` — y 8 → 0, scale 0.98 → 1, no
+  overshoot — its parts cascade 50 ms apart (title, lead, lines, sketch, then the sketch's own parts); the leaving step is
+  shorter and quieter (`leave`, 0.16 s). A scene, so it moves even with the OS "reduce motion" (`SceneMotion`, the owner's
+  decision), like the boot mark and focus mode.
+- Scenes (`AppShell`, `AnimatePresence mode="wait"`): the tutorial leaves with `sceneOut` (fade, slight zoom), then
+  the app assembles — sidebar `sidebarIn`, content `contentIn`. The tutorial finale pops a badge (`badgePop`,
+  `springBouncy`), draws its check (`drawCheck`) and breathes rings (`ripple`).
 - Performance: presets animate only `opacity` and a full `transform` string, which Motion hands to the Web Animations API,
   so they run on the compositor at the display rate even while React mounts the next screen. Elements with `layout`
   (reflowing lists) use the y-based `fadeUpFlow`. The progress bar uses `scaleX`, not `width`.

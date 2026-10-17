@@ -5,7 +5,7 @@ import { Icon } from '@/components/Icon'
 import { Button, Segmented } from '@/components/ui'
 import { AnimatePresence, m } from '@/components/motion'
 import { cn } from '@/lib/cn'
-import { fade, pop } from '@/lib/motion'
+import { fade, pop, stepItem } from '@/lib/motion'
 import { KeyField } from '@/features/system/KeyField'
 import { CLOUD_PROVIDERS, PROVIDER_NAME, useAiKeys, type CloudProvider } from '@/features/system/KeyNotice'
 import { McpClients, noClaude, useMcp } from '@/features/system/McpCard'
@@ -34,24 +34,25 @@ export function AiStep({ onNext }: { onNext: () => void }) {
   const any = Object.values(ready).some(Boolean)
 
   return (
-    <Frame className="flex flex-col gap-5">
+    <Frame className="flex flex-col gap-6">
       <div role="radiogroup" aria-label={t('onboarding.ai.title')} className="grid grid-cols-3 gap-2">
         {WAYS.map((w) => (
-          <button
+          <m.button
             key={w.id}
+            variants={stepItem}
             type="button"
             role="radio"
             aria-checked={way === w.id}
             onClick={() => setWay(w.id)}
             className={cn(
-              'flex flex-col items-start gap-2 rounded-xl border p-3 text-left transition-colors duration-200 focus-visible:outline-none',
-              way === w.id ? 'border-fg bg-raised' : 'border-line hover:border-line-strong focus-visible:border-line-strong',
+              'flex flex-col items-start gap-2 rounded-2xl p-3.5 text-left transition-colors duration-200 focus-visible:outline-none',
+              way === w.id ? 'bg-raised' : 'hover:bg-surface focus-visible:bg-surface',
             )}
           >
             <Icon as={w.icon} size={16} className={way === w.id ? 'text-fg' : 'text-muted'} />
             <span className="flex flex-col">
-              <span className="text-[13px] font-medium text-fg">{t(`onboarding.ai.${w.id}`)}</span>
-              <span className="text-[11.5px] text-muted">{t(`onboarding.ai.${w.id}Sub`)}</span>
+              <span className="text-[14px] font-medium text-fg">{t(`onboarding.ai.${w.id}`)}</span>
+              <span className="text-[12px] text-muted">{t(`onboarding.ai.${w.id}Sub`)}</span>
             </span>
             <span className="flex h-4 items-center gap-1 text-[11px]">
               {ready[w.id] ? (
@@ -63,11 +64,11 @@ export function AiStep({ onNext }: { onNext: () => void }) {
                 w.id === 'mcp' && <span className="text-dim">{t('onboarding.ai.recommended')}</span>
               )}
             </span>
-          </button>
+          </m.button>
         ))}
       </div>
 
-      <div className="min-h-[148px]">
+      <m.div variants={stepItem} className="min-h-[148px]">
         <AnimatePresence mode="wait" initial={false}>
           <m.div key={way} variants={fade} initial="hidden" animate="show" exit="exit" className="flex flex-col gap-4">
             {way === 'mcp' && (
@@ -98,12 +99,12 @@ export function AiStep({ onNext }: { onNext: () => void }) {
             )}
           </m.div>
         </AnimatePresence>
-      </div>
+      </m.div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
+      <m.div variants={stepItem} className="flex items-center justify-between gap-3">
         <span className="text-[12px] leading-snug text-muted">{any ? t('onboarding.ai.ready') : t('onboarding.ai.skipHint')}</span>
         {!any && <Button size="sm" variant="ghost" onClick={onNext}>{t('onboarding.ai.skip')}</Button>}
-      </div>
+      </m.div>
     </Frame>
   )
 }
