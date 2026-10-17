@@ -28,11 +28,12 @@ It was built for one person's programming courses and is shared as is: no roadma
 
 - **Cuts the silence.** Pauses go from the sound and the video at the same frames, so both stay in sync.
 - **Transcribes.** Whisper on your own GPU or CPU, or Gemini in the cloud (sound only).
-- **Writes the notes.** DeepSeek, Gemini, ChatGPT, Claude or a local model (Ollama, LM Studio) turns the transcript into short notes with `[MM:SS]` timecodes you can
+- **Writes the notes.** DeepSeek, Gemini, ChatGPT, Claude (API key or your plan through Claude Code) or a local model (Ollama, LM Studio) turns the transcript into short notes with `[MM:SS]` timecodes you can
   click, in the language you choose.
 - **Answers with citations.** Ask one lesson or a whole course; answers link to the exact moment ("Lesson 2 · 04:15").
-- **Works with your Claude.** Connect Claude Desktop or Claude Code in one click (MCP): it reads your lessons and writes
-  audits on your subscription, no API key.
+- **Works with your Claude.** On your subscription, no API key: pick "Claude Code · plan" and your own signed-in
+  Claude Code answers right in the app's chat and writes audits; or connect Claude Desktop / Claude Code in one click
+  (MCP) and they read your lessons and write audits themselves.
 - **Finds lectures on YouTube.** Search and watch in the **Videos** tab, or paste a link; one click downloads it
   (yt-dlp on your computer, up to 1080p) and opens it in the Studio. Download only what you have the rights to.
 - **A real workspace.** Player with marks, synced transcript, notebooks, a Markdown diary, export to Obsidian.
@@ -53,8 +54,9 @@ Setup installs what is missing (uv, FFmpeg, Node.js to build the interface; Home
 
 Then open the app. The tutorial asks how to connect AI (change it any time in **Settings → AI**):
 
-- **Connect Claude, no keys needed.** If you have Claude Desktop or Claude Code, one click gives your Claude the lesson
-  library: it reads transcripts, searches and writes audits on your subscription, and they show up in the app
+- **Claude on your subscription, no keys needed.** With Claude Code installed and signed in, pick **Claude Code · plan**:
+  it answers in the app's chat and writes the audits. And one click gives Claude Desktop or Claude Code the lesson
+  library: it reads transcripts, searches and writes audits, and they show up in the app
   ([how it works](docs/MCP_SETUP.md)).
 - **An API key** of **DeepSeek**, **Gemini**, **ChatGPT** (OpenAI) or **Claude** (Anthropic): the audit is written
   right after processing, and the assistant answers inside the app.

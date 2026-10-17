@@ -20,8 +20,8 @@ const WAYS: Array<{ id: Way; icon: LucideIcon }> = [
 ]
 
 /**
- * Tutorial step "connect AI": three ways side by side — your Claude through MCP (subscription, no key), an API key,
- * a local model — or skip: cutting, the clean video and Whisper work without AI. Real controls, not a mockup.
+ * Tutorial step "connect AI": three ways side by side — your Claude on your plan (no key: Claude Code answers in the
+ * app's chat, Claude Desktop / Claude Code see the library through MCP), an API key, a local model — or skip: cutting, the clean video and Whisper work without AI. Real controls, not a mockup.
  */
 export function AiStep({ onNext }: { onNext: () => void }) {
   const { t, settings } = useUI()
@@ -30,7 +30,7 @@ export function AiStep({ onNext }: { onNext: () => void }) {
   const cloudKey = CLOUD_PROVIDERS.find((p) => keys[p])
   const [way, setWay] = useState<Way>(() => (cloudKey ? 'key' : keys.local ? 'local' : 'mcp'))
   const [provider, setProvider] = useState<CloudProvider>(cloudKey ?? CLOUD_PROVIDERS[0])
-  const ready: Record<Way, boolean> = { mcp: mcp.connected, key: Boolean(cloudKey), local: keys.local }
+  const ready: Record<Way, boolean> = { mcp: mcp.connected || keys.claude_code, key: Boolean(cloudKey), local: keys.local }
   const any = Object.values(ready).some(Boolean)
 
   return (
@@ -74,6 +74,10 @@ export function AiStep({ onNext }: { onNext: () => void }) {
             {way === 'mcp' && (
               <>
                 <p className="text-[12.5px] leading-relaxed text-soft">{t('onboarding.ai.mcpText')}</p>
+                <p className={cn('flex items-center gap-2 text-[12.5px]', keys.claude_code ? 'text-fg' : 'text-muted')}>
+                  {keys.claude_code && <Icon as={Check} size={13} />}
+                  {keys.claude_code ? t('onboarding.ai.chatReady') : settings?.ai.claude_code.installed ? t('onboarding.ai.chatSignIn') : t('onboarding.ai.chatMissing')}
+                </p>
                 {noClaude(mcp.status) ? <p className="text-[12.5px] leading-relaxed text-muted">{t('onboarding.ai.noClaude')}</p> : <McpClients mcp={mcp} />}
               </>
             )}
