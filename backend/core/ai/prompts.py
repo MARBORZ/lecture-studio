@@ -276,6 +276,17 @@ def chat_line(role: str, content: str, files: list[str]) -> str:
     return f"{who}{attached}:\n{content}"
 
 
+CONVERSATION_REPLY = "Reply as the ASSISTANT to the last USER message. Output only the reply."
+
+
+def conversation_prompt(messages: list[dict[str, str]]) -> str:
+    """A multi-turn chat as one prompt, for a transport that takes a single message (Claude Code: `claude -p`)."""
+    if len(messages) == 1 and messages[0]["role"] == "user":
+        return messages[0]["content"]
+    lines = [chat_line(m["role"], m["content"], []) for m in messages]
+    return "\n\n".join([*lines, CONVERSATION_REPLY])
+
+
 # The question a quick-action button puts into the chat: the user reads it, so it is in the interface language.
 ROLE_DEFAULT_QUESTIONS: dict[str, dict[str, str]] = {
     "ru": {

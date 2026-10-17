@@ -41,12 +41,19 @@ def test_data_paths_come_from_settings():
 
 
 def test_claude_subscription_only_through_claudes_own_apps():
-    # the claude command runs only to manage this app's MCP entry; nothing reads Claude's sign-in or drives Claude itself
+    # the user's own claude runs in exactly two places: mcp_connect.py manages this app's MCP entry (`claude mcp`), the
+    # Claude Code provider asks `claude auth status` and runs `claude -p`. Nothing reads, stores or creates Claude's
+    # sign-in (credentials, OAuth tokens, setup-token, its own login) and nothing drives Claude through the Agent SDK.
     connect = BACKEND / "services" / "mcp_connect.py"
+    provider = BACKEND / "core" / "ai" / "providers" / "claude_code.py"
     assert re.findall(r"subprocess\.\w+\(\[([^\]]*)\]", connect.read_text("utf-8")) == ['exe, "mcp", *args']
-    assert offenders(BACKEND, ["*.py"], r"which\([\"']claude[\"']\)|CLAUDE_BIN", {str(connect.relative_to(ROOT))}) == []
-    sign_in = r"\.credentials\.json|CLAUDE_CODE_OAUTH_TOKEN|claude_agent_sdk|claude_code_sdk|sessionKey"
+    assert re.findall(r"subprocess\.\w+\(\s*\[([^\]]*)\]", provider.read_text("utf-8")) == ['exe, "auth", "status", "--json"']
+    assert re.findall(r"\[\s*exe, ([^\]]*?)\]", re.sub(r"\s+", " ", provider.read_text("utf-8")))[-1].startswith('"-p", ')
+    allowed = {str(p.relative_to(ROOT)) for p in (connect, provider)}
+    assert offenders(BACKEND, ["*.py"], r"which\([\"']claude[\"']\)|CLAUDE_BIN", allowed) == []
+    sign_in = r"\.credentials\.json|CLAUDE_CODE_OAUTH_TOKEN|claude_agent_sdk|claude_code_sdk|sessionKey|setup-token|[\"']login[\"']"
     assert offenders(BACKEND, ["*.py"], sign_in) == [] and not re.search(sign_in, (ROOT / "mcp_server.py").read_text("utf-8"))
+    assert offenders(FRONT, ["*.ts", "*.tsx"], r"setup-token|claude auth login|CLAUDE_CODE_OAUTH_TOKEN") == []
 
 
 def test_animation_only_through_motion_layer():

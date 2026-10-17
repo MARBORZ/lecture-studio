@@ -1,4 +1,4 @@
-import { Cloud, Cpu, KeyRound } from 'lucide-react'
+import { Cloud, Cpu, KeyRound, SquareTerminal } from 'lucide-react'
 import { Link } from 'react-router'
 import type { AIProvider } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
@@ -9,20 +9,23 @@ import { cn } from '@/lib/cn'
 export const CLOUD_PROVIDERS = ['deepseek', 'gemini', 'openai', 'anthropic'] as const
 export type CloudProvider = (typeof CLOUD_PROVIDERS)[number]
 
-export const PROVIDER_NAME: Record<AIProvider, string> = { deepseek: 'DeepSeek', gemini: 'Gemini', openai: 'ChatGPT', anthropic: 'Claude', local: 'Ollama / LM Studio' }
+export const PROVIDER_NAME: Record<AIProvider, string> = { deepseek: 'DeepSeek', gemini: 'Gemini', openai: 'ChatGPT', anthropic: 'Claude', claude_code: 'Claude Code', local: 'Ollama / LM Studio' }
 /** The company behind a key (Settings → AI, the tutorial). */
 export const KEY_TITLE: Record<CloudProvider, string> = { deepseek: 'DeepSeek', gemini: 'Google Gemini', openai: 'OpenAI · ChatGPT', anthropic: 'Anthropic · Claude' }
 
-/** Which AI providers are ready: a key for the cloud ones (settings.json or .env fallback), a chosen model for the local one. */
+/** Which AI providers are ready: a key for the cloud ones (settings.json or .env fallback), a signed-in `claude` for
+ *  Claude Code, a chosen model for the local one. */
 export function useAiKeys(): Record<AIProvider, boolean> & { any: boolean; loaded: boolean } {
   const { settings } = useUI()
   const cloud = Object.fromEntries(CLOUD_PROVIDERS.map((p) => [p, Boolean(settings) && settings!.ai[`${p}_key`].source !== 'none'])) as Record<CloudProvider, boolean>
   const local = Boolean(settings?.ai.local_model)
-  return { ...cloud, local, any: Object.values(cloud).some(Boolean) || local, loaded: Boolean(settings) }
+  const claude_code = Boolean(settings?.ai.claude_code.signed_in)
+  return { ...cloud, claude_code, local, any: Object.values(cloud).some(Boolean) || claude_code || local, loaded: Boolean(settings) }
 }
 
 /**
- * The provider choice, one list for every control (Segmented, Select): the cloud ones, then the local model.
+ * The provider choice, one list for every control (Segmented, Select): the cloud ones, Claude Code (the user's own
+ * `claude` on their plan), then the local model.
  * Each says what it is and whether it is ready (a key, a chosen model).
  */
 export function useProviderOptions(): { value: AIProvider; label: string; hint: string; icon: typeof Cloud }[] {
@@ -31,6 +34,12 @@ export function useProviderOptions(): { value: AIProvider; label: string; hint: 
   const ready = (p: AIProvider, what: string) => (keys[p] ? what : t('ai.notReady'))
   return [
     ...CLOUD_PROVIDERS.map((p) => ({ value: p as AIProvider, label: PROVIDER_NAME[p], hint: ready(p, t(`ai.hint.${p}`)), icon: Cloud })),
+    {
+      value: 'claude_code',
+      label: `${PROVIDER_NAME.claude_code} · ${t('ai.plan')}`,
+      hint: keys.claude_code ? t('ai.hint.claude_code') : settings?.ai.claude_code.installed ? t('ai.claudeCode.signIn') : t('ai.claudeCode.missing'),
+      icon: SquareTerminal,
+    },
     { value: 'local', label: t('ai.local.short'), hint: ready('local', settings?.ai.local_model || t('ai.hint.local')), icon: Cpu },
   ]
 }
@@ -51,13 +60,18 @@ export function KeyNotice({ provider, onSwitch, className }: { provider?: AIProv
   if (!keys.loaded || (provider ? keys[provider] : keys.any)) return null
   const name = provider ? PROVIDER_NAME[provider] : ''
   const local = provider === 'local'
+  const claudeCode = provider === 'claude_code'
   const other = provider && onSwitch ? (Object.keys(PROVIDER_NAME) as AIProvider[]).find((p) => p !== provider && keys[p]) : undefined
   return (
     <div className={cn('flex flex-wrap items-center gap-3 rounded-xl border border-fg px-4 py-3', className)}>
       <Icon as={KeyRound} size={16} />
       <div className="min-w-[12rem] flex-1">
-        <p className="text-[13.5px] font-medium text-fg">{local ? t('keys.localMissing') : <>{t('keys.missingTitle')}{name && `: ${name}`}</>}</p>
-        <p className="text-[12.5px] text-muted">{other ? t('keys.otherHasKey', { name: PROVIDER_NAME[other] }) : t(local ? 'keys.localMissingText' : 'keys.missingText')}</p>
+        <p className="text-[13.5px] font-medium text-fg">
+          {local ? t('keys.localMissing') : claudeCode ? t('keys.claudeCodeMissing') : <>{t('keys.missingTitle')}{name && `: ${name}`}</>}
+        </p>
+        <p className="text-[12.5px] text-muted">
+          {other ? t('keys.otherHasKey', { name: PROVIDER_NAME[other] }) : t(local ? 'keys.localMissingText' : claudeCode ? 'keys.claudeCodeMissingText' : 'keys.missingText')}
+        </p>
       </div>
       {other && (
         <button type="button" onClick={() => onSwitch!(other)} className="rounded-lg border border-fg px-3 py-1.5 text-[12.5px] font-medium text-fg hover:bg-fg hover:text-bg">

@@ -6,12 +6,14 @@ AI facade: resolves provider + key + model from settings in one place.
 from pydantic import BaseModel
 
 import backend.core.ai.providers.anthropic  # noqa: F401,E402
+import backend.core.ai.providers.claude_code  # noqa: F401,E402
 import backend.core.ai.providers.deepseek  # noqa: F401,E402
 import backend.core.ai.providers.gemini  # noqa: F401,E402
 import backend.core.ai.providers.local  # noqa: F401,E402
 import backend.core.ai.providers.openai  # noqa: F401,E402
 from backend.core.ai.base import CHARS_PER_TOKEN, MIN_CONTEXT_TOKENS, BaseAIProvider
 from backend.core.ai.meta import AIMeta
+from backend.core.ai.providers.claude_code import claude_bin, signed_in
 
 # Import providers so AIMeta registers them.
 from backend.i18n import tr
@@ -40,18 +42,24 @@ class AI:
         model = model or getattr(ai, f"{category}_model", None) or cls.default_model
         if category == "local":  # no key: an address and the window the requests are sized for
             return cls(model=model, base_url=ai.local_base_url, context_tokens=AI.context_tokens("local"), thinking=ai.local_thinking)
+        if category == "claude_code":  # no key: the user's own signed-in `claude`
+            return cls(model=model)
         return cls(api_key=api_key or SettingsService.api_key(category), model=model)
 
     @staticmethod
     def configured(category: str) -> bool:
-        """Ready to be asked: a key for a cloud provider, a chosen model for the local one."""
+        """Ready to be asked: a key for a cloud provider, a chosen model for the local one, a signed-in `claude`."""
         if category == "local":
             return bool(SettingsService.get().ai.local_model)
+        if category == "claude_code":
+            return signed_in()
         return bool(SettingsService.api_key(category))
 
     @staticmethod
     def not_configured(category: str) -> str:
         """What to tell the user when configured() is False."""
+        if category == "claude_code":
+            return tr("ai.claude_code_login" if claude_bin() else "ai.claude_code_missing")
         return tr("ai.local_no_model") if category == "local" else tr("ai.no_key", provider=category)
 
     @staticmethod
