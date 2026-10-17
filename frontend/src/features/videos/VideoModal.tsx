@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { api } from '@/api/client'
 import type { VideoItem } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
-import { Button, Modal } from '@/components/ui'
+import { Button, Checkbox, Modal } from '@/components/ui'
 import { formatDate } from '@/lib/format'
 import { formatTc } from '@/lib/time'
 import { useResource } from '@/lib/useResource'
@@ -65,10 +65,7 @@ export function VideoModal({ video, close }: { video: VideoItem; close: () => vo
         {info?.description && <p className="line-clamp-4 text-[12.5px] whitespace-pre-line text-muted">{info.description}</p>}
         <p className="text-[12px] text-dim">{t('videos.downloadHint')}</p>
         {asking && (
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-fg px-4 py-3">
-            <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-[3px] size-3.5 accent-fg" />
-            <span className="text-[13px] leading-snug text-fg">{t('videos.terms')}</span>
-          </label>
+          <Checkbox checked={agree} onChange={setAgree} className="gap-3 rounded-xl border border-fg px-4 py-3">{t('videos.terms')}</Checkbox>
         )}
       </div>
     </Modal>

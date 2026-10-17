@@ -31,6 +31,7 @@ from backend.i18n import tr
 from backend.models.system import UpdateBlock, UpdateInfo, UpdateOutcome
 from backend.settings import SettingsService
 from backend.utils.fs import read_json, remove_file, write_text
+from backend.utils.proc import spawn_script
 
 logger = logging.getLogger(__name__)
 
@@ -281,17 +282,8 @@ def _verify_launcher(since: float) -> None:
 
 def spawn_launcher() -> None:
     """Start the launcher detached from this process: it stops this server, so it must outlive it."""
-    common = {"cwd": config.REPO_DIR, "stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
-    if sys.platform == "win32":
-        # The way the Desktop shortcut starts it. A hidden detached powershell.exe spawned from Python is silently killed
-        # on some machines (antivirus) before it logs anything.
-        script = config.REPO_DIR / "launcher" / "windows" / "start.vbs"
-        wscript = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "System32", "wscript.exe")
-        flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP  # type: ignore[attr-defined]
-        subprocess.Popen([wscript, str(script), "update"], creationflags=flags, **common)
-    else:
-        script = config.REPO_DIR / "launcher" / "macos" / "start.zsh"
-        subprocess.Popen(["/bin/zsh", str(script), "update"], start_new_session=True, **common)
+    folder = "windows" if sys.platform == "win32" else "macos"
+    spawn_script(config.REPO_DIR / "launcher" / folder / "start", "update", cwd=config.REPO_DIR)
 
 
 # ---------------------------------------------------------------- outcome

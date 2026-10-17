@@ -3,11 +3,9 @@ import { useState } from 'react'
 import { api, ApiError } from '@/api/client'
 import type { BusyReason } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
-import { Icon } from '@/components/Icon'
 import { Button, Modal } from '@/components/ui'
 import { player } from '@/features/player/store'
-import { useSidebarCollapsed } from '@/layouts/Sidebar'
-import { cn } from '@/lib/cn'
+import { SidebarAction } from '@/layouts/Sidebar'
 import { BusyList, useBusyReasons } from './busy'
 
 /**
@@ -16,18 +14,7 @@ import { BusyList, useBusyReasons } from './busy'
  */
 export function ShutdownButton() {
   const { t, openModal } = useUI()
-  const collapsed = useSidebarCollapsed()
-  return (
-    <button
-      type="button"
-      title={collapsed ? t('nav.shutdown') : undefined}
-      onClick={() => openModal((close) => <ShutdownDialog close={close} />)}
-      className="flex h-9 w-full items-center gap-2.5 overflow-hidden rounded-lg px-[10px] text-[13px] whitespace-nowrap text-muted transition-colors hover:bg-hover hover:text-fg"
-    >
-      <Icon as={Power} size={15} className="shrink-0" />
-      <span className={cn('transition-opacity duration-200', collapsed && 'opacity-0')}>{t('nav.shutdown')}</span>
-    </button>
-  )
+  return <SidebarAction icon={Power} label={t('nav.shutdown')} onClick={() => openModal((close) => <ShutdownDialog close={close} />)} />
 }
 
 function ShutdownDialog({ close }: { close: () => void }) {

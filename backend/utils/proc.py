@@ -8,6 +8,7 @@ import subprocess
 import sys
 import threading
 from collections.abc import Iterable, Iterator
+from pathlib import Path
 
 import psutil
 
@@ -110,6 +111,19 @@ def stream_lines(cmd: list[str], stdin: str, cwd: str, env: dict[str, str], time
         raise subprocess.TimeoutExpired(cmd, timeout)
     if proc.returncode:
         raise subprocess.CalledProcessError(proc.returncode, cmd, stderr="".join(err))
+
+
+def spawn_script(script: Path, *args: str, cwd: Path) -> None:
+    """Run a launcher script detached, so it outlives this server (it may stop it): `<script>.vbs` through wscript on
+    Windows (the way the Desktop shortcut starts things: a hidden detached powershell.exe spawned from Python is
+    silently killed on some machines before it logs anything), `<script>.zsh` elsewhere. `script` has no suffix."""
+    common = {"cwd": cwd, "stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+    if sys.platform == "win32":
+        wscript = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "System32", "wscript.exe")
+        flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP  # type: ignore[attr-defined]
+        subprocess.Popen([wscript, str(script.with_suffix(".vbs")), *args], creationflags=flags, **common)
+    else:
+        subprocess.Popen(["/bin/zsh", str(script.with_suffix(".zsh")), *args], start_new_session=True, **common)
 
 
 def stop_self() -> None:

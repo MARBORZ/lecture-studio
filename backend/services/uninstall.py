@@ -26,6 +26,7 @@ from backend.i18n import tr
 from backend.models.system import UninstallPlan
 from backend.settings.service import SettingsService
 from backend.utils.fs import write_text
+from backend.utils.proc import spawn_script
 
 MAX_FILES = 40
 
@@ -144,15 +145,9 @@ def start(delete_lessons: bool) -> UninstallPlan:
 
 def _spawn(work: Path, plan_file: Path) -> None:
     """Run the uninstaller from a copy outside the app folder (the original is about to be deleted), detached."""
-    common = {"cwd": work, "stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
-    if sys.platform == "win32":
-        src = config.REPO_DIR / "launcher" / "windows"
-        for name in ("remove.ps1", "remove.vbs"):
-            shutil.copy2(src / name, work / name)
-        wscript = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "System32", "wscript.exe")
-        flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP  # type: ignore[attr-defined]
-        subprocess.Popen([wscript, str(work / "remove.vbs"), str(plan_file)], creationflags=flags, **common)
-    else:
-        shutil.copy2(config.REPO_DIR / "launcher" / "macos" / "remove.zsh", work / "remove.zsh")
-        subprocess.Popen(["/bin/zsh", str(work / "remove.zsh"), str(plan_file)], start_new_session=True, **common)
+    windows = sys.platform == "win32"
+    src = config.REPO_DIR / "launcher" / ("windows" if windows else "macos")
+    for name in ("remove.ps1", "remove.vbs") if windows else ("remove.zsh",):
+        shutil.copy2(src / name, work / name)
+    spawn_script(work / "remove", str(plan_file), cwd=work)
     time.sleep(0.2)  # let the child start before the server goes down

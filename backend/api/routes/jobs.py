@@ -10,11 +10,11 @@ import json
 import re
 import uuid
 
-import aiofiles
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from backend.api.upload import receive
 from backend.core.media import MediaError, browser_playback_problem, check_input, probe_video
 from backend.core.pipeline import start_processing
 from backend.i18n import tr
@@ -50,19 +50,8 @@ async def upload(filename: str, request: Request) -> UploadResult:
     upload_id = f"{uuid.uuid4().hex[:12]}.{suffix}"
     dest = _upload_path(upload_id)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    size = 0
     with JobRegistry.uploading():
-        try:
-            async with aiofiles.open(dest, "wb") as f:
-                async for chunk in request.stream():
-                    await f.write(chunk)
-                    size += len(chunk)
-        except Exception:
-            remove_file(dest)
-            raise
-    if size == 0:
-        remove_file(dest)
-        raise HTTPException(400, detail=tr("file.empty"))
+        size = await receive(request, dest, lambda: remove_file(dest))
     return UploadResult(upload_id=upload_id, size=size)
 
 
