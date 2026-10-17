@@ -5,13 +5,13 @@ Google Gemini provider (text). Audio transcription lives in core/transcription/g
 import logging
 import math
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
 from backend.core.ai import prompts
 from backend.core.ai.base import BaseAIProvider, clean_output
-from backend.core.ai.retry import with_retry
+from backend.core.ai.retry import stream_with_retry, with_retry
 from backend.i18n import tr
 
 logger = logging.getLogger(__name__)
@@ -51,28 +51,32 @@ class GeminiProvider(BaseAIProvider):
     max_context_tokens = 1_000_000
     default_context_tokens = 400_000
 
-    def _generate(self, contents: list, system: str, temperature: float) -> str:
+    def _request(self, messages: list[dict[str, str]], system: str, temperature: float, images: list):
         from google import genai
-        from google.genai import types
-
-        client = genai.Client(api_key=self.api_key)
-        config = types.GenerateContentConfig(temperature=temperature, system_instruction=system or None)
-        return with_retry(lambda: client.models.generate_content(model=self.model, contents=contents, config=config).text or "", "Gemini")
-
-    def generate_text(self, prompt: str, system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
-        return self._generate([prompt], system, temperature)
-
-    def chat(self, messages: list[dict[str, str]], system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
         from google.genai import types
 
         contents = [
             types.Content(role="model" if m["role"] == "assistant" else "user", parts=[types.Part(text=m["content"])])
             for m in messages
         ]
-        images = kwargs.get("images") or []
         if images and contents:
             contents[-1].parts.extend(types.Part.from_bytes(data=data, mime_type=mime) for data, mime in images)
-        return self._generate(contents, system, temperature)
+        config = types.GenerateContentConfig(temperature=temperature, system_instruction=system or None)
+        return genai.Client(api_key=self.api_key), contents, config
+
+    def chat(self, messages: list[dict[str, str]], system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
+        client, contents, config = self._request(messages, system, temperature, kwargs.get("images") or [])
+        return with_retry(lambda: client.models.generate_content(model=self.model, contents=contents, config=config).text or "", "Gemini")
+
+    def stream_chat(self, messages: list[dict[str, str]], system: str = "", temperature: float = 0.2, **kwargs: Any) -> Iterator[str]:
+        client, contents, config = self._request(messages, system, temperature, kwargs.get("images") or [])
+
+        def make() -> Iterator[str]:
+            for chunk in client.models.generate_content_stream(model=self.model, contents=contents, config=config):
+                if chunk.text:
+                    yield chunk.text
+
+        return stream_with_retry(make, "Gemini")
 
     def generate_audit_from_video(
         self,

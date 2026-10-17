@@ -192,6 +192,32 @@ export const api = {
   thread: (kind: ThreadKind, id: string, view: ThreadView) =>
     get<Thread>(threadUrl(kind, id) + query({ session: view.session, provider: view.provider, sources: view.sources ?? undefined })),
   ask: (kind: ThreadKind, id: string, req: AskRequest) => request<Thread>('POST', threadUrl(kind, id), req),
+  /** The answer as it is written: onPiece gets each piece; resolves with the saved thread (as ask() does). */
+  askStream: async (kind: ThreadKind, id: string, req: AskRequest, onPiece: (text: string) => void): Promise<Thread> => {
+    const res = await fetch(`${threadUrl(kind, id)}/stream`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(req) })
+    if (!res.ok || !res.body) {
+      const payload = await res.json().catch(() => null)
+      throw new ApiError(res.status, payload?.detail ?? payload)
+    }
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    for (;;) {
+      const { value, done } = await reader.read()
+      buffer += decoder.decode(value, { stream: !done })
+      let end: number
+      while ((end = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, end).trim()
+        buffer = buffer.slice(end + 1)
+        if (!line) continue
+        const event = JSON.parse(line) as { type: 'delta'; text: string } | { type: 'done'; thread: Thread } | { type: 'error'; detail: string }
+        if (event.type === 'delta') onPiece(event.text)
+        else if (event.type === 'done') return event.thread
+        else throw new ApiError(502, event.detail)
+      }
+      if (done) throw new ApiError(0, tr('error.network'))
+    }
+  },
   newSession: (kind: ThreadKind, id: string) => request<SessionInfo>('POST', `${threadUrl(kind, id)}/sessions`),
   activateSession: (kind: ThreadKind, id: string, sid: string) => request<{ ok: boolean }>('PUT', `${threadUrl(kind, id)}/sessions/${sid}/active`),
   patchSession: (kind: ThreadKind, id: string, sid: string, patch: SessionPatch) => request<{ ok: boolean }>('PATCH', `${threadUrl(kind, id)}/sessions/${sid}`, patch),

@@ -71,6 +71,9 @@ def test_attachments_reach_the_model_and_are_cleaned(data_dir, monkeypatch):
             seen["prompt"], seen["images"] = messages[-1]["content"], images or []
             return "ok"
 
+        def stream_chat(self, messages, system, images=None, **kw):  # like the real base: the whole answer as one piece
+            yield self.chat(messages, system, images=images, **kw)
+
     with TestClient(app, base_url="http://127.0.0.1") as c:
         doc = _upload(c, "task.md", b"# TODO\nfix the parser")
         img = _upload(c, "screen.png", PNG)

@@ -1,42 +1,23 @@
 """
-DeepSeek provider (OpenAI-compatible chat completions).
+DeepSeek provider (OpenAI-compatible chat completions). The reasoner model takes no temperature.
 """
 
 from typing import Any
 
-import httpx
-
-from backend.core.ai.base import BaseAIProvider
-from backend.core.ai.retry import ProviderHTTPError, with_retry
-
-API_URL = "https://api.deepseek.com/chat/completions"
+from backend.core.ai.providers.openai_compat import OpenAICompatibleProvider
 
 
-class DeepSeekProvider(BaseAIProvider):
+class DeepSeekProvider(OpenAICompatibleProvider):
     category = "deepseek"
     default_model = "deepseek-chat"
     supported_models = ["deepseek-chat", "deepseek-reasoner", "deepseek-v4-flash", "deepseek-v4-pro"]
     max_context_tokens = 128_000
     default_context_tokens = 64_000
+    url = "https://api.deepseek.com/chat/completions"
+    label = "DeepSeek"
 
-    def _complete(self, messages: list[dict[str, str]], temperature: float, max_tokens: int = 8000) -> str:
-        payload: dict[str, Any] = {"model": self.model, "messages": messages, "max_tokens": max_tokens}
+    def _payload(self, messages: list[dict[str, Any]], temperature: float) -> dict[str, Any]:
+        payload: dict[str, Any] = {"model": self.model, "messages": messages, "max_tokens": 8000}
         if self.model != "deepseek-reasoner":
             payload["temperature"] = temperature
-
-        def call() -> str:
-            with httpx.Client(timeout=httpx.Timeout(600.0, connect=15.0)) as client:
-                resp = client.post(API_URL, headers={"Authorization": f"Bearer {self.api_key}"}, json=payload)
-                if resp.status_code >= 400:
-                    raise ProviderHTTPError(resp.status_code, f"DeepSeek: {resp.text[:300]}")
-                return resp.json()["choices"][0]["message"]["content"] or ""
-
-        return with_retry(call, "DeepSeek")
-
-    def generate_text(self, prompt: str, system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
-        msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
-        return self._complete(msgs, temperature)
-
-    def chat(self, messages: list[dict[str, str]], system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
-        msgs = ([{"role": "system", "content": system}] if system else []) + messages
-        return self._complete(msgs, temperature)
+        return payload

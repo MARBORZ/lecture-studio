@@ -5,11 +5,19 @@ Threads:
   project:<id> — sources are lessons of the notebook (subset selectable), citations [[lesson_id@MM:SS]]
   lesson:<id>  — one source, citations [MM:SS]
 Each thread has sessions (services/chats.py); what one request carries is decided by services/context_window.py.
+
+ask_events() streams an answer: a background thread asks the model and saves the answer to the session, the caller
+only relays its pieces. A dropped connection (a reload, the page closed) stops the relay, not the answer.
 """
 
 import logging
+import queue
 import re
+import threading
 import uuid
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass
+from typing import Any
 
 from backend.core.ai import AI, prompts
 from backend.core.ai.base import strip_emoji
@@ -70,33 +78,54 @@ def thread(kind: ThreadKind, thread_id: str, session_id: str | None = None, prov
     return Thread(kind=kind, id=thread_id, session=session, sessions=infos, files=chats.session_files(session), context=usage)
 
 
-def ask(kind: ThreadKind, thread_id: str, req: AskRequest) -> Thread:
+@dataclass
+class _Question:
+    kind: ThreadKind
+    thread_id: str
+    req: AskRequest
+    sources: list[LessonFull]
+    question: str
+    name: str
+    session: Any
+
+
+def _prepare(kind: ThreadKind, thread_id: str, req: AskRequest) -> _Question:
+    """Everything that can refuse the question before the model is asked (no sources, no key, empty question)."""
     sources = _resolve_sources(kind, thread_id, req.sources)
-    ui = SettingsService.get().ui_language
-    question = req.question.strip() or prompts.default_question(req.role, ui)
+    question = req.question.strip() or prompts.default_question(req.role, SettingsService.get().ui_language)
     if not question:
         raise ValueError(tr("assistant.empty_question"))
-
     name = _provider_name(req.provider)
+    AI.get(name)  # a missing key refuses here, not halfway
+    session, _ = chats.get(kind, thread_id, req.session_id, create_missing=True)
+    return _Question(kind, thread_id, req, sources, question, name, session)
+
+
+def _answer(q: _Question, on_piece: Callable[[str], None]) -> Thread:
+    """Ask the model (pieces go to on_piece as it writes), clean the answer, save both messages, return the thread."""
+    req, session, sources, name = q.req, q.session, q.sources, q.name
     provider = AI.get(name)
     window = context_window.window_for(name)
-    session, _ = chats.get(kind, thread_id, req.session_id, create_missing=True)
     if context_window.needs_compaction(session, window):
         context_window.compact(provider, session, window)
 
     # this question's files: new uploads, or files of this session attached again (another session's are not found)
     new_files = [a for a in (attachment_store.get(i, session.id) for i in req.attachments) if a]
-    multi = kind == "project"
+    multi = q.kind == "project"
     request = context_window.build(
         provider_name=name, window=window, vision=provider.can_see_images, sources=sources, session=session,
-        role=req.role, multi=multi, question=question, new_files=new_files, ui_language=SettingsService.get().ui_language)
-    answer = strip_emoji(provider.chat(request.messages, request.system, images=request.images)).strip()
+        role=req.role, multi=multi, question=q.question, new_files=new_files, ui_language=SettingsService.get().ui_language)
+    pieces: list[str] = []
+    for piece in provider.stream_chat(request.messages, request.system, images=request.images):
+        pieces.append(piece)
+        on_piece(piece)
+    answer = strip_emoji("".join(pieces)).strip()
     answer = _clean_citations(answer, sources) if multi else normalize_timecodes(answer, sources[0].clean_duration_sec or None)
 
     source_ids = [s.id for s in sources]
     new_files = [attachment_store.adopt(a, session.id) for a in new_files]  # uploads join the session's folder
     session.messages += [
-        ChatMessage(id=uuid.uuid4().hex[:10], role="user", content=question, sources=source_ids, attachments=new_files, assistant_role=req.role),
+        ChatMessage(id=uuid.uuid4().hex[:10], role="user", content=q.question, sources=source_ids, attachments=new_files, assistant_role=req.role),
         ChatMessage(
             id=uuid.uuid4().hex[:10], role="assistant", content=answer or tr("assistant.empty_answer"),
             sources=source_ids, assistant_role=req.role, provider=name, model=provider.model,
@@ -108,8 +137,39 @@ def ask(kind: ThreadKind, thread_id: str, req: AskRequest) -> Thread:
             context_window.compact(provider, session, window)
         except Exception as e:  # the answer is what matters; the next question compacts again
             logger.warning("Compaction after the answer failed: %s", e)
-    chats.save(kind, thread_id, session)
-    return thread(kind, thread_id, session.id, name, req.sources)
+    chats.save(q.kind, q.thread_id, session)
+    return thread(q.kind, q.thread_id, session.id, name, req.sources)
+
+
+def ask(kind: ThreadKind, thread_id: str, req: AskRequest) -> Thread:
+    """The whole answer at once (no streaming)."""
+    return _answer(_prepare(kind, thread_id, req), lambda piece: None)
+
+
+def ask_events(kind: ThreadKind, thread_id: str, req: AskRequest) -> Iterator[dict[str, Any]]:
+    """Refuses at once like ask(); then {"type": "delta", "text"} while the model writes, and one
+    {"type": "done", "thread"} or {"type": "error", "detail"} at the end."""
+    q = _prepare(kind, thread_id, req)
+    events: queue.Queue[dict[str, Any]] = queue.Queue()
+
+    def work() -> None:
+        try:
+            done = _answer(q, lambda piece: events.put({"type": "delta", "text": piece}))
+            events.put({"type": "done", "thread": done.model_dump(mode="json")})
+        except Exception as e:
+            logger.warning("Assistant answer failed: %s", e, exc_info=True)
+            events.put({"type": "error", "detail": tr("ai.error", error=e)})
+
+    threading.Thread(target=work, name="assistant-answer", daemon=True).start()
+
+    def relay() -> Iterator[dict[str, Any]]:
+        while True:
+            event = events.get()
+            yield event
+            if event["type"] != "delta":
+                return
+
+    return relay()
 
 
 def compact(kind: ThreadKind, thread_id: str, session_id: str, provider: str | None = None, sources: list[str] | None = None) -> Thread:

@@ -74,6 +74,12 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end' })
   }, [messages.length, pending])
+  // while the answer is written, follow it only if the reader is at the bottom (scrolled up to read: stay there)
+  const streamed = chat.streamed
+  useEffect(() => {
+    const end = endRef.current
+    if (end && streamed && end.getBoundingClientRect().top < window.innerHeight + 160) end.scrollIntoView({ block: 'end' })
+  }, [streamed])
 
   function takeQuote(text: string) {
     setQuote(text)
@@ -166,10 +172,17 @@ export function AssistantPanel({ kind, id, sources, lessonId }: { kind: ThreadKi
         {pending && (
           <>
             <UserBubble text={pending} />
-            <div className="flex flex-col gap-2">
-              <span className="label-caps animate-pulse-soft">{t('assistant.thinking')}</span>
-              <SkeletonChat />
-            </div>
+            {streamed ? (
+              <div className="rounded-xl border border-line p-4" aria-live="polite" aria-busy>
+                <MarkdownView content={streamed} compact />
+                <span className="mt-2 block h-3.5 w-1.5 animate-pulse-soft bg-fg" aria-hidden />
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <span className="label-caps animate-pulse-soft">{t('assistant.thinking')}</span>
+                <SkeletonChat />
+              </div>
+            )}
           </>
         )}
         <div ref={endRef} />

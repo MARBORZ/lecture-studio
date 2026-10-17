@@ -10,14 +10,17 @@ Models come from /api/tags (Ollama) or /v1/models; the context length a model su
 /api/v0/models (LM Studio), where the server tells it. A server that does not answer fails at once, with no retries.
 """
 
+import json
 import re
+from collections.abc import Iterable, Iterator
 from typing import Any, Literal
 
 import httpx
 from pydantic import BaseModel
 
 from backend.core.ai.base import BaseAIProvider
-from backend.core.ai.retry import AIUnavailable, ProviderHTTPError, with_retry
+from backend.core.ai.providers.openai_compat import sse_deltas
+from backend.core.ai.retry import AIUnavailable, ProviderHTTPError, stream_with_retry, with_retry
 from backend.i18n import tr
 
 DEFAULT_URL = "http://127.0.0.1:11434/v1"
@@ -98,11 +101,12 @@ class LocalProvider(BaseAIProvider):
     max_context_tokens = 1_048_576  # the model's own limit is shown in Settings; the server enforces it
     default_context_tokens = 8_000
 
+    needs_key = False
+
     def __init__(self, api_key: str = "", model: str | None = None, base_url: str = DEFAULT_URL, context_tokens: int = 8_000, thinking: bool = False):
         if not model:
             raise ValueError(tr("ai.local_no_model"))
-        self.api_key = ""
-        self.model = model
+        super().__init__("", model)
         self.base_url = base_url.strip().rstrip("/") or DEFAULT_URL
         self.context_tokens = context_tokens
         # reasoning models think before answering unless told not to: Ollama "think": false, LM Studio and other
@@ -114,42 +118,106 @@ class LocalProvider(BaseAIProvider):
     def audit_window_tokens(self) -> int | None:
         return self.context_tokens
 
-    def _complete(self, messages: list[dict[str, str]], temperature: float) -> str:
-        base = root(self.base_url)
+    def _request(self, client: httpx.Client, messages: list[dict[str, str]], temperature: float, stream: bool) -> tuple[str, dict, dict]:
+        """URL, payload, and the "do not think" switch of this server (Ollama's own chat or the OpenAI one)."""
+        if self._ollama is None:
+            self._ollama = _is_ollama(client, root(self.base_url))
+        if self._ollama:
+            payload: dict[str, Any] = {
+                "model": self.model, "messages": messages, "stream": stream,
+                "options": {"temperature": temperature, "num_ctx": self.context_tokens},
+            }
+            return f"{root(self.base_url)}/api/chat", payload, {"think": False}
+        payload = {"model": self.model, "messages": messages, "temperature": temperature, **({"stream": True} if stream else {})}
+        return f"{self.base_url}/chat/completions", payload, {"reasoning_effort": "none"}
+
+    def _error(self, resp: httpx.Response) -> ProviderHTTPError:
+        resp.read()
+        return ProviderHTTPError(resp.status_code, tr("ai.local_error", model=self.model, error=resp.text[:300]))
+
+    def chat(self, messages: list[dict[str, str]], system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
+        msgs = ([{"role": "system", "content": system}] if system else []) + messages
 
         def call() -> str:
             try:
                 with httpx.Client(timeout=_CHAT_TIMEOUT) as client:
-                    if self._ollama is None:
-                        self._ollama = _is_ollama(client, base)
-                    if self._ollama:
-                        url = f"{base}/api/chat"
-                        payload: dict[str, Any] = {
-                            "model": self.model, "messages": messages, "stream": False,
-                            "options": {"temperature": temperature, "num_ctx": self.context_tokens},
-                        }
-                        quiet = {"think": False}
-                    else:
-                        url = f"{self.base_url}/chat/completions"
-                        payload = {"model": self.model, "messages": messages, "temperature": temperature}
-                        quiet = {"reasoning_effort": "none"}
+                    url, payload, quiet = self._request(client, msgs, temperature, stream=False)
                     resp = client.post(url, json=payload if self.thinking else {**payload, **quiet})
                     if not self.thinking and resp.status_code == 400:
                         resp = client.post(url, json=payload)  # this model or server does not take the switch
             except httpx.ConnectError as e:
                 raise _down(self.base_url) from e
             if resp.status_code >= 400:
-                raise ProviderHTTPError(resp.status_code, tr("ai.local_error", model=self.model, error=resp.text[:300]))
+                raise self._error(resp)
             data = resp.json()
             text = data["message"]["content"] if self._ollama else data["choices"][0]["message"]["content"]
             return _THINK.sub("", text or "").strip()
 
         return with_retry(call, tr("ai.local_name"))
 
-    def generate_text(self, prompt: str, system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
-        msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
-        return self._complete(msgs, temperature)
-
-    def chat(self, messages: list[dict[str, str]], system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
+    def stream_chat(self, messages: list[dict[str, str]], system: str = "", temperature: float = 0.2, **kwargs: Any) -> Iterator[str]:
         msgs = ([{"role": "system", "content": system}] if system else []) + messages
-        return self._complete(msgs, temperature)
+
+        def make() -> Iterator[str]:
+            try:
+                with httpx.Client(timeout=_CHAT_TIMEOUT) as client:
+                    url, payload, quiet = self._request(client, msgs, temperature, stream=True)
+                    for body in ([payload] if self.thinking else [{**payload, **quiet}, payload]):
+                        with client.stream("POST", url, json=body) as resp:
+                            if resp.status_code == 400 and body is not payload:
+                                continue  # this model or server does not take the switch: ask again without it
+                            if resp.status_code >= 400:
+                                raise self._error(resp)
+                            lines = resp.iter_lines()
+                            yield from _hide_thinking(_ollama_deltas(lines) if self._ollama else sse_deltas(lines))
+                            return
+            except httpx.ConnectError as e:
+                raise _down(self.base_url) from e
+
+        return stream_with_retry(make, tr("ai.local_name"))
+
+
+def _ollama_deltas(lines: Iterable[str]) -> Iterator[str]:
+    """Text pieces of Ollama's streamed /api/chat (one JSON object per line, "done": true at the end)."""
+    for line in lines:
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        piece = (event.get("message") or {}).get("content")
+        if piece:
+            yield piece
+        if event.get("done"):
+            return
+
+
+def _held(text: str, tag: str) -> int:
+    """How much of the end of `text` could be the start of `tag` (held back until the next piece decides)."""
+    for n in range(min(len(text), len(tag) - 1), 0, -1):
+        if tag.startswith(text[-n:]):
+            return n
+    return 0
+
+
+def _hide_thinking(pieces: Iterable[str]) -> Iterator[str]:
+    """The streamed answer without <think>...</think> blocks, also when a tag is split between pieces."""
+    buf, inside = "", False
+    for piece in pieces:
+        buf += piece
+        while True:
+            tag = "</think>" if inside else "<think>"
+            i = buf.find(tag)
+            if i >= 0:
+                if not inside and buf[:i]:
+                    yield buf[:i]
+                buf, inside = (buf[i + len(tag):].lstrip() if inside else buf[i + len(tag):]), not inside
+                continue
+            keep = _held(buf, tag)
+            if not inside and len(buf) > keep:
+                yield buf[: len(buf) - keep]
+            buf = buf[len(buf) - keep:]
+            break
+    if buf and not inside:
+        yield buf

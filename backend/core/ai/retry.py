@@ -6,7 +6,7 @@ When retries run out, the error says in plain words what happened and what to do
 
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 
 import httpx
 
@@ -78,3 +78,18 @@ def with_retry[T](
                 check_cancelled()
                 pause(0.5)
     raise AssertionError("unreachable")
+
+
+def stream_with_retry(make: Callable[[], Iterator[str]], provider: str) -> Iterator[str]:
+    """A streamed answer, retried like with_retry until its first piece arrives (a refused or dropped request);
+    once text has been shown, an error ends the answer instead of starting it over."""
+
+    def first() -> tuple[Iterator[str], str | None]:
+        it = make()
+        return it, next(it, None)
+
+    it, head = with_retry(first, provider)
+    if head is None:
+        return
+    yield head
+    yield from it
