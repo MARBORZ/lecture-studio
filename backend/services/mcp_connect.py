@@ -1,7 +1,8 @@
 """
 Settings → AI → "Connect Claude": put this app's MCP server (mcp_server.py, the lesson library tools) into the user's
-own Claude apps, so their Claude reads lessons and writes audits on their subscription. The app never calls Claude
-itself: it only writes the client's config, the way the user would by hand (docs/MCP_SETUP.md).
+own Claude apps, so their Claude reads lessons and writes audits on their subscription. Here the app only writes the
+client's config, the way the user would by hand (docs/MCP_SETUP.md); the other way to the subscription, the Claude
+Code provider, finds the same `claude` (core/ai/providers/claude_code.py).
 
   Claude Desktop  its JSON config (mcpServers.lecture-studio); merged, the rest of the file is kept, a .bak first
   Claude Code     `claude mcp add --scope user lecture-studio -- <command>`; status read from ~/.claude.json
@@ -18,6 +19,7 @@ import sys
 from pathlib import Path
 
 from backend import config
+from backend.core.ai.providers.claude_code import claude_bin
 from backend.i18n import tr
 from backend.models.system import McpClient, McpStatus
 from backend.utils.fs import read_json, write_json
@@ -44,18 +46,6 @@ def desktop_config() -> Path:
 
 def code_config() -> Path:
     return Path(os.getenv("LECTURE_STUDIO_CLAUDE_CODE_CONFIG") or Path.home() / ".claude.json")
-
-
-def claude_bin() -> str | None:
-    return os.getenv("LECTURE_STUDIO_CLAUDE_BIN") or shutil.which("claude") or _known_claude()
-
-
-def _known_claude() -> str | None:
-    # the app is started from a shortcut: its PATH may lack the usual install places
-    for p in (Path.home() / ".local/bin/claude", Path("/opt/homebrew/bin/claude"), Path("/usr/local/bin/claude")):
-        if p.is_file():
-            return str(p)
-    return None
 
 
 def server_entry() -> dict:

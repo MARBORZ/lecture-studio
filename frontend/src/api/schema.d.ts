@@ -673,7 +673,8 @@ export interface paths {
         };
         /**
          * Stream Jobs
-         * @description SSE: the full job list, pushed whenever anything changes (plus a heartbeat).
+         * @description SSE: the full job list, pushed whenever anything changes; a `library` event when the MCP server changed
+         *     the library (the app reloads what is open); a heartbeat when nothing happens.
          */
         get: operations["stream_jobs_api_jobs_stream_get"];
         put?: never;
@@ -1179,6 +1180,8 @@ export interface components {
             openai_model?: string | null;
             /** Anthropic Model */
             anthropic_model?: string | null;
+            /** Claude Code Model */
+            claude_code_model?: string | null;
             /** Whisper Model */
             whisper_model?: string | null;
             /** Local Base Url */
@@ -1188,7 +1191,7 @@ export interface components {
             /** Local Thinking */
             local_thinking?: boolean | null;
             /** Assistant Provider */
-            assistant_provider?: ("deepseek" | "gemini" | "openai" | "anthropic" | "local") | null;
+            assistant_provider?: ("deepseek" | "gemini" | "openai" | "anthropic" | "claude_code" | "local") | null;
             /** Context Tokens */
             context_tokens?: {
                 [key: string]: number | null;
@@ -1208,6 +1211,9 @@ export interface components {
             openai_model: string;
             /** Anthropic Model */
             anthropic_model: string;
+            /** Claude Code Model */
+            claude_code_model: string;
+            claude_code: components["schemas"]["ClaudeCodeStatus"];
             /** Whisper Model */
             whisper_model: string;
             /** Local Base Url */
@@ -1220,7 +1226,7 @@ export interface components {
              * Assistant Provider
              * @enum {string}
              */
-            assistant_provider: "deepseek" | "gemini" | "openai" | "anthropic" | "local";
+            assistant_provider: "deepseek" | "gemini" | "openai" | "anthropic" | "claude_code" | "local";
             /** Context Tokens */
             context_tokens: {
                 [key: string]: number;
@@ -1242,7 +1248,7 @@ export interface components {
             /** Sources */
             sources?: string[] | null;
             /** Provider */
-            provider?: ("deepseek" | "gemini" | "openai" | "anthropic" | "local") | null;
+            provider?: ("deepseek" | "gemini" | "openai" | "anthropic" | "claude_code" | "local") | null;
             /** Attachments */
             attachments?: string[];
             /** Session Id */
@@ -1285,7 +1291,7 @@ export interface components {
         /** AuditRequest */
         AuditRequest: {
             /** Provider */
-            provider?: ("deepseek" | "gemini" | "openai" | "anthropic" | "local") | null;
+            provider?: ("deepseek" | "gemini" | "openai" | "anthropic" | "claude_code" | "local") | null;
             /**
              * Audit Mode
              * @default srt_timecodes
@@ -1386,10 +1392,20 @@ export interface components {
              */
             summarized: number;
         };
+        /**
+         * ClaudeCodeStatus
+         * @description The user's own Claude Code: installed, and signed in by `claude` itself (the app reads nothing more of it).
+         */
+        ClaudeCodeStatus: {
+            /** Installed */
+            installed: boolean;
+            /** Signed In */
+            signed_in: boolean;
+        };
         /** CompactRequest */
         CompactRequest: {
             /** Provider */
-            provider?: ("deepseek" | "gemini" | "openai" | "anthropic" | "local") | null;
+            provider?: ("deepseek" | "gemini" | "openai" | "anthropic" | "claude_code" | "local") | null;
             /** Sources */
             sources?: string[] | null;
         };
@@ -1931,7 +1947,7 @@ export interface components {
              * @default deepseek
              * @enum {string}
              */
-            audit: "deepseek" | "gemini" | "openai" | "anthropic" | "local" | "none";
+            audit: "deepseek" | "gemini" | "openai" | "anthropic" | "claude_code" | "local" | "none";
             /**
              * Audit Source
              * @default transcript
@@ -2064,7 +2080,7 @@ export interface components {
              * Provider
              * @enum {string}
              */
-            provider: "deepseek" | "gemini" | "openai" | "anthropic" | "local";
+            provider: "deepseek" | "gemini" | "openai" | "anthropic" | "claude_code" | "local";
         };
         /** KeyTestResult */
         KeyTestResult: {
@@ -2513,7 +2529,7 @@ export interface components {
              * @default deepseek
              * @enum {string}
              */
-            audit: "deepseek" | "gemini" | "openai" | "anthropic" | "local" | "none";
+            audit: "deepseek" | "gemini" | "openai" | "anthropic" | "claude_code" | "local" | "none";
             /**
              * Audit Source
              * @default transcript
@@ -4580,7 +4596,7 @@ export interface operations {
         parameters: {
             query?: {
                 session?: string | null;
-                provider?: ("deepseek" | "gemini" | "openai" | "anthropic" | "local") | null;
+                provider?: ("deepseek" | "gemini" | "openai" | "anthropic" | "claude_code" | "local") | null;
                 sources?: string[] | null;
             };
             header?: never;

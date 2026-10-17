@@ -36,6 +36,17 @@ def no_real_api_keys(monkeypatch):
             monkeypatch.delenv(name, raising=False)
 
 
+@pytest.fixture(autouse=True)
+def no_real_claude(monkeypatch):
+    """No test asks the developer's own `claude` whether it is signed in; a test of the check restores
+    claude_code.REAL_ASK_STATUS and points LECTURE_STUDIO_CLAUDE_BIN at a fake."""
+    from backend.core.ai.providers import claude_code
+
+    claude_code.REAL_ASK_STATUS = getattr(claude_code, "REAL_ASK_STATUS", claude_code._ask_status)
+    monkeypatch.setattr(claude_code, "_ask_status", lambda: False)
+    monkeypatch.setattr(claude_code, "_status", None)
+
+
 @pytest.fixture()
 def data_dir(tmp_path, monkeypatch):
     """Isolated APP_HOME + data_dir for every test."""

@@ -17,6 +17,7 @@ from backend.settings import hotkeys
 from backend.settings.schema import (
     AISettingsView,
     AppSettings,
+    ClaudeCodeStatus,
     HotkeyView,
     KeyStatus,
     PathCheckResult,
@@ -264,6 +265,8 @@ class SettingsService:
 
     @classmethod
     def view(cls) -> SettingsView:
+        from backend.core.ai.providers.claude_code import claude_bin, signed_in  # the AI layer imports settings
+
         s = cls.get()
         p = cls.paths()
         return SettingsView(
@@ -294,6 +297,8 @@ class SettingsService:
                 gemini_model=s.ai.gemini_model,
                 openai_model=s.ai.openai_model,
                 anthropic_model=s.ai.anthropic_model,
+                claude_code_model=s.ai.claude_code_model,
+                claude_code=ClaudeCodeStatus(installed=claude_bin() is not None, signed_in=signed_in()),
                 whisper_model=s.ai.whisper_model,
                 local_base_url=s.ai.local_base_url,
                 local_model=s.ai.local_model,

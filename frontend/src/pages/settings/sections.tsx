@@ -194,7 +194,7 @@ export function AISettingsSection() {
       </Card>
       <LocalModelCard />
       <ComputeCard />
-      <Card title={t('settings.models')} fold="ai.models" summary={`${CLOUD_PROVIDERS.map((p) => ai[`${p}_model`]).join(' · ')} · Whisper ${ai.whisper_model}`}>
+      <Card title={t('settings.models')} fold="ai.models" summary={`${CLOUD_PROVIDERS.map((p) => ai[`${p}_model`]).join(' · ')} · Claude Code ${ai.claude_code_model} · Whisper ${ai.whisper_model}`}>
         <div className="grid gap-4 sm:grid-cols-2">
           {CLOUD_PROVIDERS.map((p) => {
             const current = ai[`${p}_model`]
@@ -207,6 +207,13 @@ export function AISettingsSection() {
               </Field>
             )
           })}
+          <Field label={PROVIDER_NAME.claude_code}>
+            <Select
+              value={ai.claude_code_model}
+              onChange={(v) => patch({ claude_code_model: v })}
+              options={(models('claude_code').length ? models('claude_code') : [{ value: ai.claude_code_model, label: ai.claude_code_model }])}
+            />
+          </Field>
           <Field label={t('settings.whisperModel')}>
             <Select value={ai.whisper_model} onChange={(v) => patch({ whisper_model: v })} options={['large-v3-turbo', 'large-v3', 'medium', 'small'].map((m) => ({ value: m, label: m }))} />
           </Field>

@@ -10,7 +10,9 @@ from backend.settings.hotkeys import HotkeyProblem, HotkeyScope
 
 AuditMode = Literal["srt_timecodes", "clean_summary"]
 VideoResolution = Literal["1080p", "720p", "original"]
-AIProviderName = Literal["deepseek", "gemini", "openai", "anthropic", "local"]  # openai = ChatGPT, anthropic = Claude; local: Ollama / LM Studio
+# openai = ChatGPT, anthropic = Claude by API key, claude_code = Claude on the user's plan through their own `claude`,
+# local = Ollama / LM Studio
+AIProviderName = Literal["deepseek", "gemini", "openai", "anthropic", "claude_code", "local"]
 UILanguage = Literal["ru", "en"]
 Theme = Literal["system", "dark", "light"]
 TEXT_SCALE_MIN, TEXT_SCALE_MAX = 80, 150
@@ -19,7 +21,7 @@ QUEUE_LIMIT_MIN, QUEUE_LIMIT_DEFAULT, QUEUE_LIMIT_MAX = 1, 10, 100  # one worker
 
 OutputLanguage = Literal["interface", "recording", "ru", "en"]  # the audit's language (core/language.py resolves it)
 Transcriber = Literal["whisper", "gemini", "none"]
-AuditProvider = Literal["deepseek", "gemini", "openai", "anthropic", "local", "none"]
+AuditProvider = Literal["deepseek", "gemini", "openai", "anthropic", "claude_code", "local", "none"]
 AuditSource = Literal["transcript", "video"]  # video = Gemini watches an optimized copy (costs more, sees the screen)
 VideoOutput = Literal["clean", "compressed", "original", "none"]
 # clean      — jump-cut video (the pauses cut out like in the audio); without cut_silence it equals "compressed"
@@ -91,6 +93,7 @@ class AISettings(BaseModel):
     gemini_model: str = "gemini-3.5-flash"
     openai_model: str = "gpt-5-mini"
     anthropic_model: str = "claude-sonnet-5-5"
+    claude_code_model: str = "sonnet"  # Claude Code's alias: sonnet / opus / haiku
     whisper_model: str = "large-v3-turbo"
     local_base_url: str = "http://127.0.0.1:11434/v1"  # Ollama; LM Studio: http://127.0.0.1:1234/v1
     local_model: str = ""  # chosen from the server's list; "" = the local model is not set up
@@ -151,6 +154,13 @@ class KeyStatus(BaseModel):
     hint: str = ""  # e.g. "sk-…a1b2"; never the full key
 
 
+class ClaudeCodeStatus(BaseModel):
+    """The user's own Claude Code: installed, and signed in by `claude` itself (the app reads nothing more of it)."""
+
+    installed: bool
+    signed_in: bool
+
+
 class AISettingsView(BaseModel):
     deepseek_key: KeyStatus
     gemini_key: KeyStatus
@@ -160,6 +170,8 @@ class AISettingsView(BaseModel):
     gemini_model: str
     openai_model: str
     anthropic_model: str
+    claude_code_model: str
+    claude_code: ClaudeCodeStatus
     whisper_model: str
     local_base_url: str
     local_model: str
@@ -223,6 +235,7 @@ class AISettingsPatch(BaseModel):
     gemini_model: str | None = None
     openai_model: str | None = None
     anthropic_model: str | None = None
+    claude_code_model: str | None = None
     whisper_model: str | None = None
     local_base_url: str | None = None
     local_model: str | None = None
