@@ -17,7 +17,7 @@ from backend.core.timeline import TimeMap, parse_srt, rewrite_timecodes
 from backend.core.transcription import write_transcripts
 from backend.models.lesson import SCHEMA_VERSION, Lesson
 from backend.models.transcript import Segment
-from backend.services.storage import Artifacts, Library
+from backend.services.storage import Artifacts, LessonFiles, Lessons
 from backend.utils.fs import copy_file, read_json, read_text, write_text
 
 logger = logging.getLogger(__name__)
@@ -80,10 +80,10 @@ def migrate_all() -> int:
     if prompts.migrate_overrides():
         logger.info("Prompt overrides: the audit structure blocks merged into one")
     migrated = 0
-    for lesson in Library.list_lessons():
+    for lesson in Lessons.all():
         if lesson.schema_version >= SCHEMA_VERSION:
             continue
-        lesson_dir = Library.lesson_dir(lesson)
+        lesson_dir = LessonFiles.dir(lesson)
         if lesson_dir.is_dir():
             report = migrate_lesson_dir(lesson_dir)
             logger.info("Migrated %s: %s", lesson.id, report)
@@ -91,6 +91,6 @@ def migrate_all() -> int:
         update = {"schema_version": SCHEMA_VERSION}
         if tm and not lesson.clean_duration_sec:
             update["clean_duration_sec"] = float(tm[-1]["clean_end"])
-        Library.save_lesson(Lesson(**{**lesson.model_dump(), **update}))
+        Lessons.save(Lesson(**{**lesson.model_dump(), **update}))
         migrated += 1
     return migrated

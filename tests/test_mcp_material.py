@@ -4,9 +4,9 @@
 def test_material_is_light_by_default_and_full_on_request(data_dir):
     import mcp_server
     from backend.models.lesson import Lesson
-    from backend.services.storage import Library
+    from backend.services.storage import Lessons
 
-    Library.save_lesson(Lesson(id="less_x", job_id="x", title="Урок", clean_duration_sec=60))
+    Lessons.save(Lesson(id="less_x", job_id="x", title="Урок", clean_duration_sec=60))
     srt = "1\n00:00:01,000 --> 00:00:03,000\nпервая фраза\n\n2\n00:00:04,000 --> 00:00:06,000\nвторая фраза\n"
     mcp_server.lecture_apply_agent_transcription("less_x", srt_content=srt)
     mcp_server.lecture_save_audit_markdown("less_x", "## Тема\n- [00:10] мысль")

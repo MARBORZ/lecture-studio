@@ -6,23 +6,23 @@ from backend.models.lesson import Lesson, LessonPatch
 
 
 def test_storage_concurrent_writes(data_dir):
-    from backend.services.storage import Library
+    from backend.services.storage import Lessons
 
-    Library.save_lesson(Lesson(id="less_a", job_id="a"))
-    threads = [threading.Thread(target=Library.patch_lesson, args=("less_a", LessonPatch(tags=str(i)))) for i in range(20)]
+    Lessons.save(Lesson(id="less_a", job_id="a"))
+    threads = [threading.Thread(target=Lessons.patch, args=("less_a", LessonPatch(tags=str(i)))) for i in range(20)]
     for t in threads:
         t.start()
     for t in threads:
         t.join()
-    assert Library.get_lesson("less_a") is not None
-    assert len(Library.list_lessons()) == 1
+    assert Lessons.get("less_a") is not None
+    assert len(Lessons.all()) == 1
 
 
 def test_patch_is_partial(data_dir):
     from backend.main import app
-    from backend.services.storage import Library
+    from backend.services.storage import Lessons
 
-    Library.save_lesson(Lesson(id="less_b", job_id="b", status="completed", notes="keep"))
+    Lessons.save(Lesson(id="less_b", job_id="b", status="completed", notes="keep"))
     with TestClient(app, base_url="http://127.0.0.1") as c:
         r = c.patch("/api/lessons/less_b", json={"title": "New"}).json()
     assert (r["title"], r["status"], r["notes"]) == ("New", "completed", "keep")

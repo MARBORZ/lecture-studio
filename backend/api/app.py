@@ -21,7 +21,7 @@ from backend.core.media import ffmpeg_available
 from backend.services import updates
 from backend.services.jobs import QueueFull
 from backend.services.migration import migrate_all
-from backend.services.storage import Library
+from backend.services.storage import Lessons
 from backend.settings import paths
 from backend.utils import proc
 from backend.utils.fs import clear_dir, read_text, remove_file, write_text
@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI):
         logger.warning("Another Lecture Studio server is running (pid %s): temp/ and pid file left alone", read_text(PID_FILE).strip())
     if not ffmpeg_available():
         logger.error("FFmpeg/FFprobe not found in PATH")
-    imported = Library.import_untracked()
+    imported = Lessons.import_untracked()
     migrated = migrate_all()
     if owner:
         from backend.services import attachments

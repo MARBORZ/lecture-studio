@@ -9,24 +9,24 @@ from fastapi.responses import FileResponse
 from backend.i18n import tr
 from backend.models.project import INBOX_ID, Project, ProjectCreate, ProjectPatch
 from backend.services import covers
-from backend.services.storage import Library
+from backend.services.storage import Projects
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
 
 @router.get("", response_model=list[Project])
 def list_projects() -> list[Project]:
-    return Library.list_projects()
+    return Projects.all()
 
 
 @router.post("", response_model=Project)
 def create_project(data: ProjectCreate) -> Project:
-    return Library.create_project(data)
+    return Projects.create(data)
 
 
 @router.patch("/{project_id}", response_model=Project)
 def patch_project(project_id: str, patch: ProjectPatch) -> Project:
-    project = Library.patch_project(project_id, patch)
+    project = Projects.patch(project_id, patch)
     if not project:
         raise HTTPException(404, detail=tr("project.not_found"))
     return project
@@ -36,7 +36,7 @@ def patch_project(project_id: str, patch: ProjectPatch) -> Project:
 def delete_project(project_id: str) -> dict:
     if project_id == INBOX_ID:
         raise HTTPException(400, detail=tr("project.inbox_delete"))
-    if not Library.delete_project(project_id):
+    if not Projects.delete(project_id):
         raise HTTPException(404, detail=tr("project.not_found"))
     return {"ok": True}
 

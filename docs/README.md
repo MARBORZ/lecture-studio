@@ -26,7 +26,7 @@ backend/
   core/transcription/         whisper, gemini, writer (segments.json -> txt/srt)
   core/ai/                    prompts.py (English, output language as a parameter), base (audit), providers (deepseek, gemini), facade
   core/pipeline/              steps and runner (single-worker queue)
-  services/                   storage (Library), jobs (JobRegistry), export, assistant, migration, diary
+  services/                   storage (LibraryDB, Projects, Lessons, LessonFiles), jobs (JobRegistry), export, assistant, migration, diary
   utils/                      fs (files, BOM-tolerant reads), proc (processes, cross-platform)
 frontend/                     React 19 + Vite + TypeScript + Tailwind 4 + SCSS + Motion
 launcher/macos/               start.zsh, stop.zsh, remove.zsh (uninstall worker), build-app.zsh, make-icon.zsh, stub.c

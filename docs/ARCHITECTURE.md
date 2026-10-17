@@ -9,7 +9,7 @@ settings: read by every layer; holds paths and keys
 ```
 
 - `api` — HTTP only: validation, status codes, serialisation.
-- `services` — state: `Library` (JSON database under one `RLock`, atomic writes), `JobRegistry`
+- `services` — state: `storage` (`LibraryDB`: the JSON database under one `RLock` plus a file lock, atomic writes, the MCP change signal; `Projects`, `Lessons`, `LessonFiles` on top of it), `JobRegistry`
   (jobs, upload/export counters, the answer to "is the system busy?"), export, assistant, migration, diary.
 - `core` — algorithms with no knowledge of HTTP: media, VAD, transcription, AI, pipeline, time.
 
@@ -42,7 +42,7 @@ and a video; no transcript → audit from video or none) and translates pre-1.4 
 | GenerateAuditStep | audit | DeepSeek/Gemini/ChatGPT/Claude/the local model from the `[MM:SS]` transcript, or Gemini from the video (an optimized proxy + the transcript of each part; parts of 45 min as offsets in one upload); a failed video audit falls back to the transcript; during processing an AI failure is only a warning |
 | SaveLessonStep | save | store the lesson (with `cut_silence`, `original_file`, `original_kind`), optional export |
 
-Media of a lesson is resolved in one place, `Library.media_file(lesson, kind)`: the lesson's own MP3/MP4, else the
+Media of a lesson is resolved in one place, `LessonFiles.media(lesson, kind)`: the lesson's own MP3/MP4, else the
 original recording. Player, downloads, export and MCP all use it. An Eco lesson whose file is gone reports
 `source_missing`; `POST /relink` accepts the same recording at a new path (length checked). `POST /drop-video` keeps
 the sound (a kept upload gives its sound to an MP3 first; a user's own Eco file is never deleted). Job warnings are a list

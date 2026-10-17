@@ -35,7 +35,7 @@ def test_audit_follows_the_chosen_language(data_dir, monkeypatch):
     from backend.core.pipeline import steps
     from backend.main import app
     from backend.models.lesson import Lesson
-    from backend.services.storage import Library
+    from backend.services.storage import Lessons
     from backend.utils.fs import write_json
 
     seen = []
@@ -49,7 +49,7 @@ def test_audit_follows_the_chosen_language(data_dir, monkeypatch):
 
     monkeypatch.setattr(steps.AI, "get", staticmethod(lambda name: Provider()))
     monkeypatch.setattr(steps.SettingsService, "api_key", classmethod(lambda cls, name: "key"))
-    Library.save_lesson(Lesson(id="less_l", job_id="l", title="Lesson", speech_language="en"))
+    Lessons.save(Lesson(id="less_l", job_id="l", title="Lesson", speech_language="en"))
     write_json(data_dir / "output" / "l" / "segments.json", [{"clean_start": 0, "clean_end": 2, "orig_start": 0, "orig_end": 2, "text": "hello"}])
 
     def regenerate(c, lang):

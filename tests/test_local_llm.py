@@ -232,10 +232,10 @@ def test_check_reports_a_stopped_server(client):
 
 def test_regenerate_audit_with_the_local_model(ollama, data_dir):
     from backend.models.lesson import Lesson
-    from backend.services.storage import Library
+    from backend.services.storage import Lessons
     from backend.utils.fs import write_json
 
-    Library.save_lesson(Lesson(id="less_loc", job_id="loc", title="Lesson", speech_language="ru"))
+    Lessons.save(Lesson(id="less_loc", job_id="loc", title="Lesson", speech_language="ru"))
     write_json(data_dir / "output" / "loc" / "segments.json", [{"clean_start": 0, "clean_end": 2, "orig_start": 0, "orig_end": 2, "text": "привет"}])
 
     from backend.main import app

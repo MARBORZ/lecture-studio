@@ -125,9 +125,9 @@ def change_data_dir(req: DataDirChange) -> SettingsView:
     except (ValueError, OSError) as e:
         raise HTTPException(400, detail=str(e)) from e
     from backend.services.migration import migrate_all
-    from backend.services.storage import Library
+    from backend.services.storage import Lessons
 
-    Library.import_untracked()
+    Lessons.import_untracked()
     migrate_all()
     return SettingsService.view()
 
