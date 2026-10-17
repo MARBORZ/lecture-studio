@@ -71,7 +71,7 @@ export function LessonLayout() {
   const width = WIDTH[focusMode ? 'focus' : 'normal']
   const playerWidth = widths[focusMode ? 'focus' : 'normal']
   const setPlayerWidth = (v: number) => setWidths((w) => ({ ...w, [focusMode ? 'focus' : 'normal']: v }))
-  const { lessons, patchLesson, deleteLesson, projectName } = useLibrary()
+  const { lessons, revision, patchLesson, deleteLesson, projectName } = useLibrary()
   const { jobs } = useJobs()
   const res = useResource(() => api.lesson(lessonId), [lessonId])
   const lesson = res.data
@@ -105,6 +105,13 @@ export function LessonLayout() {
     if (finished > seen.current) void res.reload()
     seen.current = finished
   }, [finished, res])
+  // ...and when Claude changed the library through MCP (an audit, a transcript, the title)
+  const seenRevision = useRef(revision)
+  useEffect(() => {
+    if (revision === seenRevision.current) return
+    seenRevision.current = revision
+    void res.reload()
+  }, [revision, res])
 
   function regenerate(language?: 'ru' | 'en') {
     if (!lesson) return

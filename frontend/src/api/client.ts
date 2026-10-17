@@ -168,10 +168,11 @@ export const api = {
   upload: (file: File, onProgress: (fraction: number) => void) =>
     putFile<{ upload_id: string; size: number }>(`/api/uploads/${encodeURIComponent(file.name)}`, file, onProgress),
 
-  /** SSE: full job list on every change. Returns unsubscribe. */
-  subscribeJobs(onJobs: (jobs: Job[]) => void, onError?: () => void): () => void {
+  /** SSE: full job list on every change; onLibrary when Claude (the MCP server) changed the library. Returns unsubscribe. */
+  subscribeJobs(onJobs: (jobs: Job[]) => void, onError?: () => void, onLibrary?: () => void): () => void {
     const es = new EventSource('/api/jobs/stream')
     es.onmessage = (e) => onJobs(JSON.parse(e.data) as Job[])
+    es.addEventListener('library', () => onLibrary?.())
     es.onerror = () => onError?.()
     return () => es.close()
   },

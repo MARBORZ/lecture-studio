@@ -3,7 +3,7 @@
  * job progress does not re-render library views; consumers use the typed hooks below.
  *
  *   useUI()      — settings, language/t(), modals, confirm(), promptText(), toasts, stopped state, tutorial replay
- *   useLibrary() — projects, lessons, refresh, mutations
+ *   useLibrary() — projects, lessons, refresh, mutations, revision (bumps when Claude changed the library through MCP)
  *   useJobs()    — live job list (SSE), in-tab uploads
  *
  * The media player lives outside React state (features/player/store.ts).
@@ -72,6 +72,8 @@ interface LibraryContextValue {
   lessons: Lesson[]
   loading: boolean
   refresh: () => Promise<void>
+  /** Bumps when Claude (the MCP server, another process) changed the library: open views reload their data. */
+  revision: number
   createProject: (data: ProjectCreate) => Promise<Project>
   patchProject: (id: string, patch: ProjectPatch) => Promise<void>
   /** file = new image, null = remove */
@@ -186,6 +188,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   )
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [loading, setLoading] = useState(true)
+  const [revision, setRevision] = useState(0)
   const refresh = useCallback(async () => {
     const [p, l] = await Promise.all([api.projects(), api.lessons()])
     setProjects(p)
@@ -255,6 +258,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (finished) void refresh()
       },
       () => setConnected(false),
+      () => {
+        void refresh()
+        setRevision((r) => r + 1)
+      },
     )
   }, [refresh, stopped])
 
@@ -277,8 +284,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }), [settings, reloadSettings, patchSettings, lang, t, openModal, confirm, promptText, toast, modals, toasts, dismissToast, stopped, tutorialOpen, focusMode])
 
   const library = useMemo<LibraryContextValue>(() => ({
-    projects, lessons, loading, refresh, createProject, patchProject, setProjectCover, deleteProject, patchLesson, deleteLesson, projectName,
-  }), [projects, lessons, loading, refresh, createProject, patchProject, setProjectCover, deleteProject, patchLesson, deleteLesson, projectName])
+    projects, lessons, loading, refresh, revision, createProject, patchProject, setProjectCover, deleteProject, patchLesson, deleteLesson, projectName,
+  }), [projects, lessons, loading, refresh, revision, createProject, patchProject, setProjectCover, deleteProject, patchLesson, deleteLesson, projectName])
 
   const jobsValue = useMemo<JobsContextValue>(() => ({ jobs, activeJobs, connected, uploads, trackUpload }), [jobs, activeJobs, connected, uploads, trackUpload])
 

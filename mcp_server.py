@@ -3,6 +3,7 @@ MCP server `lecture-studio`: gives AI agents (any MCP client) direct access
 to the local lesson library. Thin layer over backend services — no file logic of its own.
 
 All timecodes are on the CLEAN timeline (the one clean_video.mp4 / clean_speech.mp3 play on).
+Every tool that changes the library ends with Library.announce_change(): the running app reloads what is open.
 """
 
 import sys
@@ -110,6 +111,7 @@ def lecture_save_audit_markdown(lesson_id: str, audit_markdown: str) -> dict[str
         return _not_found(lesson_id)
     path = write_text(Library.lesson_dir(lesson) / Artifacts.AUDIT, clean_output(audit_markdown, lesson.clean_duration_sec or None))
     Library.refresh_flags(lesson.id)
+    Library.announce_change()
     return {"status": "ok", "file_path": str(path)}
 
 
@@ -124,7 +126,10 @@ def lecture_update_lesson(
 ) -> dict[str, Any]:
     """Partial metadata update. Omitted fields are left unchanged."""
     lesson = Library.patch_lesson(lesson_id, LessonPatch(title=title, project_id=project_id, notes=notes, status=status, tags=tags))
-    return {"status": "ok", "lesson": lesson.model_dump()} if lesson else _not_found(lesson_id)
+    if not lesson:
+        return _not_found(lesson_id)
+    Library.announce_change()
+    return {"status": "ok", "lesson": lesson.model_dump()}
 
 
 @mcp.tool()
@@ -169,6 +174,7 @@ def lecture_apply_agent_transcription(
         write_text(d / Artifacts.AUDIT, clean_output(audit_markdown, lesson.clean_duration_sec or None))
 
     Library.refresh_flags(lesson.id)
+    Library.announce_change()
     export = None
     if target_export_folder:
         try:

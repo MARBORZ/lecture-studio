@@ -12,6 +12,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "httpx>=0.28",
     "psutil>=6.0",
+    "filelock>=3.12",
     "mcp>=2.3",
     "numpy>=1.26,<3",
     "soundfile>=0.12",

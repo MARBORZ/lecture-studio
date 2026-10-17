@@ -24,5 +24,10 @@ The rules the code keeps; `tests/test_architecture.py` checks most of them on ev
    Setup / Uninstall / launcher texts follow the OS language: every one is `L "ru" "en"` (`my L(…)` in AppleScript).
 7. **Diary** — `services/diary.py`: plain `.md` files in `<data_dir>/diary/<category>/`, no index (files are the source of truth).
 8. **API types are generated** (`npm run gen:api`), never hand-written. Regenerate after changing backend models.
-9. Before committing: `uv run ruff check .`, `uv run pytest` (includes `tests/test_architecture.py`, which enforces these
-   rules), `npm --prefix frontend run lint`, `npm --prefix frontend run build`.
+9. **A Claude subscription is used only by Claude's own apps.** "Connect Claude" writes this app's MCP server into the
+   user's Claude Desktop / Claude Code (`services/mcp_connect.py`, the `claude mcp` command only); Claude signs in through
+   Anthropic's own flow and calls our tools. The app never reads Claude credentials or tokens and never runs Claude for its
+   own features (no `claude -p`, no Agent SDK on a subscription): in-app AI uses the user's API key or a local model
+   ([Anthropic: legal and compliance](https://code.claude.com/docs/en/legal-and-compliance)).
+10. Before committing: `uv run ruff check .`, `uv run pytest` (includes `tests/test_architecture.py`, which enforces these
+    rules), `npm --prefix frontend run lint`, `npm --prefix frontend run build`.

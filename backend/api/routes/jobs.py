@@ -150,19 +150,26 @@ def clear_job_history() -> dict:
 
 @router.get("/jobs/stream")
 async def stream_jobs(request: Request) -> StreamingResponse:
-    """SSE: the full job list, pushed whenever anything changes (plus a heartbeat)."""
+    """
+    SSE: the full job list, pushed whenever anything changes; a `library` event when the MCP server changed
+    the library (the app reloads what is open); a heartbeat when nothing happens.
+    """
 
     async def events():
-        last, idle = None, 0
+        last, signal, idle = None, Library.change_signal(), 0
         while not await request.is_disconnected():
+            sent = False
             payload = json.dumps([j.model_dump() for j in JobRegistry.list()], ensure_ascii=False)
             if payload != last:
-                last, idle = payload, 0
+                last, sent = payload, True
                 yield f"data: {payload}\n\n"
-            else:
-                idle += 1
-                if idle % 30 == 0:
-                    yield ": ping\n\n"
+            changed = Library.change_signal()
+            if changed != signal:
+                signal, sent = changed, True
+                yield f"event: library\ndata: {changed}\n\n"
+            idle = 0 if sent else idle + 1
+            if idle and idle % 30 == 0:
+                yield ": ping\n\n"
             await asyncio.sleep(0.5)
 
     return StreamingResponse(events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})

@@ -112,7 +112,8 @@ until the user renames it.
 
 - `useUI()` — settings, `t()`, `openModal`, `confirm`, `promptText` (single-value input), `toast`, stopped screen,
   tutorial replay, focus mode;
-- `useLibrary()` — notebooks, lessons, mutations;
+- `useLibrary()` — notebooks, lessons, mutations, `revision` (bumps on the job stream's `library` event: Claude changed
+  the library through MCP; the library reloads, an open lesson reloads too);
 - `useJobs()` — jobs from SSE, in-tab uploads.
 
 The player is an external store (`features/player/store.ts`, `useSyncExternalStore`): `currentTime` updates only its
