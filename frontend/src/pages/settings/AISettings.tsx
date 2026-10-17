@@ -4,7 +4,7 @@ import { api } from '@/api/client'
 import type { ComputeSettings, ProviderInfo } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
-import { Button, Card, Field, Segmented, Select, Slider } from '@/components/ui'
+import { Button, Card, Field, Segmented, Select, Slider, Switch } from '@/components/ui'
 import { KeyField } from '@/features/system/KeyField'
 import { McpCard } from '@/features/system/McpCard'
 import { CLOUD_PROVIDERS, PROVIDER_NAME, useProviderOptions } from '@/features/system/KeyNotice'
@@ -133,7 +133,7 @@ function ContextWindowCard({ providers }: { providers: Record<string, ProviderIn
 function ComputeCard() {
   const { t, settings, patchSettings, toast } = useUI()
   const c = settings!.compute
-  const status = useResource(() => api.compute(), [c.device, c.cpu_threads])
+  const status = useResource(() => api.compute(), [c.device, c.cpu_threads, c.quiet])
   const s = status.data
   const [threads, setThreads] = useState<number | null>(null)
   const save = (patch: Partial<ComputeSettings>) => patchSettings({ compute: { ...c, ...patch } }).catch((e: Error) => toast(e.message, 'error'))
@@ -177,7 +177,7 @@ function ComputeCard() {
           <Field
             label={t('settings.compute.threads')}
             hint={t('settings.compute.threadsHint', { cores: s.cores, logical: s.logical_cores })}
-            aside={c.cpu_threads ? String(shown) : t('settings.compute.threadsAll', { n: s.cores })}
+            aside={c.cpu_threads ? String(shown) : c.quiet ? t('settings.compute.threadsHalf', { n: Math.max(1, Math.floor(s.cores / 2)) }) : t('settings.compute.threadsAll', { n: s.cores })}
           >
             <div onPointerUp={() => threads !== null && (save({ cpu_threads: threads }), setThreads(null))}>
               <Slider min={1} max={s.logical_cores} step={1} value={shown} onChange={setThreads} />
@@ -187,6 +187,7 @@ function ComputeCard() {
         {s && c.cpu_threads > 0 && (
           <Button size="sm" variant="ghost" className="self-start" onClick={() => save({ cpu_threads: 0 })}>{t('settings.compute.threadsReset')}</Button>
         )}
+        <Switch checked={c.quiet} onChange={(quiet) => save({ quiet })} label={t('settings.compute.quiet')} hint={t('settings.compute.quietHint')} />
       </div>
     </Card>
   )

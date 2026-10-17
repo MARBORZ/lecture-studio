@@ -159,7 +159,7 @@ def _diagnostics() -> str:
 
     s = SettingsService.get()
     try:
-        plan = compute.plan(s.compute.device, s.compute.cpu_threads)
+        plan = compute.plan(s.compute.device, s.compute.cpu_threads, s.compute.quiet)
         recognition = f"{plan.backend} {plan.gpu_name} threads={plan.threads} {plan.reason}".strip()
     except Exception as e:
         recognition = f"unknown ({e})"

@@ -139,7 +139,7 @@ def compute_status() -> ComputeStatus:
     from backend.core import compute
 
     c = SettingsService.get().compute
-    plan, hw = compute.plan(c.device, c.cpu_threads), compute.probe()
+    plan, hw = compute.plan(c.device, c.cpu_threads, c.quiet), compute.probe()
     return ComputeStatus(
         preference=c.device, backend=plan.backend, gpu_name=hw.gpu_name, gpu_available=bool(hw.gpu_name),
         reason=plan.reason, failure=compute.failure("cuda") or compute.failure("apple"),

@@ -88,8 +88,9 @@ def pick_encoder(gpu_backend: str) -> Encoder:
 
 
 class VideoProcessor(BaseMediaProcessor):
-    def __init__(self, crf: int = 26, resolution: str = "1080p", preset: str = "fast", encoder: Encoder = "x264"):
+    def __init__(self, crf: int = 26, resolution: str = "1080p", preset: str = "fast", encoder: Encoder = "x264", threads: int = 0):
         self.crf = crf
+        self.threads = threads  # x264 threads; 0 = FFmpeg decides (every core)
         self.resolution = resolution
         self.preset = preset
         self.encoder: Encoder = encoder
@@ -102,7 +103,8 @@ class VideoProcessor(BaseMediaProcessor):
                 "-c:v", "h264_nvenc", "-preset", "p5", "-tune", "hq", "-rc", "vbr", "-cq", str(self.crf), "-b:v", "0",
                 "-spatial-aq", "1", "-temporal-aq", "1", *common,
             ]
-        return ["-c:v", "libx264", "-crf", str(self.crf), "-preset", self.preset, *common]
+        threads = ["-threads", str(self.threads)] if self.threads else []
+        return ["-c:v", "libx264", "-crf", str(self.crf), "-preset", self.preset, *threads, *common]
 
     def process(self, input_path: PathLike, output_path: PathLike, spans: Sequence[Any], **kwargs: Any) -> dict[str, Any]:
         """Encode with the chosen encoder; NVENC failures fall back to x264. Stats say which one made the file."""

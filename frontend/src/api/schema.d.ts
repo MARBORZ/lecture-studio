@@ -1425,6 +1425,11 @@ export interface components {
              * @default 0
              */
             cpu_threads: number;
+            /**
+             * Quiet
+             * @default false
+             */
+            quiet: boolean;
         };
         /**
          * ComputeStatus
