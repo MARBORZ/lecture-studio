@@ -22,7 +22,7 @@ import subprocess
 import tempfile
 import threading
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from contextlib import closing
 from pathlib import Path
 from typing import Any
@@ -103,10 +103,10 @@ class ClaudeCodeError(RuntimeError):
     """For the user, already translated."""
 
 
-def parse_stream(lines: Iterable[str]) -> str:
-    """The answer from `claude -p --output-format stream-json` events. The final `result` event carries the whole
-    text; the text deltas are the fallback when it is missing. An error result raises ClaudeCodeError."""
-    deltas: list[str] = []
+def stream_text(lines: Iterable[str]) -> Iterator[str]:
+    """The answer's text as `claude -p --output-format stream-json` writes it: the text deltas as they come; the final
+    `result` event when no delta came. An error result raises ClaudeCodeError (also after text was shown)."""
+    emitted = False
     started = time.monotonic()
     first: float | None = None
     for line in lines:
@@ -120,10 +120,11 @@ def parse_stream(lines: Iterable[str]) -> str:
         kind = event.get("type")
         if kind == "stream_event":
             delta = (event.get("event") or {}).get("delta") or {}
-            if delta.get("type") == "text_delta":
+            if delta.get("type") == "text_delta" and delta.get("text"):
                 if first is None:
                     first = time.monotonic() - started
-                deltas.append(delta.get("text", ""))
+                emitted = True
+                yield delta["text"]
         elif kind == "result":
             text = event.get("result")
             logger.info(
@@ -132,10 +133,16 @@ def parse_stream(lines: Iterable[str]) -> str:
             )
             if event.get("is_error") or event.get("subtype") not in (None, "success"):
                 raise ClaudeCodeError(_explain(str(text or event.get("subtype") or "")))
-            return text if isinstance(text, str) else "".join(deltas)
-    if deltas:
-        return "".join(deltas)
-    raise ClaudeCodeError(tr("ai.claude_code_error", error=tr("ai.claude_code_empty")))
+            if not emitted and isinstance(text, str) and text:
+                yield text
+            return
+    if not emitted:
+        raise ClaudeCodeError(tr("ai.claude_code_error", error=tr("ai.claude_code_empty")))
+
+
+def parse_stream(lines: Iterable[str]) -> str:
+    """The whole answer (stream_text joined)."""
+    return "".join(stream_text(lines))
 
 
 def _explain(message: str) -> str:
@@ -153,9 +160,7 @@ class ClaudeCodeProvider(BaseAIProvider):
     max_context_tokens = 200_000  # every Claude model takes 200k; a larger window depends on the plan
     default_context_tokens = 128_000
 
-    def __init__(self, api_key: str = "", model: str | None = None):
-        self.api_key = ""
-        self.model = model or self.default_model
+    needs_key = False  # the user's own `claude`, signed in by itself
 
     def _command(self, exe: str, system: str) -> list[str]:
         cmd = [
@@ -165,7 +170,7 @@ class ClaudeCodeProvider(BaseAIProvider):
         ]
         return [*cmd, "--system-prompt", system] if system else cmd
 
-    def _run(self, prompt: str, system: str) -> str:
+    def _stream(self, prompt: str, system: str) -> Iterator[str]:
         exe = claude_bin()
         if not exe:
             raise ClaudeCodeError(tr("ai.claude_code_missing"))
@@ -173,7 +178,7 @@ class ClaudeCodeProvider(BaseAIProvider):
             try:
                 # the result event is the last one: closing the stream then stops a `claude` that has not exited yet
                 with closing(stream_lines(self._command(exe, system), prompt, cwd, _env(exe), ANSWER_TIMEOUT)) as lines:
-                    return parse_stream(lines)
+                    yield from stream_text(lines)
             except subprocess.TimeoutExpired as e:
                 raise ClaudeCodeError(tr("ai.claude_code_timeout", minutes=int(ANSWER_TIMEOUT // 60))) from e
             except subprocess.CalledProcessError as e:
@@ -181,8 +186,8 @@ class ClaudeCodeProvider(BaseAIProvider):
             except OSError as e:
                 raise ClaudeCodeError(tr("ai.claude_code_error", error=str(e)[:300])) from e
 
-    def generate_text(self, prompt: str, system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
-        return self._run(prompt, system)
-
     def chat(self, messages: list[dict[str, str]], system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
-        return self._run(prompts.conversation_prompt(messages), system)
+        return "".join(self._stream(prompts.conversation_prompt(messages), system))
+
+    def stream_chat(self, messages: list[dict[str, str]], system: str = "", temperature: float = 0.2, **kwargs: Any) -> Iterator[str]:
+        return self._stream(prompts.conversation_prompt(messages), system)

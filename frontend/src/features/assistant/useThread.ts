@@ -28,6 +28,8 @@ export function useThread(kind: ThreadKind, id: string, provider: AIProvider, so
   }
 
   const reload = res.reload
+  // the answer as it is being written (this tab's own request only; after a reload the saved answer just appears)
+  const [streamed, setStreamed] = useState('')
 
   // A question still waiting (asked before leaving the page or before a reload) shows as "thinking" until its answer
   // is in the session. Its request in this tab updates the store when done; one from before a reload is polled.
@@ -54,9 +56,12 @@ export function useThread(kind: ThreadKind, id: string, provider: AIProvider, so
   const ask = async (req: Omit<AskRequest, 'session_id' | 'provider' | 'sources'>, shown = req.question ?? '') => {
     pending.set(key, { question: shown, session: sid, at: Date.now() })
     inFlight.add(key)
+    setStreamed('')
     try {
-      res.setData(await api.ask(kind, id, { ...req, provider, session_id: sid || null, sources: view.sources ?? null }))
+      const body = { ...req, provider, session_id: sid || null, sources: view.sources ?? null }
+      res.setData(await api.askStream(kind, id, body, (piece) => setStreamed((text) => text + piece)))
     } finally {
+      setStreamed('')
       inFlight.delete(key)
       // a reload cuts the request, not the answer: the server still saves it, the next page waits for it
       if (!unloading) pending.clear(key)
@@ -68,6 +73,8 @@ export function useThread(kind: ThreadKind, id: string, provider: AIProvider, so
     session,
     /** the question waiting for its answer in this session, if any (survives leaving the page and reloads) */
     waiting: waiting && (!waiting.session || waiting.session === sid) ? waiting.question : null,
+    /** what the model has written of the answer so far ('' before the first piece) */
+    streamed: waiting && (!waiting.session || waiting.session === sid) ? streamed : '',
     loading: res.loading && !thread,
     ask,
     select: async (next: string) => {

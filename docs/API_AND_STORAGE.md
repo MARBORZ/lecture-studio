@@ -49,6 +49,7 @@ API: `http://127.0.0.1:3000`, and the same server on `:5173`, where the app wind
 | POST | `/api/jobs/{id}/cancel` | cancel |
 | GET | `/api/assistant/{project\|lesson}/{id}?session&provider&sources` | the session (active by default), the session list, session files, context usage for the next question |
 | POST | `/api/assistant/{project\|lesson}/{id}` | ask `{question, role, attachments, session_id, provider, sources}` → the updated thread |
+| POST | `/api/assistant/{project\|lesson}/{id}/stream` | the same question, answered as it is written: NDJSON `{type: delta, text}` … then `{type: done, thread}` or `{type: error, detail}`; refused with 400/404 before it starts; a background thread finishes and saves the answer even when the connection drops |
 | DELETE | `/api/assistant/{project\|lesson}/{id}` | every session of the thread, with their files |
 | POST | `/api/assistant/{kind}/{id}/sessions` | new session (an untouched empty one is reused) |
 | PUT | `/api/assistant/{kind}/{id}/sessions/{sid}/active` | switch to a session |

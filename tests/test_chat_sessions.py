@@ -18,6 +18,9 @@ class FakeProvider:
         self.chats.append(messages)
         return f"ответ {len(self.chats)} [00:01]"
 
+    def stream_chat(self, messages, system, images=None, **kw):  # like the real base: the whole answer as one piece
+        yield self.chat(messages, system, images=images, **kw)
+
     def generate_text(self, prompt, system="", **kw):
         self.compactions.append(prompt)
         return "СВОДКА: говорили о типах"
@@ -320,3 +323,36 @@ def test_the_assistant_may_answer_beyond_the_lecture():
 
     system = prompts.assistant_system("qa", multi_source=False)
     assert "Beyond the lecture:" in system and "Answer only from the sources" not in system
+
+
+def test_streamed_answer_arrives_in_pieces_and_is_saved(lesson_api, monkeypatch):
+    import json
+
+    c, fake = lesson_api
+    monkeypatch.setattr(fake, "stream_chat", lambda *a, **k: iter(["Ответ ", "по уроку ", "[00:01]"]), raising=False)
+    r = c.post("/api/assistant/lesson/less_x/stream", json={"question": "что было?"})
+    assert r.status_code == 200 and r.headers["content-type"].startswith("application/x-ndjson")
+    events = [json.loads(line) for line in r.text.splitlines() if line]
+    assert [e["text"] for e in events if e["type"] == "delta"] == ["Ответ ", "по уроку ", "[00:01]"]
+    done = events[-1]
+    assert done["type"] == "done" and done["thread"]["session"]["messages"][-1]["content"] == "Ответ по уроку [00:01]"
+    assert c.get("/api/assistant/lesson/less_x").json()["session"]["messages"][-1]["content"] == "Ответ по уроку [00:01]"
+
+
+def test_streamed_error_is_an_event_and_saves_nothing(lesson_api, monkeypatch):
+    import json
+
+    c, fake = lesson_api
+
+    def broken(*a, **k):
+        yield "начало "
+        raise RuntimeError("сеть упала")
+
+    monkeypatch.setattr(fake, "stream_chat", broken, raising=False)
+    events = [json.loads(line) for line in c.post("/api/assistant/lesson/less_x/stream", json={"question": "?"}).text.splitlines()]
+    assert events[0] == {"type": "delta", "text": "начало "} and events[-1]["type"] == "error" and "сеть упала" in events[-1]["detail"]
+    assert not c.get("/api/assistant/lesson/less_x").json()["session"]["messages"]
+
+
+def test_stream_refuses_before_starting(lesson_api):
+    assert lesson_api[0].post("/api/assistant/lesson/less_nope/stream", json={"question": "?"}).status_code == 404

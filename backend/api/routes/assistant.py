@@ -2,10 +2,11 @@
 Assistant threads: /api/assistant/{project|lesson}/{id}
 """
 
+import json
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from backend.api.upload import receive
 from backend.i18n import tr
@@ -91,6 +92,16 @@ async def ask(kind: ThreadKind, thread_id: str, req: AskRequest) -> Thread:
         raise
     except Exception as e:
         raise HTTPException(502, detail=tr("ai.error", error=e)) from e
+
+
+@router.post("/{kind}/{thread_id}/stream")
+async def ask_stream(kind: ThreadKind, thread_id: str, req: AskRequest) -> StreamingResponse:
+    """The answer as it is written: NDJSON lines {"type": "delta", "text"}, then {"type": "done", "thread"} (the saved
+    thread, as POST /{kind}/{id} returns it) or {"type": "error", "detail"}. A question that cannot be asked (no key,
+    no sources) is refused with 400/404 before the stream starts. Closing the connection does not lose the answer."""
+    events = await run_in_threadpool(_call, assistant.ask_events, kind, thread_id, req)
+    lines = (json.dumps(e, ensure_ascii=False) + "\n" for e in events)
+    return StreamingResponse(lines, media_type="application/x-ndjson", headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 
 
 @router.delete("/{kind}/{thread_id}")

@@ -5,7 +5,7 @@ the audit algorithm (chunking, prompts, post-processing) lives here once.
 
 import re
 from abc import abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import Any
 
 from backend.core.ai import prompts
@@ -58,16 +58,17 @@ class BaseAIProvider(metaclass=AIMeta):
     can_transcribe_audio: bool = False
     max_context_tokens: int = 128_000  # the model's window: the setting cannot go above it
     default_context_tokens: int = 64_000  # the assistant's window until the user changes it
+    needs_key: bool = True  # False: a local model, or the user's own signed-in Claude Code
 
-    def __init__(self, api_key: str, model: str | None = None):
-        if not api_key:
+    def __init__(self, api_key: str = "", model: str | None = None):
+        if self.needs_key and not api_key:
             raise ValueError(tr("ai.no_key", provider=self.category))
         self.api_key = api_key
         self.model = model or self.default_model
 
-    @abstractmethod
     def generate_text(self, prompt: str, system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
-        """Single-turn completion."""
+        """Single-turn completion: a chat of one message."""
+        return self.chat([{"role": "user", "content": prompt}], system, temperature, **kwargs)
 
     #: whether chat(images=...) is understood; providers without vision ignore images
     can_see_images: bool = False
@@ -89,6 +90,11 @@ class BaseAIProvider(metaclass=AIMeta):
     def chat(self, messages: list[dict[str, str]], system: str = "", temperature: float = 0.2, **kwargs: Any) -> str:
         """Multi-turn completion; messages are {'role': 'user'|'assistant', 'content': str}.
         Optional kwarg images: list of (bytes, mime) attached to the last user message."""
+
+    def stream_chat(self, messages: list[dict[str, str]], system: str = "", temperature: float = 0.2, **kwargs: Any) -> Iterator[str]:
+        """The answer in pieces as the model writes it (the chat prints them). A transport without streaming gives
+        the whole answer as one piece."""
+        yield self.chat(messages, system, temperature, **kwargs)
 
     def generate_audit(
         self,
