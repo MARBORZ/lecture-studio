@@ -1,22 +1,21 @@
 /**
  * The detached player.
  *   window — a floating panel inside the app: drag by the header, resize from the corner (16:9 kept),
- *            S/M/L presets, fullscreen. Keeps playing while you move around the app.
+ *            S/M/L presets. No full screen here: that is the page player's role. Keeps playing while you move around the app.
  *   pip    — an always-on-top OS window (Document Picture-in-Picture, Chromium) with the same controls;
  *            browsers without it fall back to the native video Picture-in-Picture.
  *   mini   — the window shrunk to a pill (Minus): paused, waiting; Play continues. Leaving a lesson page while paused
  *            lands here; leaving while playing opens the window.
  * Geometry is remembered; the panel never ends up off-screen.
  */
-import { ArrowUpRight, Expand, Maximize2, Minus, PictureInPicture2, Play, Shrink, Undo2, X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { ArrowUpRight, Maximize2, Minus, PictureInPicture2, Play, Undo2, X } from 'lucide-react'
+import { useCallback, useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router'
 import { useUI } from '@/app/AppProvider'
 import { AnimatePresence, m } from '@/components/motion'
 import { IconButton, Segmented } from '@/components/ui'
 import { Icon } from '@/components/Icon'
-import { cn } from '@/lib/cn'
 import { storage } from '@/lib/format'
 import { pop } from '@/lib/motion'
 import { formatTc } from '@/lib/time'
@@ -123,8 +122,6 @@ function FloatingWindow({ onPip }: { onPip: () => void }) {
   const hasVideo = usePlayer((s) => Boolean(s.videoUrl))
   const { onLessonPage, close } = useWindowActions()
   const [geom, setGeom] = useState<Geometry>(() => clampGeometry(storage.get<Geometry>('player.window', defaultGeometry())))
-  const [fullscreen, setFullscreen] = useState(false)
-  const panelRef = useRef<HTMLDivElement>(null)
   const pipSupported = Boolean(documentPip()) || document.pictureInPictureEnabled
 
   const commit = useCallback((g: Geometry) => {
@@ -140,14 +137,8 @@ function FloatingWindow({ onPip }: { onPip: () => void }) {
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
-  useEffect(() => {
-    const onFs = () => setFullscreen(document.fullscreenElement === panelRef.current)
-    document.addEventListener('fullscreenchange', onFs)
-    return () => document.removeEventListener('fullscreenchange', onFs)
-  }, [])
-
   const drag = (mode: 'move' | 'resize') => (e: ReactPointerEvent) => {
-    if (fullscreen || (mode === 'move' && (e.target as Element).closest('button'))) return
+    if ((mode === 'move' && (e.target as Element).closest('button'))) return
     e.preventDefault()
     const start = { px: e.clientX, py: e.clientY, ...geom }
     let last = geom
@@ -172,48 +163,36 @@ function FloatingWindow({ onPip }: { onPip: () => void }) {
 
   return (
     <m.div
-      ref={panelRef}
       role="dialog"
       aria-label={title}
       variants={pop}
       initial="hidden"
       animate="show"
       exit="exit"
-      style={fullscreen ? undefined : { left: geom.x, top: geom.y, width: geom.w }}
-      className={cn(
-        'fixed z-40 flex flex-col overflow-hidden border border-line-strong bg-surface shadow-float',
-        fullscreen ? 'inset-0 rounded-none' : 'rounded-2xl',
-      )}
+      style={{ left: geom.x, top: geom.y, width: geom.w }}
+      className="fixed z-40 flex flex-col overflow-hidden rounded-2xl border border-line-strong bg-surface shadow-float"
     >
-      <header onPointerDown={drag('move')} className={cn('flex h-10 shrink-0 items-center gap-1 border-b border-line pr-1.5 pl-3', !fullscreen && 'cursor-grab active:cursor-grabbing')}>
+      <header onPointerDown={drag('move')} className="flex h-10 shrink-0 cursor-grab items-center gap-1 border-b border-line pr-1.5 pl-3 active:cursor-grabbing">
         <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-soft">{title}</span>
-        {!fullscreen && (
-          <Segmented
-            size="sm"
-            value={sizeKey ?? ('' as SizeKey)}
-            onChange={(k: SizeKey) => commit({ ...geom, w: SIZES[k] })}
-            options={[{ value: 's', label: 'S' }, { value: 'm', label: 'M' }, { value: 'l', label: 'L' }]}
-          />
-        )}
-        {!onLessonPage && lessonId && <IconButton icon={ArrowUpRight} size="sm" label={t('player.openLesson')} onClick={() => navigate(`/lessons/${lessonId}/notes`)} />}
-        {!fullscreen && <IconButton icon={Minus} size="sm" label={t('player.minimize')} onClick={() => player.minimize()} />}
-        {pipSupported && hasVideo && <IconButton icon={PictureInPicture2} size="sm" label={t('player.pip')} onClick={onPip} />}
-        <IconButton
-          icon={fullscreen ? Shrink : Expand}
+        <Segmented
           size="sm"
-          label={fullscreen ? t('player.exitFullscreen') : t('player.fullscreen')}
-          onClick={() => (fullscreen ? document.exitFullscreen() : panelRef.current?.requestFullscreen())}
+          value={sizeKey ?? ('' as SizeKey)}
+          onChange={(k: SizeKey) => commit({ ...geom, w: SIZES[k] })}
+          options={[{ value: 's', label: 'S' }, { value: 'm', label: 'M' }, { value: 'l', label: 'L' }]}
         />
+        {!onLessonPage && lessonId && <IconButton icon={ArrowUpRight} size="sm" label={t('player.openLesson')} onClick={() => navigate(`/lessons/${lessonId}/notes`)} />}
+        <IconButton icon={Minus} size="sm" label={t('player.minimize')} onClick={() => player.minimize()} />
+        {pipSupported && hasVideo && <IconButton icon={PictureInPicture2} size="sm" label={t('player.pip')} onClick={onPip} />}
         {onLessonPage && <IconButton icon={Undo2} size="sm" label={t('player.dock')} onClick={() => player.setDisplay('inline')} />}
         <IconButton icon={X} size="sm" label={t('player.close')} onClick={close} />
       </header>
 
-      {hasVideo ? <PlayerSurface className={fullscreen ? 'min-h-0 flex-1' : 'aspect-video'} /> : <PlayerSurface />}
+      {hasVideo ? <PlayerSurface className="aspect-video" /> : <PlayerSurface />}
       <div className="shrink-0 px-3 pt-2 pb-3">
         <PlayerBar compact />
       </div>
 
-      {!fullscreen && hasVideo && (
+      {hasVideo && (
         <span
           onPointerDown={drag('resize')}
           aria-hidden
