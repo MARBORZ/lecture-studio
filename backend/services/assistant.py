@@ -19,7 +19,7 @@ from backend.models.assistant import AskRequest, ChatMessage, Thread, ThreadKind
 from backend.models.lesson import LessonFull
 from backend.services import attachments as attachment_store
 from backend.services import chats, context_window
-from backend.services.storage import Library
+from backend.services.storage import Lessons
 from backend.settings import SettingsService
 
 _CITE_RE = re.compile(r"\[\[([A-Za-z0-9_\-]+)@(\d{1,2}:\d{2}(?::\d{2})?)\]\]")
@@ -29,15 +29,15 @@ logger = logging.getLogger(__name__)
 
 def _resolve_sources(kind: ThreadKind, thread_id: str, requested: list[str] | None) -> list[LessonFull]:
     if kind == "lesson":
-        lesson = Library.get_lesson_full(thread_id)
+        lesson = Lessons.get_full(thread_id)
         if not lesson:
             raise LookupError(tr("lesson.not_found"))
         return [lesson]
-    lessons = Library.list_lessons(project_id=thread_id)
+    lessons = Lessons.all(project_id=thread_id)
     if requested is not None:
         wanted = set(requested)
         lessons = [l for l in lessons if l.id in wanted]
-    full = [f for l in lessons if (f := Library.get_lesson_full(l.id)) and (f.segments or f.plain_text)]
+    full = [f for l in lessons if (f := Lessons.get_full(l.id)) and (f.segments or f.plain_text)]
     if not full:
         raise ValueError(tr("assistant.no_sources"))
     return full

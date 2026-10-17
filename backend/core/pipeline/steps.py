@@ -29,7 +29,7 @@ from backend.models.job import JobOptions, JobStats, Stage
 from backend.models.lesson import SCHEMA_VERSION, Lesson
 from backend.models.transcript import Segment
 from backend.services.jobs import JobCancelled
-from backend.services.storage import Artifacts, Library
+from backend.services.storage import Artifacts, LessonFiles, Lessons
 from backend.settings import SettingsService, paths
 from backend.utils.fs import remove_file, write_json, write_text
 
@@ -93,7 +93,7 @@ class JobContext:
         if own.is_file():
             return str(own)
         if not self.raw_wav.is_file():
-            source = Library.media_file(self.lesson, "audio") if self.lesson else None
+            source = LessonFiles.media(self.lesson, "audio") if self.lesson else None
             if not source:
                 raise FileNotFoundError(tr("step.no_speech_audio"))
             extract_wav(source, self.raw_wav)
@@ -208,7 +208,7 @@ class BuildVideoStep(PipelineStep):
             ctx.original_file = str(source.resolve())
         ctx.original_kind = "video" if ctx.has_video_source else "audio"
         ctx.stats.has_video = ctx.has_video_source
-        problem = browser_playback_problem(Library.original_path_of(ctx.lesson_dir, ctx.original_file))
+        problem = browser_playback_problem(LessonFiles.original_of(ctx.lesson_dir, ctx.original_file))
         if problem:
             ctx.warn(tr("step.original_unplayable", problem=problem))
 
@@ -357,10 +357,10 @@ class GenerateAuditStep(PipelineStep):
         """The lesson's own video if it has one (already on the clean timeline), else the original recording."""
         if not getattr(provider, "can_watch_video", False):
             raise ValueError(tr("step.no_video_audit", provider=provider.category))
-        source = Library.media_file(ctx.lesson, "video") if ctx.lesson else None
+        source = LessonFiles.media(ctx.lesson, "video") if ctx.lesson else None
         if source is None:
             own = ctx.lesson_dir / Artifacts.VIDEO
-            original = Library.original_path_of(ctx.lesson_dir, ctx.original_file) if ctx.original_file and ctx.original_kind == "video" else None
+            original = LessonFiles.original_of(ctx.lesson_dir, ctx.original_file) if ctx.original_file and ctx.original_kind == "video" else None
             source = own if own.is_file() else original
         if source is None or not Path(source).is_file():
             raise FileNotFoundError(tr("step.no_video_file"))
@@ -401,7 +401,7 @@ class SaveLessonStep(PipelineStep):
                 "original_kind": ctx.original_kind,
             })
         base = base.model_copy(update={"speech_language": ctx.speech_language, "audit_language": ctx.audit_language})
-        ctx.lesson = Library.save_lesson(base)
+        ctx.lesson = Lessons.save(base)
 
         if o.export_after and SettingsService.get().export_dir:
             from backend.services.export import export_lesson

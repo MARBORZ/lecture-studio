@@ -28,10 +28,10 @@ def lesson_api(data_dir, monkeypatch):
     from backend.main import app
     from backend.models.lesson import Lesson
     from backend.services import assistant
-    from backend.services.storage import Library
+    from backend.services.storage import Lessons
     from backend.utils.fs import write_json
 
-    Library.save_lesson(Lesson(id="less_x", job_id="x", title="Урок", clean_duration_sec=60))
+    Lessons.save(Lesson(id="less_x", job_id="x", title="Урок", clean_duration_sec=60))
     write_json(data_dir / "output" / "x" / "segments.json", [{"clean_start": 0, "clean_end": 2, "orig_start": 0, "orig_end": 2, "text": "типы данных"}])
     fake = FakeProvider()
     monkeypatch.setattr(assistant.AI, "get", staticmethod(lambda name: fake))
@@ -47,9 +47,9 @@ def ask(c, text, **extra):
 
 def test_legacy_thread_becomes_one_session(data_dir):
     from backend.services import chats
-    from backend.services.storage import Library
+    from backend.services.storage import LibraryDB
 
-    with Library.tx() as db:
+    with LibraryDB.tx() as db:
         db["threads"]["lesson:less_x"] = [
             {"id": "1", "role": "user", "content": "что такое тип?"},
             {"id": "2", "role": "assistant", "content": "категория значений"},
@@ -188,18 +188,18 @@ def test_session_files_live_in_the_session_folder_and_go_only_when_attached(less
 
 def test_old_sessions_move_out_of_the_database(lesson_api, data_dir):
     from backend.services import attachments, chats
-    from backend.services.storage import Library
+    from backend.services.storage import LibraryDB
 
     c, fake = lesson_api
     att_id, path = attachments.new_slot("old.md")  # an upload of the old layout: the shared folder
     path.write_text("old file text")
     old = attachments.register(att_id, path).model_dump()
     message = {"id": "m1", "role": "user", "content": "старый вопрос", "attachments": [old]}
-    with Library.tx() as db:
+    with LibraryDB.tx() as db:
         db["threads"]["lesson:less_x"] = {"active": "ses_0000aaaa", "sessions": [{"id": "ses_0000aaaa", "messages": [message], "excluded_files": []}]}
 
     assert chats.migrate() == 1 and chats.migrate() == 0
-    assert Library.read()["threads"]["lesson:less_x"] == {"active": "ses_0000aaaa", "sessions": ["ses_0000aaaa"]}
+    assert LibraryDB.read()["threads"]["lesson:less_x"] == {"active": "ses_0000aaaa", "sessions": ["ses_0000aaaa"]}
     moved = data_dir / "sessions" / "ses_0000aaaa" / "local_session_src" / att_id / "old.md"
     assert moved.read_text() == "old file text" and not (data_dir / "attachments" / att_id).exists()
     t = c.get("/api/assistant/lesson/less_x").json()
@@ -225,9 +225,9 @@ def test_manual_compact(lesson_api):
 def test_bookmarks(data_dir):
     from backend.main import app
     from backend.models.lesson import Lesson
-    from backend.services.storage import Library
+    from backend.services.storage import Lessons
 
-    Library.save_lesson(Lesson(id="less_b", job_id="b", title="Урок"))
+    Lessons.save(Lesson(id="less_b", job_id="b", title="Урок"))
     with TestClient(app, base_url="http://127.0.0.1") as c:
         r = c.patch("/api/lessons/less_b", json={"bookmarks": [{"id": "b2", "t": 90, "label": "вторая"}, {"id": "b1", "t": 12.5, "label": "первая"}]})
         assert r.status_code == 200, r.text

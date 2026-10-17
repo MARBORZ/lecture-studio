@@ -21,7 +21,7 @@ from backend.i18n import tr
 from backend.models.job import Job, JobOptions, JobPage
 from backend.services import videos
 from backend.services.jobs import JobRegistry
-from backend.services.storage import Library
+from backend.services.storage import LibraryDB, Projects
 from backend.settings import paths
 from backend.utils.fs import remove_file, to_path
 
@@ -96,7 +96,7 @@ def inspect_media(req: InspectRequest) -> MediaInfo:
 @router.post("/jobs", response_model=Job)
 def start_job(req: StartJobRequest) -> Job:
     opts = req.options
-    if not Library.get_project(opts.project_id):
+    if not Projects.get(opts.project_id):
         raise HTTPException(400, detail=tr("project.not_found"))
     if req.upload_id:
         media = _upload_path(req.upload_id)
@@ -145,14 +145,14 @@ async def stream_jobs(request: Request) -> StreamingResponse:
     """
 
     async def events():
-        last, signal, idle = None, Library.change_signal(), 0
+        last, signal, idle = None, LibraryDB.change_signal(), 0
         while not await request.is_disconnected():
             sent = False
             payload = json.dumps([j.model_dump() for j in JobRegistry.list()], ensure_ascii=False)
             if payload != last:
                 last, sent = payload, True
                 yield f"data: {payload}\n\n"
-            changed = Library.change_signal()
+            changed = LibraryDB.change_signal()
             if changed != signal:
                 signal, sent = changed, True
                 yield f"event: library\ndata: {changed}\n\n"

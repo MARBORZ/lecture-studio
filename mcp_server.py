@@ -3,7 +3,7 @@ MCP server `lecture-studio`: gives AI agents (any MCP client) direct access
 to the local lesson library. Thin layer over backend services — no file logic of its own.
 
 All timecodes are on the CLEAN timeline (the one clean_video.mp4 / clean_speech.mp3 play on).
-Every tool that changes the library ends with Library.announce_change(): the running app reloads what is open.
+Every tool that changes the library ends with LibraryDB.announce_change(): the running app reloads what is open.
 """
 
 import sys
@@ -21,7 +21,7 @@ from backend.models.lesson import LessonPatch  # noqa: E402
 from backend.models.project import INBOX_ID, Project  # noqa: E402
 from backend.models.transcript import Segment  # noqa: E402
 from backend.services.export import export_lesson  # noqa: E402
-from backend.services.storage import Artifacts, Library  # noqa: E402
+from backend.services.storage import Artifacts, LessonFiles, Lessons, LibraryDB, Projects  # noqa: E402
 from backend.utils.fs import read_json, write_text  # noqa: E402
 
 mcp = MCPServer("lecture-studio", instructions="Local lecture library. All timecodes are [MM:SS] on the clean timeline.")
@@ -41,13 +41,13 @@ def _named(project: Project) -> Project:
 @mcp.tool()
 def lecture_list_projects() -> list[dict[str, Any]]:
     """List notebooks (courses) with lesson counts. proj_inbox (Inbox) holds lessons not sorted into a notebook."""
-    return [_named(p).model_dump() for p in Library.list_projects()]
+    return [_named(p).model_dump() for p in Projects.all()]
 
 
 @mcp.tool()
 def lecture_list_lessons(project_id: str | None = None, status: str | None = None, search: str | None = None) -> list[dict[str, Any]]:
     """List lessons. status: in_progress | to_review | completed. search: title/notes/tags substring."""
-    return [l.model_dump() for l in Library.list_lessons(project_id, status, search)]
+    return [l.model_dump() for l in Lessons.all(project_id, status, search)]
 
 
 # The same transcript in other forms: each about as large as clean_timestamps_text, all five together ~6x
@@ -64,17 +64,17 @@ def lecture_get_lesson_material(lesson_id: str, include: list[Extra] | None = No
     larger, so they come only when asked for in `include`: segments (clean+orig times per phrase),
     orig_timestamps_text, srt_text (clean SRT), plain_text, time_map.
     """
-    lesson = Library.get_lesson_full(lesson_id)
+    lesson = Lessons.get_full(lesson_id)
     if not lesson:
         return _not_found(lesson_id)
     return lesson.model_dump(exclude=set(EXTRAS) - set(include or []))
 
 
 def _track(lesson_id: str, kind: str, key: str) -> dict[str, Any]:
-    lesson = Library.get_lesson(lesson_id)
+    lesson = Lessons.get(lesson_id)
     if not lesson:
         return _not_found(lesson_id)
-    path = Library.media_file(lesson, kind)  # the lesson's copy, or the original recording (Eco)
+    path = LessonFiles.media(lesson, kind)  # the lesson's copy, or the original recording (Eco)
     if path is None:
         return {"error": f"{kind} отсутствует у урока '{lesson_id}' (или исходный файл не найден по сохранённому пути)"}
     return {
@@ -104,8 +104,8 @@ def lecture_search_transcripts(query: str, project_id: str | None = None) -> lis
     """Case-insensitive search across transcripts. Returns '[MM:SS] line' matches per lesson."""
     q = query.lower().strip()
     results = []
-    for l in Library.list_lessons(project_id=project_id):
-        full = Library.get_lesson_full(l.id)
+    for l in Lessons.all(project_id=project_id):
+        full = Lessons.get_full(l.id)
         lines = (full.clean_timestamps_text if full else "").splitlines()
         matches = [line.strip() for line in lines if q in line.lower()]
         if matches:
@@ -116,12 +116,12 @@ def lecture_search_transcripts(query: str, project_id: str | None = None) -> lis
 @mcp.tool()
 def lecture_save_audit_markdown(lesson_id: str, audit_markdown: str) -> dict[str, Any]:
     """Save/replace the lesson audit. Timecodes must be [MM:SS] on the clean timeline; out-of-range ones are dropped."""
-    lesson = Library.get_lesson(lesson_id)
+    lesson = Lessons.get(lesson_id)
     if not lesson:
         return _not_found(lesson_id)
-    path = write_text(Library.lesson_dir(lesson) / Artifacts.AUDIT, clean_output(audit_markdown, lesson.clean_duration_sec or None))
-    Library.refresh_flags(lesson.id)
-    Library.announce_change()
+    path = write_text(LessonFiles.dir(lesson) / Artifacts.AUDIT, clean_output(audit_markdown, lesson.clean_duration_sec or None))
+    Lessons.refresh_flags(lesson.id)
+    LibraryDB.announce_change()
     return {"status": "ok", "file_path": str(path)}
 
 
@@ -135,10 +135,10 @@ def lecture_update_lesson(
     tags: str | None = None,
 ) -> dict[str, Any]:
     """Partial metadata update. Omitted fields are left unchanged."""
-    lesson = Library.patch_lesson(lesson_id, LessonPatch(title=title, project_id=project_id, notes=notes, status=status, tags=tags))
+    lesson = Lessons.patch(lesson_id, LessonPatch(title=title, project_id=project_id, notes=notes, status=status, tags=tags))
     if not lesson:
         return _not_found(lesson_id)
-    Library.announce_change()
+    LibraryDB.announce_change()
     return {"status": "ok", "lesson": lesson.model_dump()}
 
 
@@ -165,10 +165,10 @@ def lecture_apply_agent_transcription(
     srt_content is converted into segments.json and all transcript files are regenerated;
     srt_timeline says which timeline its times are on. plain_text is used only without SRT.
     """
-    lesson = Library.get_lesson(lesson_id)
+    lesson = Lessons.get(lesson_id)
     if not lesson:
         return _not_found(lesson_id)
-    d = Library.lesson_dir(lesson)
+    d = LessonFiles.dir(lesson)
     tm = TimeMap(read_json(d / Artifacts.TIME_MAP, default=[]) or [])
 
     if srt_content:
@@ -183,8 +183,8 @@ def lecture_apply_agent_transcription(
     if audit_markdown:
         write_text(d / Artifacts.AUDIT, clean_output(audit_markdown, lesson.clean_duration_sec or None))
 
-    Library.refresh_flags(lesson.id)
-    Library.announce_change()
+    Lessons.refresh_flags(lesson.id)
+    LibraryDB.announce_change()
     export = None
     if target_export_folder:
         try:

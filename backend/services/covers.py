@@ -9,7 +9,7 @@ from pathlib import Path
 
 from backend.i18n import tr
 from backend.models.project import Project
-from backend.services.storage import Library
+from backend.services.storage import Projects
 from backend.settings import paths
 
 MAX_BYTES = 10 * 1024 * 1024
@@ -43,7 +43,7 @@ def remove_files(project_id: str) -> None:
 
 
 def save(project_id: str, data: bytes) -> Project:
-    if not Library.get_project(project_id):
+    if not Projects.get(project_id):
         raise LookupError(tr("project.not_found"))
     if not data:
         raise CoverError(tr("file.empty"))
@@ -53,18 +53,18 @@ def save(project_id: str, data: bytes) -> Project:
     remove_files(project_id)
     paths().covers.mkdir(parents=True, exist_ok=True)
     (paths().covers / name).write_bytes(data)
-    return Library.set_project_cover(project_id, name)
+    return Projects.set_cover(project_id, name)
 
 
 def remove(project_id: str) -> Project:
-    if not Library.get_project(project_id):
+    if not Projects.get(project_id):
         raise LookupError(tr("project.not_found"))
     remove_files(project_id)
-    return Library.set_project_cover(project_id, "")
+    return Projects.set_cover(project_id, "")
 
 
 def file_for(project_id: str) -> tuple[Path, str] | None:
-    project = Library.get_project(project_id)
+    project = Projects.get(project_id)
     if not project or not project.cover:
         return None
     path = paths().covers / project.cover

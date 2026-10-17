@@ -53,10 +53,10 @@ def test_attachments_reach_the_model_and_are_cleaned(data_dir, monkeypatch):
     from backend.main import app
     from backend.models.lesson import Lesson
     from backend.services import assistant
-    from backend.services.storage import Library
+    from backend.services.storage import Lessons
     from backend.utils.fs import write_json
 
-    Library.save_lesson(Lesson(id="less_x", job_id="x", title="Урок"))
+    Lessons.save(Lesson(id="less_x", job_id="x", title="Урок"))
     write_json(data_dir / "output" / "x" / "segments.json", [{"clean_start": 0, "clean_end": 2, "orig_start": 0, "orig_end": 2, "text": "привет"}])
 
     seen = {}

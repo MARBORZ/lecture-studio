@@ -41,9 +41,9 @@ def test_transcribe_an_existing_lesson_again(data_dir, monkeypatch):
     from backend.core.transcription import whisper
     from backend.main import app
     from backend.models.lesson import Lesson
-    from backend.services.storage import Library
+    from backend.services.storage import Lessons
 
-    Library.save_lesson(Lesson(id="less_r", job_id="r", title="Урок", clean_duration_sec=10))
+    Lessons.save(Lesson(id="less_r", job_id="r", title="Урок", clean_duration_sec=10))
     lesson_dir = data_dir / "output" / "r"
     lesson_dir.mkdir(parents=True, exist_ok=True)
     (lesson_dir / "clean_speech.mp3").write_bytes(b"ID3")

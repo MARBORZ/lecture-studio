@@ -20,7 +20,7 @@ from pathlib import Path
 from backend.i18n import tr
 from backend.models.assistant import Attachment, ChatMessage, ChatSession, SessionInfo, SessionPatch, ThreadKind
 from backend.services import attachments
-from backend.services.storage import Library
+from backend.services.storage import LibraryDB
 from backend.settings import paths
 from backend.utils.fs import read_json, write_json
 
@@ -108,7 +108,7 @@ def session_files(session: ChatSession) -> list[Attachment]:
 
 
 def load(kind: ThreadKind, thread_id: str) -> tuple[str | None, list[ChatSession]]:
-    active, sessions, _ = _sessions_of(Library.read()["threads"].get(_key(kind, thread_id)))
+    active, sessions, _ = _sessions_of(LibraryDB.read()["threads"].get(_key(kind, thread_id)))
     return active, sessions
 
 
@@ -133,7 +133,7 @@ def _mutate(kind: ThreadKind, thread_id: str, fn) -> object:
     """Read the thread, let fn change it, write every session's context and the index back. A session that is gone
     loses its folder (context and files)."""
     key = _key(kind, thread_id)
-    with Library.tx() as db:
+    with LibraryDB.tx() as db:
         active, sessions, _ = _sessions_of(db["threads"].get(key))
         before = {s.id for s in sessions}
         data = {"active": active}
@@ -253,10 +253,10 @@ def remove_file(session_id: str, att_id: str) -> None:
 def migrate() -> int:
     """Move sessions kept inside notebook_db.json (and their files, from the shared uploads folder) into their own
     folders. Idempotent; returns how many threads moved."""
-    if not any(_sessions_of(raw)[2] for raw in Library.read()["threads"].values()):
+    if not any(_sessions_of(raw)[2] for raw in LibraryDB.read()["threads"].values()):
         return 0  # nothing to move: no write (a fresh library stays untouched)
     moved = 0
-    with Library.tx() as db:
+    with LibraryDB.tx() as db:
         for key, raw in list(db["threads"].items()):
             active, sessions, legacy = _sessions_of(raw)
             if not legacy:
