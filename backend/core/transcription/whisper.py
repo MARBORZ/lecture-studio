@@ -26,10 +26,10 @@ def transcribe(
     plan = plan or compute.plan()
     args = (audio_path, duration, model_size, language, vocabulary, check_cancelled, on_progress)
     try:
-        return engine_for(plan.backend, plan.threads).transcribe(*args)
+        return engine_for(plan.backend, plan.threads, plan.quiet).transcribe(*args)
     except Exception as e:
         if plan.backend == "cpu":
             raise
         check_cancelled()  # a cancelled job stops here (raises), it does not retry on the CPU
         compute.mark_failed(plan.backend, str(e))
-        return engine_for("cpu", plan.threads).transcribe(*args)
+        return engine_for("cpu", plan.threads, plan.quiet).transcribe(*args)

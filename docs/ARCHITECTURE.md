@@ -254,11 +254,19 @@ refuses while busy), starts the remover directly when nothing runs, and refuses 
 
 - **Compute** (`core/compute.py`): `probe()` — what the machine has (NVIDIA CUDA through torch, the Apple GPU through MLX,
   cores via `utils/proc.py`, the Windows launcher's `state/compute.json`); `plan(preference, cpu_threads)` — `cuda` / `apple` /
-  `cpu` with threads and, for the CPU, the reason. Any local model asks the same plan.
+  `cpu` with threads and, for the CPU, the reason. Any local model asks the same plan. **Quiet mode**
+  (`ComputeSettings.quiet`, Settings → AI → Compute): half the cores by default, FFmpeg at low priority (`nice` /
+  `BELOW_NORMAL_PRIORITY_CLASS`, `media/base.py:low_priority`, set per job by the runner), x264 capped to those threads,
+  and steps never run at once.
+- **Steps at once** (`pipeline/runner.py`): neighbouring steps with the same `together` key — the video encode and the
+  transcription — run in two threads when each `may_overlap` (not quiet; recognition on a GPU or Gemini, never Whisper on
+  the CPU next to x264). Progress adds up, the stage is the first unfinished one, a cancel reaches both.
 - **Video encoder** (`core/media/video.py:pick_encoder`): `nvenc` (h264_nvenc, constant quality `-cq` = the CRF number,
   spatial/temporal AQ for text) when the compute plan is `cuda` and the FFmpeg build has it, else `x264`. NVENC errors
   re-encode with x264; `JobStats.video_encoder` records which one made the file. VideoToolbox is not used (measured worse).
 - **Engines** (`core/transcription/engines.py`): one interface, `FasterWhisperEngine` (CUDA float16 / CPU int8, N threads;
+  batched and greedy — `BatchedInferencePipeline`, 16 pieces at once on CUDA (halved on out-of-memory), 8 on the CPU,
+  4 when quiet: 2.5x faster than one-by-one beam 5 on the CPU with the same words;
   on Windows `torch/lib` is added to the DLL path for cuBLAS/cuDNN) and `MlxWhisperEngine` (Apple GPU, 5-minute windows for
   progress and cancel). A new engine is a subclass in `ENGINES`. `whisper.transcribe(plan=…)` runs the plan's engine; a GPU
   failure is recorded (`compute.mark_failed`) and the job continues on the CPU.

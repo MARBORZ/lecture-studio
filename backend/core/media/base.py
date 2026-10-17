@@ -6,8 +6,10 @@ import json
 import logging
 import shutil
 import subprocess
+import sys
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from contextvars import ContextVar
 from functools import lru_cache
 from typing import Any
 
@@ -42,12 +44,25 @@ class MediaError(ValueError):
     """The input cannot be processed; the message is for the user."""
 
 
+# Quiet mode (Settings → Compute), set by the pipeline for one job: FFmpeg yields the CPU to everything else.
+low_priority: ContextVar[bool] = ContextVar("ffmpeg_low_priority", default=False)
+
+
+def _lowered(cmd: list[str]) -> tuple[list[str], dict[str, Any]]:
+    if not low_priority.get():
+        return cmd, {}
+    if sys.platform == "win32":
+        return cmd, {"creationflags": subprocess.BELOW_NORMAL_PRIORITY_CLASS}  # type: ignore[attr-defined]
+    return ["nice", "-n", "10", *cmd], {}
+
+
 def run_ffmpeg(cmd: list[str], desc: str) -> None:
     """Errors only on stderr (no banner, no stats): a failure message is the reason, not the tail of a progress log."""
     verify_ffmpeg()
     if cmd and cmd[0] == "ffmpeg":
         cmd = [cmd[0], "-hide_banner", "-nostats", "-loglevel", "error", *cmd[1:]]
-    proc = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
+    cmd, extra = _lowered(cmd)
+    proc = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", **extra)
     if proc.returncode != 0:
         lines = [line.strip() for line in (proc.stderr or "").splitlines() if line.strip()]
         raise RuntimeError(tr("media.ffmpeg_failed", what=desc, detail=" | ".join(lines[-4:])[-500:] or tr("media.exit_code", code=proc.returncode)))

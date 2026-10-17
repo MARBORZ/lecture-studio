@@ -119,9 +119,15 @@ class JobContext:
 class PipelineStep(ABC):
     stage: Stage
     weight: float = 1.0
+    # Neighbouring steps with the same key need nothing from each other: the runner may run them at once
+    together: str = ""
 
     def enabled(self, ctx: JobContext) -> bool:
         return True
+
+    def may_overlap(self, ctx: JobContext) -> bool:
+        """Whether running next to its `together` neighbours pays off here (not when they would fight for the CPU)."""
+        return not SettingsService.get().compute.quiet
 
     @abstractmethod
     def execute(self, ctx: JobContext, progress: ProgressFn) -> None:
@@ -185,6 +191,7 @@ class BuildVideoStep(PipelineStep):
 
     stage = "video"
     weight = 6
+    together = "media"  # needs the spans only; transcription needs the clean audio: both are ready by now
 
     def enabled(self, ctx):
         v = ctx.options.video
@@ -217,13 +224,14 @@ class BuildVideoStep(PipelineStep):
         from backend.core.media.video import pick_encoder
 
         c = SettingsService.get().compute
-        encoder = pick_encoder(compute.plan(c.device, c.cpu_threads).backend)
+        plan = compute.plan(c.device, c.cpu_threads, c.quiet)
+        encoder = pick_encoder(plan.backend)
         label = tr("step.encoder_gpu" if encoder == "nvenc" else "step.encoder_cpu")
         what = tr("step.video_edit" if ctx.options.video == "clean" else "step.video_compress")
         progress(0, tr("step.video_progress", what=what, encoder=label, crf=ctx.options.video_crf, resolution=ctx.options.video_resolution))
         spans = ctx.spans if ctx.options.cut_silence else []  # [] = the whole video, nothing cut
         try:
-            res = VideoProcessor(ctx.options.video_crf, ctx.options.video_resolution, encoder=encoder).process(
+            res = VideoProcessor(ctx.options.video_crf, ctx.options.video_resolution, encoder=encoder, threads=plan.threads if plan.quiet else 0).process(
                 ctx.media_path, ctx.lesson_dir / Artifacts.VIDEO, spans
             )
         except Exception as e:
@@ -245,12 +253,26 @@ class TranscribeStep(PipelineStep):
 
     stage = "transcribe"
     weight = 5
+    together = "media"
 
     def __init__(self, strict: bool = False):
         self.strict = strict
 
     def enabled(self, ctx):
         return ctx.options.transcriber != "none"
+
+    def may_overlap(self, ctx):
+        """Next to the video encode only when recognition is not on the CPU: Gemini works in the cloud, and a GPU
+        (CUDA, Apple) leaves the cores to FFmpeg (NVENC is a separate chip altogether). Whisper on the CPU and x264
+        would only slow each other down."""
+        if not super().may_overlap(ctx):
+            return False
+        if ctx.options.transcriber == "gemini":
+            return True
+        from backend.core import compute
+
+        c = SettingsService.get().compute
+        return compute.plan(c.device, c.cpu_threads, c.quiet).backend != "cpu"
 
     def execute(self, ctx, progress):
         try:
@@ -288,7 +310,7 @@ class TranscribeStep(PipelineStep):
             from backend.core.transcription import whisper
 
             c = SettingsService.get().compute
-            plan = compute.plan(c.device, c.cpu_threads)
+            plan = compute.plan(c.device, c.cpu_threads, c.quiet)
             where = {"cuda": f"GPU {plan.gpu_name}", "apple": "GPU Apple"}.get(plan.backend, tr("step.cpu_threads", n=plan.threads))
             progress(0, tr("step.transcribe_whisper", model=ai.whisper_model, where=where))
             raw = whisper.transcribe(

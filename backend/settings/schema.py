@@ -110,6 +110,7 @@ class ComputeSettings(BaseModel):
 
     device: ComputePreference = "auto"
     cpu_threads: int = Field(0, ge=0, le=256)  # 0 = every physical core
+    quiet: bool = False  # less noise and heat: half the cores, FFmpeg at low priority, video and recognition one by one
 
 
 class ComputeStatus(BaseModel):

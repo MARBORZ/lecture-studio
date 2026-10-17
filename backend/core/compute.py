@@ -51,6 +51,7 @@ class Plan:
     threads: int  # CPU threads for the CPU backend (and for data loading elsewhere)
     gpu_name: str = ""
     reason: str = ""  # one of REASONS (cpu only), "" otherwise
+    quiet: bool = False  # the user prefers less noise and heat to speed: fewer threads, nothing at once
 
 
 _failed: dict[str, str] = {}  # backend -> error, for this process
@@ -96,9 +97,10 @@ def _why_no_gpu(hw: Hardware) -> str:
     return "no_gpu"
 
 
-def plan(preference: Preference = "auto", cpu_threads: int = 0) -> Plan:
+def plan(preference: Preference = "auto", cpu_threads: int = 0, quiet: bool = False) -> Plan:
     hw = probe()
-    threads = max(1, min(cpu_threads or hw.cores, hw.threads))  # 0 = every physical core
+    default = max(1, hw.cores // 2) if quiet else hw.cores  # 0 = every physical core, half of them when quiet
+    threads = max(1, min(cpu_threads or default, hw.threads))
     gpu: Backend | None = "cuda" if hw.cuda else "apple" if hw.apple_gpu else None
     if preference == "cpu":
         reason = "user"
@@ -107,8 +109,8 @@ def plan(preference: Preference = "auto", cpu_threads: int = 0) -> Plan:
     elif gpu in _failed:
         reason = "gpu_failed"
     else:
-        return Plan(gpu, threads, gpu_name=hw.gpu_name)
-    return Plan("cpu", threads, reason=reason)
+        return Plan(gpu, threads, gpu_name=hw.gpu_name, quiet=quiet)
+    return Plan("cpu", threads, reason=reason, quiet=quiet)
 
 
 def mark_failed(backend: Backend, error: str) -> None:
