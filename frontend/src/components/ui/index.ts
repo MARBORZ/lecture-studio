@@ -1,6 +1,6 @@
 export { Button, IconButton, type ButtonProps } from './Button'
 export { Card, EmptyState, Page, PageHeader, Progress, Stat } from './Card'
-export { Checkbox, Field, Input, Segmented, Select, Slider, Switch, Textarea, type Option } from './Field'
+export { Checkbox, Field, Input, SearchInput, Segmented, Select, Slider, Switch, Textarea, type Option } from './Field'
 export { Modal } from './Modal'
 export { StatusMark } from './StatusMark'
 export { ConfirmDialog } from './ConfirmDialog'

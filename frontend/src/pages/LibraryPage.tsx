@@ -3,9 +3,8 @@ import { useDeferredValue, useMemo, useRef } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import type { LessonStatus } from '@/api/types'
 import { useLibrary, useUI } from '@/app/AppProvider'
-import { Icon } from '@/components/Icon'
 import { AnimatePresence, ListItem } from '@/components/motion'
-import { Button, EmptyState, IconButton, Page, PageHeader, Pagination, Segmented } from '@/components/ui'
+import { Button, EmptyState, IconButton, Page, PageHeader, Pagination, SearchInput, Segmented } from '@/components/ui'
 import { NotebookCover } from '@/features/library/NotebookCover'
 import { SkeletonList } from '@/components/skeleton'
 import { LessonRow } from '@/features/library/LessonRow'
@@ -96,15 +95,7 @@ export function LibraryPage() {
       <KeyNotice className="mb-4" />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative min-w-56 flex-1">
-          <Icon as={Search} size={14} className="absolute top-1/2 left-3 -translate-y-1/2 text-dim" />
-          <input
-            value={query}
-            onChange={(e) => setParam('q', e.target.value)}
-            placeholder={t('library.searchPlaceholder')}
-            className="h-9 w-full rounded-lg border border-line bg-surface pr-3 pl-8 text-[13.5px] text-fg placeholder:text-dim focus:border-fg focus:outline-none"
-          />
-        </div>
+        <SearchInput value={query} onChange={(e) => setParam('q', e.target.value)} placeholder={t('library.searchPlaceholder')} className="min-w-56 flex-1" />
         <Segmented
           value={filter}
           onChange={(v) => setParam('status', v)}

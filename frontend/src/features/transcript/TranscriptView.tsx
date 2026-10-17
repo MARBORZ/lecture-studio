@@ -1,8 +1,9 @@
-import { Crosshair, Search } from 'lucide-react'
+import { Crosshair } from 'lucide-react'
 import { memo, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import type { Segment } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
+import { SearchInput } from '@/components/ui'
 import { player, usePlayer } from '@/features/player/store'
 import { cn } from '@/lib/cn'
 import { storage } from '@/lib/format'
@@ -35,15 +36,7 @@ export function TranscriptView({ segments }: { segments: Segment[] }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-2 pb-3">
-        <div className="relative flex-1">
-          <Icon as={Search} size={14} className="absolute top-1/2 left-3 -translate-y-1/2 text-dim" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t('common.search')}
-            className="h-8 w-full rounded-lg border border-line bg-surface pr-3 pl-8 text-[13px] text-fg placeholder:text-dim focus:border-fg focus:outline-none"
-          />
-        </div>
+        <SearchInput size="sm" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('common.search')} className="flex-1" />
         {deferred && <span className="font-mono text-[12px] text-muted">{visible.length}</span>}
         <button
           type="button"
