@@ -21,8 +21,15 @@ export const focusShift: Transition = { duration: duration.slow, ease: easeInOut
 
 /** Markers, pops: settles quickly without wobble. */
 export const spring: Transition = { type: 'spring', stiffness: 380, damping: 34, mass: 0.8 }
-/** Celebratory pop (tutorial finale). */
-export const springBouncy: Transition = { type: 'spring', stiffness: 260, damping: 16, mass: 0.9 }
+/**
+ * Apple's system spring for sheets and pages (SwiftUI .smooth: response 0.5 s, damping fraction 1): critically
+ * damped, so it glides in and settles without overshoot. From response / fraction with mass 1:
+ * stiffness = (2π / response)², damping = 4π · fraction / response. Motion hands it to the browser as a linear()
+ * easing, so it stays on the compositor like the tweens.
+ */
+export const springSheet: Transition = { type: 'spring', stiffness: 158, damping: 25, mass: 1 }
+/** Celebratory pop (tutorial finale): Apple's .bouncy, the same response with damping fraction 0.7, one soft bounce. */
+export const springBouncy: Transition = { type: 'spring', stiffness: 158, damping: 18, mass: 1 }
 
 const leave = { duration: duration.fast, ease: easeIn }
 
@@ -72,11 +79,53 @@ export const fade: Variants = {
   exit: { opacity: 0, transition: leave },
 }
 
-/** Horizontal step change; custom = direction (1 forward, -1 back). */
-export const slide: Variants = {
-  hidden: (dir: number) => ({ opacity: 0, transform: tf(28 * dir) }),
-  show: { opacity: 1, ...rest, transition: { duration: duration.slow, ease } },
-  exit: (dir: number) => ({ opacity: 0, transform: tf(-14 * dir), transition: leave }),
+/** Cascade inside a scene: each child starts this long after the one before. */
+export const stagger = 0.05
+
+/** The leaving scene: shorter and quieter than the arrival, a small drift the other way. */
+const stepOut = (dir: number = 1) => ({ opacity: 0, transform: tf(0, -4 * dir, 0.99), transition: leave })
+
+/**
+ * Tutorial scene (a step, the language and boot screens); custom = direction (1 forward, -1 back). It rises into place
+ * on springSheet (y 8 → 0, scale 0.98 → 1) and its stepItem children follow in a cascade.
+ */
+export const stepIn: Variants = {
+  hidden: (dir: number = 1) => ({ opacity: 0, transform: tf(0, 8 * dir, 0.98) }),
+  show: { opacity: 1, ...rest, transition: { ...springSheet, staggerChildren: stagger } },
+  exit: stepOut,
+}
+
+/**
+ * A part of a stepIn scene: no initial / animate of its own, it takes the scene's and joins the cascade.
+ * Nested parts cascade again inside it (the sketch beside the text).
+ */
+export const stepItem: Variants = {
+  hidden: { opacity: 0, transform: tf(0, 6) },
+  show: { opacity: 1, ...rest, transition: { ...springSheet, staggerChildren: stagger } },
+}
+
+/** A line drawing itself left to right (the intro's rule under the name); custom = delay. */
+export const drawLine: Variants = {
+  hidden: { transform: 'scaleX(0)' },
+  show: (delay: number = 0) => ({ transform: 'scaleX(1)', transition: { duration: 0.8, ease, delay } }),
+}
+
+/** The finale: the badge pops in on springBouncy and its check draws; rings breathe out of it (custom = ring index). */
+export const badgePop: Variants = {
+  hidden: { opacity: 0, transform: 'scale(0.4)' },
+  show: { opacity: 1, transform: 'scale(1)', transition: springBouncy },
+}
+export const drawCheck: Variants = {
+  hidden: { pathLength: 0 },
+  show: { pathLength: 1, transition: { duration: 0.55, ease, delay: 0.32 } },
+}
+export const ripple: Variants = {
+  hidden: { opacity: 0, transform: 'scale(0.7)' },
+  show: (i: number = 0) => ({
+    opacity: [0, 0.32, 0],
+    transform: ['scale(0.7)', 'scale(1.05)', 'scale(1.5)'],
+    transition: { duration: 2.6, ease, delay: 0.7 + i * 0.85, repeat: Infinity },
+  }),
 }
 
 /**

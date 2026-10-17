@@ -1,18 +1,19 @@
-import { ArrowLeft, ArrowRight, Check, Languages, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, X } from 'lucide-react'
 import { useCallback, useEffect, useState, type ComponentType } from 'react'
 import type { UILanguage } from '@/api/types'
 import { useUI } from '@/app/AppProvider'
 import { Icon } from '@/components/Icon'
-import { Button, IconButton, Progress } from '@/components/ui'
+import { Button, IconButton } from '@/components/ui'
 import type { TKey } from '@/i18n'
-import { AnimatePresence, m } from '@/components/motion'
+import { AnimatePresence, m, SceneMotion } from '@/components/motion'
 import { cn } from '@/lib/cn'
-import { fade, fadeIn, fadeUp, slide } from '@/lib/motion'
+import { fade, stepIn, stepItem } from '@/lib/motion'
 import { AssistantArt, DiaryArt, DoneArt, LessonArt, LibraryArt, PowerArt, SettingsArt, StudioArt, WelcomeArt } from './illustrations'
 import { AiStep } from './AiStep'
 import { useHotkeyLabel } from '@/features/hotkeys/useHotkey'
 import { isTyping } from '@/lib/keys'
 import { LogoMark } from '@/features/system/BootMark'
+import { useBootScreenUp } from '@/features/system/BootScreen'
 import { Bootstrap } from './Bootstrap'
 import { Intro } from './Intro'
 
@@ -41,9 +42,11 @@ const k = (id: StepId, part: 'title' | 'lead' | 'b1' | 'b2' | 'b3') => `onboardi
  *   first run  — mandatory: intro, language (both languages on screen), a check of this computer, the walkthrough;
  *                completion -> settings.json
  *   replay     — from Settings -> Interface: straight to the walkthrough in the current language, closable, flag untouched
+ * A scene, like the boot mark and focus mode: it moves even with the OS "reduce motion" (the user's decision).
  */
 export function Onboarding({ replay = false, onClose }: { replay?: boolean; onClose?: () => void }) {
   const { settings, patchSettings, toast } = useUI()
+  const bootUp = useBootScreenUp() // first run: the intro starts as the boot screen fades, not unseen under it
   const [phase, setPhase] = useState<'intro' | 'language' | 'boot' | 'walk'>(replay ? 'walk' : 'intro')
   const toLanguage = useCallback(() => setPhase((p) => (p === 'intro' ? 'language' : p)), [])
   const toWalk = useCallback(() => setPhase('walk'), [])
@@ -58,42 +61,45 @@ export function Onboarding({ replay = false, onClose }: { replay?: boolean; onCl
   }
 
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      {phase === 'intro' && <Intro key="intro" onDone={toLanguage} />}
-      {phase === 'language' && <LanguageScreen key="language" current={settings?.ui_language ?? 'ru'} onChoose={chooseLanguage} />}
-      {phase === 'boot' && <Bootstrap key="boot" onDone={toWalk} />}
-      {phase === 'walk' && <Walkthrough key="walk" onClose={replay ? onClose : undefined} />}
-    </AnimatePresence>
+    <SceneMotion>
+      <AnimatePresence mode="wait" initial={false}>
+        {phase === 'intro' && !bootUp && <Intro key="intro" onDone={toLanguage} />}
+        {phase === 'language' && <LanguageScreen key="language" current={settings?.ui_language ?? 'ru'} onChoose={chooseLanguage} />}
+        {phase === 'boot' && <Bootstrap key="boot" onDone={toWalk} />}
+        {phase === 'walk' && <Walkthrough key="walk" onClose={replay ? onClose : undefined} />}
+      </AnimatePresence>
+    </SceneMotion>
   )
 }
 
+/** Both languages on one screen (the interface has none yet): two large words, nothing else to read first. */
 function LanguageScreen({ current, onChoose }: { current: UILanguage; onChoose: (l: UILanguage) => void }) {
-  const options: Array<{ value: UILanguage; name: string; sample: string }> = [
-    { value: 'ru', name: 'Русский', sample: 'Интерфейс и обучение на русском' },
-    { value: 'en', name: 'English', sample: 'Interface and tutorial in English' },
+  const options: Array<{ value: UILanguage; name: string; sample: string; go: string }> = [
+    { value: 'ru', name: 'Русский', sample: 'Интерфейс и обучение на русском', go: 'Продолжить' },
+    { value: 'en', name: 'English', sample: 'Interface and tutorial in English', go: 'Continue' },
   ]
   return (
-    <m.div variants={fadeUp} initial="hidden" animate="show" exit="exit" className="fixed inset-0 z-[90] flex flex-col items-center justify-center gap-10 bg-bg px-6">
-      <div className="flex flex-col items-center gap-4 text-center">
-        <span className="flex size-12 items-center justify-center rounded-full border border-line-strong"><Icon as={Languages} size={20} /></span>
-        <h1 className="text-[22px] font-semibold tracking-[-0.02em]">Выберите язык · Choose your language</h1>
-        <p className="max-w-xl text-[13.5px] leading-relaxed text-muted">Язык интерфейса и обучения. Поменять можно в Настройки → Интерфейс.<br />Interface and tutorial language. Change it later in Settings → Interface.</p>
-      </div>
-      <div className="grid w-full max-w-xl gap-3 sm:grid-cols-2">
+    <m.div variants={stepIn} initial="hidden" animate="show" exit="exit" className="fixed inset-0 z-[90] flex flex-col items-center justify-center gap-14 bg-bg px-6">
+      <m.div variants={stepItem} className="flex flex-col items-center gap-2 text-center">
+        <h1 className="text-[15px] font-medium text-soft">Выберите язык · Choose your language</h1>
+        <p className="text-[12.5px] leading-relaxed text-dim">Поменять можно в Настройки → Интерфейс · Change it later in Settings → Interface</p>
+      </m.div>
+      <div className="grid w-full max-w-2xl gap-3 sm:grid-cols-2">
         {options.map((o) => (
-          <button
+          <m.button
             key={o.value}
+            variants={stepItem}
             type="button"
             autoFocus={o.value === current}
             onClick={() => onChoose(o.value)}
-            className="group flex flex-col items-start gap-2 rounded-2xl border border-line-strong bg-surface p-6 text-left transition-colors hover:border-fg focus:border-fg focus:outline-none"
+            className="group flex flex-col items-start gap-2 rounded-3xl p-8 text-left transition-colors duration-200 hover:bg-surface focus-visible:bg-surface focus-visible:outline-none"
           >
-            <span className="text-[20px] font-semibold text-fg">{o.name}</span>
-            <span className="text-[13px] text-muted">{o.sample}</span>
-            <span className="mt-3 flex items-center gap-1.5 text-[12.5px] text-soft group-hover:text-fg">
-              {o.value === 'ru' ? 'Продолжить' : 'Continue'} <Icon as={ArrowRight} size={14} />
+            <span className="text-[40px] leading-none font-semibold tracking-[-0.035em] text-fg">{o.name}</span>
+            <span className="text-[13.5px] text-muted">{o.sample}</span>
+            <span className="mt-6 flex items-center gap-1.5 text-[13px] text-dim transition-colors duration-200 group-hover:text-fg group-focus-visible:text-fg">
+              {o.go} <Icon as={ArrowRight} size={14} />
             </span>
-          </button>
+          </m.button>
         ))}
       </div>
     </m.div>
@@ -145,80 +151,73 @@ function Walkthrough({ onClose }: { onClose?: () => void }) {
   }, [next, back, onClose])
 
   return (
-    <m.div variants={fade} initial="hidden" animate="show" exit="exit" className="fixed inset-0 z-[90] flex bg-bg">
-      <aside className="hidden w-72 shrink-0 flex-col border-r border-line px-5 py-7 md:flex">
-        <div className="mb-8 flex items-center gap-2.5 px-2">
-          <LogoMark className="size-5" />
-          <span className="text-[14px] font-semibold">{t('onboarding.title')}</span>
+    <m.div variants={fade} initial="hidden" animate="show" exit="exit" className="fixed inset-0 z-[90] flex flex-col bg-bg">
+      <header className={cn(COLUMN, 'flex h-20 shrink-0 items-center justify-between')}>
+        <LogoMark className="size-5" />
+        {onClose && <IconButton icon={X} size="sm" label={t('common.close')} onClick={onClose} className="-mr-2" />}
+      </header>
+
+      <div className="scroll-area flex flex-1 flex-col overflow-x-clip">
+        <div className={cn(COLUMN, 'flex flex-1 items-center py-10')}>
+          <AnimatePresence mode="wait" custom={direction}>
+            <m.div
+              key={step.id}
+              custom={direction}
+              variants={stepIn}
+              initial="hidden"
+              animate="show"
+              exit="exit"
+              data-step={step.id}
+              className="grid w-full items-center gap-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
+            >
+              <div className="max-w-md">
+                <m.h1 variants={stepItem} className="text-[44px] leading-[1.05] font-semibold tracking-[-0.035em] text-fg">{t(k(step.id, 'title'))}</m.h1>
+                <m.p variants={stepItem} className="mt-5 text-[17px] leading-relaxed text-soft">{t(k(step.id, 'lead'))}</m.p>
+                <ul className="mt-10 flex flex-col gap-3">
+                  {(['b1', 'b2', 'b3'] as const).map((b) => (
+                    <m.li key={b} variants={stepItem} className="flex gap-3 text-[13.5px] leading-snug text-muted">
+                      <span aria-hidden className="mt-[7px] size-1 shrink-0 rounded-full bg-dim" />
+                      {t(k(step.id, b), keys)}
+                    </m.li>
+                  ))}
+                </ul>
+              </div>
+              <m.div variants={stepItem} className="w-full lg:justify-self-end">
+                <Art onNext={next} />
+              </m.div>
+            </m.div>
+          </AnimatePresence>
         </div>
-        <ol className="flex flex-col gap-0.5">
+      </div>
+
+      <footer className={cn(COLUMN, 'flex h-24 shrink-0 items-center justify-between gap-4')}>
+        <Button variant="ghost" icon={ArrowLeft} disabled={index === 0} onClick={back} className={cn(index === 0 && 'invisible')}>{t('onboarding.back')}</Button>
+        {/* where you are: one dot per step, the current one bright; each jumps to its step */}
+        <ol className="flex items-center" aria-label={t('onboarding.title')}>
           {STEPS.map((s, i) => (
             <li key={s.id}>
               <button
                 type="button"
                 onClick={() => setIndex(i)}
-                className={cn('flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-[13px] transition-colors duration-200', i === index ? 'bg-raised text-fg' : i < index ? 'text-soft hover:bg-surface' : 'text-dim hover:bg-surface hover:text-muted')}
+                aria-label={t(k(s.id, 'title'))}
+                aria-current={i === index ? 'step' : undefined}
+                title={t(k(s.id, 'title'))}
+                className="group flex size-6 items-center justify-center focus-visible:outline-none"
               >
-                <span className={cn('flex size-5 shrink-0 items-center justify-center rounded-full border font-mono text-[10px]', i < index ? 'border-fg bg-fg text-bg' : i === index ? 'border-fg text-fg' : 'border-line-strong')}>
-                  {i < index ? <Icon as={Check} size={11} strokeWidth={2.4} /> : i + 1}
-                </span>
-                <span className="truncate">{t(k(s.id, 'title'))}</span>
+                <span
+                  className={cn(
+                    'size-1.5 rounded-full transition-[background-color,scale] duration-300',
+                    i === index ? 'scale-125 bg-fg' : i < index ? 'bg-muted group-hover:bg-soft' : 'bg-line-strong group-hover:bg-muted group-focus-visible:bg-muted',
+                  )}
+                />
               </button>
             </li>
           ))}
         </ol>
-      </aside>
-
-      <main className="flex min-w-0 flex-1 flex-col">
-        {/* One column width for header, step and footer: edges line up on every step. */}
-        <div className={cn(COLUMN, 'flex items-center gap-4 pt-7')}>
-          <Progress value={((index + 1) / STEPS.length) * 100} className="flex-1" />
-          <span className="font-mono text-[12px] text-muted tabular-nums">{t('onboarding.step', { n: index + 1, total: STEPS.length })}</span>
-          {onClose && <IconButton icon={X} size="sm" label={t('common.close')} onClick={onClose} className="-mr-2" />}
-        </div>
-
-        <div className="scroll-area flex flex-1 flex-col overflow-x-clip">
-          <div className={cn(COLUMN, 'flex flex-1 items-center py-10')}>
-            <AnimatePresence mode="wait" custom={direction} initial={false}>
-              <m.div
-                key={step.id}
-                custom={direction}
-                variants={slide}
-                initial="hidden"
-                animate="show"
-                exit="exit"
-                className="grid w-full items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
-              >
-                <m.section variants={fadeIn} initial="hidden" animate="show" custom={0.04} className="max-w-md">
-                  <h1 className="text-[32px] leading-[1.15] font-semibold tracking-[-0.025em] text-fg">{t(k(step.id, 'title'))}</h1>
-                  <p className="mt-4 text-[15px] leading-relaxed text-soft">{t(k(step.id, 'lead'))}</p>
-                  <ul className="mt-7 flex flex-col gap-3.5">
-                    {(['b1', 'b2', 'b3'] as const).map((b, i) => (
-                      <m.li key={b} variants={fadeIn} initial="hidden" animate="show" custom={0.14 + i * 0.07} className="flex gap-3 text-[14px] leading-snug text-soft">
-                        <span className="mt-[2px] flex size-[18px] shrink-0 items-center justify-center rounded-full border border-line-strong"><Icon as={Check} size={10} /></span>
-                        {t(k(step.id, b), keys)}
-                      </m.li>
-                    ))}
-                  </ul>
-                </m.section>
-                <m.div variants={fadeIn} initial="hidden" animate="show" custom={0.1} className="w-full lg:justify-self-end">
-                  <Art onNext={next} />
-                </m.div>
-              </m.div>
-            </AnimatePresence>
-          </div>
-        </div>
-
-        <footer className="border-t border-line">
-          <div className={cn(COLUMN, 'flex items-center justify-between gap-4 py-4')}>
-            <Button variant="ghost" icon={ArrowLeft} disabled={index === 0} onClick={back}>{t('onboarding.back')}</Button>
-            <span className="hidden text-[12px] text-dim sm:block">{t('onboarding.keysHint')}</span>
-            <Button variant="primary" iconRight={last ? Check : ArrowRight} loading={finishing} onClick={next} className="min-w-36">
-              {last ? (onClose ? t('common.close') : t('onboarding.finish')) : t('onboarding.next')}
-            </Button>
-          </div>
-        </footer>
-      </main>
+        <Button variant="primary" iconRight={last ? Check : ArrowRight} loading={finishing} onClick={next} className="min-w-36">
+          {last ? (onClose ? t('common.close') : t('onboarding.finish')) : t('onboarding.next')}
+        </Button>
+      </footer>
     </m.div>
   )
 }

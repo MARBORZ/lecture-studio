@@ -712,8 +712,6 @@ export const ru = {
   'onboarding.next': 'Далее',
   'onboarding.back': 'Назад',
   'onboarding.finish': 'Начать работу',
-  'onboarding.step': 'Шаг {n} из {total}',
-  'onboarding.keysHint': '←/→ — листать, Enter — далее',
   'onboarding.boot.title': 'Подготовка',
   'onboarding.boot.lead': 'Проверяем, что этот компьютер готов к работе. Ничего не нужно делать — просто посмотрите.',
   'onboarding.boot.server': 'Сервер',

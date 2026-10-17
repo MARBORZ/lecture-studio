@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useUI } from '@/app/AppProvider'
 import { AnimatePresence, m } from '@/components/motion'
 import { bootAnimationCached } from '@/lib/appearance'
@@ -8,6 +8,24 @@ import { LOOP_SEC } from './markGeometry'
 
 // counted from the page start: at least one full loop of the mark, however fast the load (boot animation on)
 const MIN_MS = LOOP_SEC * 1000
+
+// Up until it starts to fade, once per page: what plays under it (the first-run intro) waits, or nobody would see it.
+let up = true
+const listeners = new Set<() => void>()
+const subscribe = (fn: () => void) => {
+  listeners.add(fn)
+  return () => void listeners.delete(fn)
+}
+function leave() {
+  if (!up) return
+  up = false
+  listeners.forEach((fn) => fn())
+}
+
+/** True while the boot screen covers the app; false from the moment it starts to fade. */
+export function useBootScreenUp(): boolean {
+  return useSyncExternalStore(subscribe, () => up)
+}
 
 /**
  * Every app start and page reload: the animated mark until the server answered and the library is loaded, then a fade.
@@ -20,6 +38,7 @@ export function BootScreen({ ready }: { ready: boolean }) {
   const [animated] = useState(bootAnimationCached)
   const [minDone, setMinDone] = useState(!animated)
   const wait = animated && (settings?.boot_animation ?? true) // switched off elsewhere: the loaded settings win
+  const shown = !(ready && (minDone || !wait))
 
   useEffect(() => {
     document.getElementById('boot')?.remove()
@@ -28,9 +47,13 @@ export function BootScreen({ ready }: { ready: boolean }) {
     return () => clearTimeout(done)
   }, [animated])
 
+  useEffect(() => {
+    if (!shown) leave()
+  }, [shown])
+
   return (
     <AnimatePresence>
-      {!(ready && (minDone || !wait)) && (
+      {shown && (
         <m.div
           key="boot"
           exit={{ opacity: 0 }}
