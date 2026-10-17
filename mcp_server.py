@@ -50,14 +50,24 @@ def lecture_list_lessons(project_id: str | None = None, status: str | None = Non
     return [l.model_dump() for l in Library.list_lessons(project_id, status, search)]
 
 
+# The same transcript in other forms: each about as large as clean_timestamps_text, all five together ~6x
+# (a 20-minute lesson came to 129k characters, past what an agent takes in one tool result).
+Extra = Literal["segments", "orig_timestamps_text", "srt_text", "plain_text", "time_map"]
+EXTRAS: tuple[Extra, ...] = ("segments", "orig_timestamps_text", "srt_text", "plain_text", "time_map")
+
+
 @mcp.tool()
-def lecture_get_lesson_material(lesson_id: str) -> dict[str, Any]:
+def lecture_get_lesson_material(lesson_id: str, include: list[Extra] | None = None) -> dict[str, Any]:
     """
-    Full lesson package: lesson_audit_md, segments (clean+orig times), clean_timestamps_text ([MM:SS] lines),
+    Lesson package: metadata, lesson_audit_md and the transcript as clean_timestamps_text ([MM:SS] lines, clean
+    timeline) — enough to read, quote and audit a lesson. The other forms of the same transcript are several times
+    larger, so they come only when asked for in `include`: segments (clean+orig times per phrase),
     orig_timestamps_text, srt_text (clean SRT), plain_text, time_map.
     """
     lesson = Library.get_lesson_full(lesson_id)
-    return lesson.model_dump() if lesson else _not_found(lesson_id)
+    if not lesson:
+        return _not_found(lesson_id)
+    return lesson.model_dump(exclude=set(EXTRAS) - set(include or []))
 
 
 def _track(lesson_id: str, kind: str, key: str) -> dict[str, Any]:

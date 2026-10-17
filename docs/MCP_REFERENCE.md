@@ -8,7 +8,7 @@ All timecodes are on the clean timeline (they match clean_video.mp4 and clean_sp
 |---|---|---|
 | `lecture_list_projects()` | read | notebooks with lesson counts; `proj_inbox` is named "Inbox" unless the user renamed it |
 | `lecture_list_lessons(project_id?, status?, search?)` | read | lessons; status: in_progress / to_review / completed |
-| `lecture_get_lesson_material(lesson_id)` | read | audit, `segments`, `clean_timestamps_text`, `orig_timestamps_text`, `srt_text` (clean), `plain_text`, `time_map` |
+| `lecture_get_lesson_material(lesson_id, include?)` | read | metadata, audit, `clean_timestamps_text`; on request (`include`): `segments`, `orig_timestamps_text`, `srt_text` (clean), `plain_text`, `time_map` |
 | `lecture_get_clean_audio_track(lesson_id)` | read | absolute path to clean_speech.mp3 + durations |
 | `lecture_get_clean_video_track(lesson_id)` | read | absolute path to clean_video.mp4 + durations |
 | `lecture_search_transcripts(query, project_id?)` | read | matches as `[MM:SS] text` lines |
